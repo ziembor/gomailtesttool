@@ -24,7 +24,7 @@ import (
 	"golang.org/x/crypto/pkcs12"
 )
 
-const version = "1.12.4"
+const version = "1.12.5"
 
 var csvWriter *csv.Writer
 var csvFile *os.File
