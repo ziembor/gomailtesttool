@@ -5,6 +5,111 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.7] - 2026-01-03
+
+### Changed
+- Version bump to 1.12.7
+
+### Documentation
+- Added comprehensive Release Process section to CLAUDE.md
+- Added complete Release Process section to BUILD.md
+  - Step-by-step instructions for creating releases
+  - GitHub Actions workflow explanation
+  - Troubleshooting guide for release issues
+- Updated all build commands in BUILD.md for src/ subdirectory structure
+- Enhanced automated build script to display version from VERSION file
+
+## [1.12.6] - 2026-01-03
+
+### Fixed
+- **CRITICAL:** Fixed `log.Fatalf` preventing deferred cleanup causing potential CSV data loss
+  - Refactored `main()` to use `run()` pattern that properly executes deferred functions
+  - Replaced all `log.Fatalf` calls with proper error returns
+  - `listEvents()` and `listInbox()` now return errors instead of calling `log.Fatalf`
+  - CSV log file now always properly closed and flushed on exit
+  - Fixes resource leak and data loss issues identified in code review
+
+### Security
+- **CRITICAL:** Added thumbprint validation to prevent potential security vulnerabilities
+  - Thumbprint now validated to be exactly 40 hexadecimal characters (SHA1 hash)
+  - Added `isHexString()` helper function to validate hex-only characters
+  - Validation occurs before certificate store operations
+  - Clear error messages for invalid thumbprint format
+
+### Changed
+- Version bump to 1.12.6
+- Replaced magic strings with constants throughout codebase
+  - Added `ActionGetEvents`, `ActionSendMail`, `ActionSendInvite`, `ActionGetInbox` constants
+  - Added `StatusSuccess` and `StatusError` constants
+  - Improved code maintainability and reduced risk of typos
+  - All action names and status strings now use defined constants
+
+## [1.12.5] - 2026-01-03
+
+### Changed
+- Version bump to 1.12.5
+
+## [1.12.4] - 2026-01-03
+
+### Added
+- `-verbose` flag for detailed diagnostic output
+  - Shows all MSGRAPH* environment variables and their values (sensitive data masked)
+  - Displays final configuration after environment variable processing
+  - Shows authentication method and details
+  - Displays JWT token information (expiration, validity period, truncated token)
+  - Traces all Graph API calls with endpoints and parameters
+  - Shows API response metadata
+- Environment variable display in verbose mode shows which variables are active
+- Created `VERSION` file at project root to track current version (single source of truth)
+- Created `.claude/version-management.md` guide for version update procedures
+
+### Changed
+- **BREAKING**: Renamed environment variable `MSGRAPHTENANT` to `MSGRAPHTENANTID` for consistency
+- Project structure reorganized: all Go source files moved to `src/` subdirectory
+  - `msgraphgolangtestingtool.go` → `src/msgraphgolangtestingtool.go`
+  - `cert_windows.go` → `src/cert_windows.go`
+  - `cert_stub.go` → `src/cert_stub.go`
+  - `go.mod` and `go.sum` → `src/`
+- Build commands updated to use `go build -C src -o msgraphgolangtestingtool.exe`
+- GitHub Actions workflow updated to build from `src/` directory
+- Enhanced GitHub Actions workflow with:
+  - Build verification step
+  - Automatic release notes generation
+  - Explicit permissions for release creation
+
+### Security
+- Verbose mode automatically masks sensitive environment variables:
+  - `MSGRAPHSECRET` - Shows first 4 and last 4 characters only
+  - `MSGRAPHPFXPASS` - Fully masked
+  - JWT tokens truncated to first/last 20 characters
+
+### Documentation
+- Updated all documentation to reflect `MSGRAPHTENANTID` instead of `MSGRAPHTENANT`
+- Added verbose mode documentation to CLAUDE.md and README.md
+- Updated build instructions for new `src/` subdirectory structure
+- Added version management guidelines for future AI assistants
+
+### Migration Guide
+Update environment variable name:
+```powershell
+# Old (v1.12.0-1.12.3)
+$env:MSGRAPHTENANT = "your-tenant-id"
+
+# New (v1.12.4+)
+$env:MSGRAPHTENANTID = "your-tenant-id"
+```
+
+Build command changes:
+```powershell
+# Old
+go build -o msgraphgolangtestingtool.exe
+
+# New
+go build -C src -o msgraphgolangtestingtool.exe
+# OR
+cd src && go build -o ../msgraphgolangtestingtool.exe
+```
+
 ## [1.12.0] - 2026-01-03
 
 ### Added
