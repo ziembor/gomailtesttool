@@ -340,4 +340,110 @@ All executions require:
 
 Plus one authentication method (`-secret`, `-pfx`, or `-thumbprint`).
 
+## Release Process
+
+When you're ready to submit changes to the main branch and create a new release:
+
+### Step 1: Verify All Version Files Match
+```powershell
+# Check that all version references are consistent
+cat VERSION
+grep "const version" src/msgraphgolangtestingtool.go
+head -20 CHANGELOG.md
+```
+
+### Step 2: Check Current Status
+```powershell
+git status
+```
+
+### Step 3: Stage All Changes
+```powershell
+git add .
+```
+
+### Step 4: Commit Changes
+```powershell
+git commit -m "$(cat <<'EOF'
+Release vX.X.X - Brief description
+
+### Fixed
+- Critical/important fixes
+
+### Security
+- Security improvements
+
+### Changed
+- Feature changes and improvements
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+### Step 5: Push Current Branch to Remote
+```powershell
+git push origin <current-branch-name>
+```
+
+### Step 6: Merge to Main
+
+**Option A: Direct merge (if you have permissions)**
+```powershell
+git checkout main
+git merge <current-branch-name>
+git push origin main
+```
+
+**Option B: Create Pull Request**
+```powershell
+gh pr create --title "Release vX.X.X" --body "$(cat <<'EOF'
+## Summary
+Brief description of changes
+
+## Changes
+- Critical fixes
+- Security improvements
+- Feature changes
+
+## Test plan
+- [x] Code builds successfully
+- [x] All tests pass
+- [x] Documentation updated
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
+```
+
+### Step 7: Create and Push Git Tag (This triggers GitHub Actions!)
+```powershell
+# Create tag matching the VERSION file
+git tag v1.X.Y
+git push origin v1.X.Y
+```
+
+**IMPORTANT:** Pushing the tag triggers `.github/workflows/build.yml` which will:
+- Build the Windows executable
+- Create a GitHub Release
+- Attach the compiled binary to the release
+- Generate release notes automatically
+
+### Step 8: Verify GitHub Actions Workflow
+```powershell
+# List recent workflow runs
+gh run list --limit 5
+
+# Watch the current run
+gh run watch
+```
+
+### Key Points
+- **Tag triggers build**: The GitHub Actions workflow is triggered by pushing a tag matching `v*` pattern
+- **Version consistency**: VERSION file, source code constant (const version), CHANGELOG.md, and git tag must all match
+- **Workflow permissions**: The workflow has `contents: write` permission to create releases
+- **Automatic release**: The build artifact will be automatically attached to the GitHub release
+
 ..ooOO End OOoo..

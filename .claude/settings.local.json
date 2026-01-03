@@ -4,7 +4,9 @@
       "Bash(go mod graph:*)",
       "Bash(mkdir:*)",
       "Bash(go build:*)",
-      "Bash(./msgraphgolangtestingtool.exe:*)"
+      "Bash(./msgraphgolangtestingtool.exe:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)"
     ]
   }
 }
