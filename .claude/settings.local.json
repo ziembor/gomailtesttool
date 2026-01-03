@@ -6,7 +6,8 @@
       "Bash(go build:*)",
       "Bash(./msgraphgolangtestingtool.exe:*)",
       "Bash(ls:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash($env:MSGRAPHCOUNT=\"7\")"
     ]
   }
 }

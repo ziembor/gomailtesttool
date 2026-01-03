@@ -5,10 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-01-03
+
+### Added
+- **New PowerShell script `ghabuild.ps1`** - GitHub Actions Build Preparation Script
+  - Verifies current branch name matches VERSION file (format: `b{VERSION}`)
+  - Prompts for commit message and commits all changes
+  - Merges current branch to main
+  - Creates git tag with `v{VERSION}` format
+  - Pushes tag to GitHub to trigger GitHub Actions workflow
+  - Includes multiple confirmation prompts for safety
+  - Comprehensive error handling at each step
+- **New `tests` directory** for test scripts
+  - Added `tests/README.md` with testing guidelines
+  - Added `tests/Test-SendMail.ps1` - Pester test for sendmail action
+  - Sources environment variables from secure location
+  - Tests sendmail action with verbose output
+  - Validates CSV log creation
+
+### Changed
+- Version bump to 1.14.0
+
 ## [1.12.7] - 2026-01-03
+
+### Added
+- **New `-count` flag** for `getevents` and `getinbox` actions
+  - Allows specifying number of items to retrieve
+  - Default value changed from 10 to 3
+  - Supports environment variable `MSGRAPHCOUNT`
+  - Command-line flag takes precedence over environment variable
+  - Example: `-count 10` retrieves 10 events/messages
 
 ### Changed
 - Version bump to 1.12.7
+- Default item count for `getevents` and `getinbox` reduced from 10 to 3
+- Updated `listEvents()` function to accept count parameter and use $top query
+- Updated `listInbox()` function to accept count parameter
+- Total environment variable count increased from 17 to 18 parameters
 
 ### Documentation
 - Added comprehensive Release Process section to CLAUDE.md
@@ -18,6 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Troubleshooting guide for release issues
 - Updated all build commands in BUILD.md for src/ subdirectory structure
 - Enhanced automated build script to display version from VERSION file
+- Added `-count` flag documentation to CLAUDE.md and README.md
+- Added examples showing count parameter usage
+- Updated environment variable mapping to include `MSGRAPHCOUNT`
 
 ## [1.12.6] - 2026-01-03
 

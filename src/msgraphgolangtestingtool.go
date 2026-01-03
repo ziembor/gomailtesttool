@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,7 +25,7 @@ import (
 	"golang.org/x/crypto/pkcs12"
 )
 
-const version = "1.12.7"
+const version = "1.14.0"
 
 // Action constants
 const (
@@ -133,6 +134,9 @@ func run() error {
 	// Verbose mode
 	verbose := flag.Bool("verbose", false, "Enable verbose output (shows configuration, tokens, API details)")
 
+	// Count for getevents and getinbox
+	count := flag.Int("count", 3, "Number of items to retrieve for getevents and getinbox actions (default: 3)")
+
 	action := flag.String("action", "getevents", "Action to perform: getevents, sendmail, sendinvite, getinbox")
 	flag.Parse()
 
@@ -165,6 +169,21 @@ func run() error {
 		"MSGRAPHACTION":        action,
 		"MSGRAPHPROXY":         proxyURL,
 	})
+
+	// Apply MSGRAPHCOUNT environment variable if flag wasn't provided
+	countFlagProvided := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "count" {
+			countFlagProvided = true
+		}
+	})
+	if !countFlagProvided {
+		if envCount := os.Getenv("MSGRAPHCOUNT"); envCount != "" {
+			if parsedCount, err := strconv.Atoi(envCount); err == nil && parsedCount > 0 {
+				*count = parsedCount
+			}
+		}
+	}
 
 	// Print verbose configuration if enabled
 	if verboseMode {
@@ -225,7 +244,7 @@ func run() error {
 	// 3. Execute Actions based on flags
 	switch *action {
 	case ActionGetEvents:
-		if err := listEvents(ctx, client, *mailbox); err != nil {
+		if err := listEvents(ctx, client, *mailbox, *count); err != nil {
 			return fmt.Errorf("failed to list events: %w", err)
 		}
 	case ActionSendMail:
@@ -242,7 +261,7 @@ func run() error {
 	case ActionSendInvite:
 		createInvite(ctx, client, *mailbox, *inviteSubject, *startTime, *endTime)
 	case ActionGetInbox:
-		if err := listInbox(ctx, client, *mailbox); err != nil {
+		if err := listInbox(ctx, client, *mailbox, *count); err != nil {
 			return fmt.Errorf("failed to list inbox: %w", err)
 		}
 	default:
@@ -333,9 +352,16 @@ func createCertCredential(tenantID, clientID string, pfxData []byte, password st
 
 // ... Rest of the functions (listEvents, sendEmail, createInvite) ...
 
-func listEvents(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string) error {
-	logVerbose("Calling Graph API: GET /users/%s/events", mailbox)
-	result, err := client.Users().ByUserId(mailbox).Events().Get(ctx, nil)
+func listEvents(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, count int) error {
+	// Configure request to get top N events
+	requestConfig := &users.ItemEventsRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemEventsRequestBuilderGetQueryParameters{
+			Top: Int32Ptr(int32(count)),
+		},
+	}
+
+	logVerbose("Calling Graph API: GET /users/%s/events?$top=%d", mailbox, count)
+	result, err := client.Users().ByUserId(mailbox).Events().Get(ctx, requestConfig)
 	if err != nil {
 		var oDataError *odataerrors.ODataError
 		if errors.As(err, &oDataError) {
@@ -517,17 +543,17 @@ func createInvite(ctx context.Context, client *msgraphsdk.GraphServiceClient, ma
 	writeCSVRow([]string{ActionSendInvite, status, mailbox, subject, startTime.Format(time.RFC3339), endTime.Format(time.RFC3339), eventID})
 }
 
-func listInbox(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string) error {
-	// Configure request to get top 10 messages ordered by received date
+func listInbox(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, count int) error {
+	// Configure request to get top N messages ordered by received date
 	requestConfig := &users.ItemMessagesRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMessagesRequestBuilderGetQueryParameters{
-			Top:     Int32Ptr(10),
+			Top:     Int32Ptr(int32(count)),
 			Orderby: []string{"receivedDateTime DESC"},
 			Select:  []string{"subject", "receivedDateTime", "from", "toRecipients"},
 		},
 	}
 
-	logVerbose("Calling Graph API: GET /users/%s/messages?$top=10&$orderby=receivedDateTime DESC", mailbox)
+	logVerbose("Calling Graph API: GET /users/%s/messages?$top=%d&$orderby=receivedDateTime DESC", mailbox, count)
 	result, err := client.Users().ByUserId(mailbox).Messages().Get(ctx, requestConfig)
 	if err != nil {
 		return fmt.Errorf("error fetching inbox for %s: %w", mailbox, err)
@@ -537,7 +563,7 @@ func listInbox(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailb
 	messageCount := len(messages)
 
 	logVerbose("API response received: %d messages", messageCount)
-	fmt.Printf("Newest 10 messages in inbox for %s:\n\n", mailbox)
+	fmt.Printf("Newest %d messages in inbox for %s:\n\n", count, mailbox)
 
 	if messageCount == 0 {
 		fmt.Println("No messages found.")

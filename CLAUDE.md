@@ -71,6 +71,8 @@ The project follows Semantic Versioning, but the **major version is locked at 1*
 | `-invite-subject` | Subject of the calendar invite. | No (default: "System Sync") |
 | `-start` | Start time (RFC3339, e.g., 2026-01-15T14:00:00Z). | No (default: Now) |
 | `-end` | End time (RFC3339). | No (default: 1h after start) |
+| **Query Options** | (Used with `-action getevents` or `-action getinbox`) | |
+| `-count` | Number of items to retrieve. | No (default: 3) |
 | **Network** | | |
 | `-proxy` | HTTP/HTTPS proxy URL (e.g., http://proxy.example.com:8080). | No |
 | **Other** | | |
@@ -102,7 +104,7 @@ This is useful for:
 ### Environment Variables
 
 All flags can be set via environment variables (Command Line flags take precedence).
-Prefix: `MSGRAPH` (e.g., `MSGRAPHTENANTID`, `MSGRAPHCLIENTID`, `MSGRAPHPROXY`).
+Prefix: `MSGRAPH` (e.g., `MSGRAPHTENANTID`, `MSGRAPHCLIENTID`, `MSGRAPHPROXY`, `MSGRAPHCOUNT`).
 
 ### Examples
 
@@ -142,17 +144,46 @@ No need to manage PFX files. The tool extracts the public/private key pair direc
                  -to "boss@example.com" -cc "team@example.com"
 ```
 
-#### 4. List Newest 10 Inbox Messages
+#### 4. List Newest Inbox Messages (with custom count)
 
 ```powershell
+# List newest 3 messages (default)
 .\msgraphgolangtestingtool.exe -tenantid "1111-2222-3333" `
                  -clientid "aaaa-bbbb-cccc" `
                  -secret "MySecretValue" `
                  -mailbox "user@example.com" `
                  -action getinbox
+
+# List newest 10 messages (custom count)
+.\msgraphgolangtestingtool.exe -tenantid "1111-2222-3333" `
+                 -clientid "aaaa-bbbb-cccc" `
+                 -secret "MySecretValue" `
+                 -mailbox "user@example.com" `
+                 -action getinbox `
+                 -count 10
 ```
 
-#### 5. Use Proxy (Flag or Env Var)
+#### 5. List Calendar Events (with custom count)
+
+```powershell
+# List 5 upcoming events
+.\msgraphgolangtestingtool.exe -tenantid "1111-2222-3333" `
+                 -clientid "aaaa-bbbb-cccc" `
+                 -secret "MySecretValue" `
+                 -mailbox "user@example.com" `
+                 -action getevents `
+                 -count 5
+
+# Using environment variable for count
+$env:MSGRAPHCOUNT = "10"
+.\msgraphgolangtestingtool.exe -tenantid "1111-2222-3333" `
+                 -clientid "aaaa-bbbb-cccc" `
+                 -secret "MySecretValue" `
+                 -mailbox "user@example.com" `
+                 -action getevents
+```
+
+#### 6. Use Proxy (Flag or Env Var)
 
 ```powershell
 # Using flag
@@ -237,9 +268,9 @@ The tool supports configuration via environment variables with the `MSGRAPH` pre
 * All command-line flags have corresponding environment variables
 * Command-line flags **take precedence** over environment variables
 * Environment variables are only used if the corresponding flag is not provided
-* Mapping: `-tenantid` → `MSGRAPHTENANTID`, `-clientid` → `MSGRAPHCLIENTID`, `-mailbox` → `MSGRAPHMAILBOX`, `-proxy` → `MSGRAPHPROXY`, etc.
+* Mapping: `-tenantid` → `MSGRAPHTENANTID`, `-clientid` → `MSGRAPHCLIENTID`, `-mailbox` → `MSGRAPHMAILBOX`, `-proxy` → `MSGRAPHPROXY`, `-count` → `MSGRAPHCOUNT`, etc.
 * Useful for CI/CD pipelines, containerized environments, and reducing repetitive typing
-* All 17 configuration parameters support environment variables (see CHANGELOG for complete list)
+* All 18 configuration parameters support environment variables (see CHANGELOG for complete list)
 
 ### Proxy Support
 
