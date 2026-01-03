@@ -1,41 +1,44 @@
 # Portable Microsoft Graph GoLang CLI Tool
 
 ## Overview
+
 This is a lightweight, portable command-line interface (CLI) tool written in **Go (Golang)** designed for Windows (but cross-compatible). It allows interactions with the **Microsoft Graph API** to manage emails and calendar events on Exchange Online (EXO) mailboxes.
 
-The tool is designed for **minimal external dependencies**—it compiles into a single static binary (`.exe`) that does not require installing runtimes or libraries on the target machine.
+The tool is designed for **minimal external dependencies** — it compiles into a single static binary (`.exe`) that does not require installing runtimes or libraries on the target machine.
 
 ## Features
 
 * **Authentication Modes:**
-   * **Client Secret:** Standard App Registration secret.
-   * **Certificate (PFX):** Secure, password-protected PFX file support.
-   * **Windows Certificate Store:** Use certificates directly from the Current User's Personal ("My") store via Thumbprint (requires no physical file management).
-* **Graph Operations:**
-   * **Send Mail:** Send Text emails via the Graph API with support for:
-     * Custom Subject and Body.
-     * Multiple To, CC, and BCC recipients.
-     * Defaults to sending to self if no recipient is provided.
-   * **List Events:** Retrieve upcoming calendar events for a specific user.
-   * **Create Invite:** Create and send calendar meeting invitations.
-   * **List Inbox:** Retrieve the newest 10 messages from inbox with sender, recipients, subject, and received date.
-* **Network:**
-   * **Proxy Support:** Route traffic through HTTP/HTTPS proxies via flag or environment variable.
+  * **Client Secret:** Standard App Registration secret.
+  * **Certificate (PFX):** Secure, password-protected PFX file support.
+  * **Windows Certificate Store:** Use certificates directly from the Current User's Personal ("My") store via Thumbprint (requires no physical file management).
+ **Graph Operations:**
+  * **Send Mail:** Send Text emails via the Graph API with support for:
+    * Custom Subject and Body.
+    * Multiple To, CC, and BCC recipients.
+    * Defaults to sending to self if no recipient is provided.
+  * **List Events:** Retrieve upcoming calendar events for a specific user.
+  * **Create Invite:** Create and send calendar meeting invitations.
+  * **List Inbox:** Retrieve the newest 10 messages from inbox with sender, recipients, subject, and received date.
+ **Network:**
+  * **Proxy Support:** Route traffic through HTTP/HTTPS proxies via flag or environment variable.
 * **CSV Logging:**
-   * All operations are automatically logged to `%TEMP%\_msgraphgolangtestingtool_{date}.csv`
-   * Includes timestamps and action-specific details
-   * Output shown on screen and written to CSV simultaneously
+  * All operations are automatically logged to `%TEMP%\_msgraphgolangtestingtool_{date}.csv`
+  * Includes timestamps and action-specific details
+  * Output shown on screen and written to CSV simultaneously
 
 ## Versioning
+
 The project follows Semantic Versioning, but the **major version is locked at 1** and cannot be upgraded. All breaking changes or major features will be released as minor version increments within the 1.x.y branch.
 
 ## Prerequisites
+
 * **Microsoft Entra ID (Azure AD):** App Registration.
 * **Permissions (Application Type):**
-   * `Mail.Send`
-   * `Mail.Read`
-   * `Calendars.ReadWrite`
-   * *Grant Admin Consent* must be applied.
+  * `Mail.Send`
+  * `Mail.Read`
+  * `Calendars.ReadWrite`
+  * *Grant Admin Consent* must be applied.
 
 ## Usage
 
@@ -68,12 +71,14 @@ The project follows Semantic Versioning, but the **major version is locked at 1*
 | `-version` | Show version information. | No |
 
 ### Environment Variables
+
 All flags can be set via environment variables (Command Line flags take precedence).
 Prefix: `MSGRAPH` (e.g., `MSGRAPHTENANT`, `MSGRAPHCLIENTID`, `MSGRAPHPROXY`).
 
 ### Examples
 
 #### 1. List Calendar Events (Client Secret)
+
 ```powershell
 .\msgraphgolangtestingtool.exe -tenantid "1111-2222-3333" `
                  -clientid "aaaa-bbbb-cccc" `
@@ -83,6 +88,7 @@ Prefix: `MSGRAPH` (e.g., `MSGRAPHTENANT`, `MSGRAPHCLIENTID`, `MSGRAPHPROXY`).
 ```
 
 #### 2. Send Email using Local Certificate File (PFX)
+
 ```powershell
 .\msgraphgolangtestingtool.exe -tenantid "1111-2222-3333" `
                  -clientid "aaaa-bbbb-cccc" `
@@ -95,6 +101,7 @@ Prefix: `MSGRAPH` (e.g., `MSGRAPHTENANT`, `MSGRAPHCLIENTID`, `MSGRAPHPROXY`).
 ```
 
 #### 3. Send Email using Windows Certificate Store
+
 No need to manage PFX files. The tool extracts the public/private key pair directly from the user's certificate store into memory using the Thumbprint and native Windows APIs.
 
 ```powershell
@@ -107,6 +114,7 @@ No need to manage PFX files. The tool extracts the public/private key pair direc
 ```
 
 #### 4. List Newest 10 Inbox Messages
+
 ```powershell
 .\msgraphgolangtestingtool.exe -tenantid "1111-2222-3333" `
                  -clientid "aaaa-bbbb-cccc" `
@@ -116,6 +124,7 @@ No need to manage PFX files. The tool extracts the public/private key pair direc
 ```
 
 #### 5. Use Proxy (Flag or Env Var)
+
 ```powershell
 # Using flag
 .\msgraphgolangtestingtool.exe -proxy "http://10.0.0.1:8080" ...
@@ -136,6 +145,7 @@ This is a portable, single-binary Go CLI tool for interacting with Microsoft Gra
 **Versioning Policy**: The major version of this project is locked at 1 and must not be upgraded. All changes, including breaking ones, must be released within the 1.x.y version range.
 
 ### CSV Logging
+
 All operations are automatically logged to a CSV file in the Windows temp directory (`%TEMP%\_msgraphgolangtestingtool_{date}.csv`). The log includes timestamps and action-specific data. Output is shown on screen and written to the CSV file simultaneously.
 
 ## Build and Run Commands
@@ -148,16 +158,16 @@ go build -o msgraphgolangtestingtool.exe
 go run . [flags]
 
 # Example: List calendar events using client secret
-.\msgraphgolangtestingtool.exe -tenantid"YOUR_TENANT_ID" -clientid"YOUR_CLIENT_ID" -secret "YOUR_SECRET" -mailbox "user@example.com" -action getevents
+.\msgraphgolangtestingtool.exe -tenantid "YOUR_TENANT_ID" -clientid "YOUR_CLIENT_ID" -secret "YOUR_SECRET" -mailbox "user@example.com" -action getevents
 
 # Example: Send email using PFX certificate
-.\msgraphgolangtestingtool.exe -tenantid"YOUR_TENANT_ID" -clientid"YOUR_CLIENT_ID" -pfx ".\cert.pfx" -pfxpass "password" -mailbox "sender@example.com" -action sendmail -to "recipient@example.com" -subject "Test" -body "Test message"
+.\msgraphgolangtestingtool.exe -tenantid"YOUR_TENANT_ID" -clientid "YOUR_CLIENT_ID" -pfx ".\cert.pfx" -pfxpass "password" -mailbox "sender@example.com" -action sendmail -to "recipient@example.com" -subject "Test" -body "Test message"
 
 # Example: Send email using Windows Certificate Store (thumbprint)
-.\msgraphgolangtestingtool.exe -tenantid"YOUR_TENANT_ID" -clientid"YOUR_CLIENT_ID" -thumbprint "CERT_THUMBPRINT" -mailbox "sender@example.com" -action sendmail
+.\msgraphgolangtestingtool.exe -tenantid"YOUR_TENANT_ID" -clientid "YOUR_CLIENT_ID" -thumbprint "CERT_THUMBPRINT" -mailbox "sender@example.com" -action sendmail
 
 # Example: List newest 10 inbox messages
-.\msgraphgolangtestingtool.exe -tenantid"YOUR_TENANT_ID" -clientid"YOUR_CLIENT_ID" -secret "YOUR_SECRET" -mailbox "user@example.com" -action getinbox
+.\msgraphgolangtestingtool.exe -tenantid"YOUR_TENANT_ID" -clientid "YOUR_CLIENT_ID" -secret "YOUR_SECRET" -mailbox "user@example.com" -action getinbox
 
 # Example: Using environment variables (PowerShell)
 $env:MSGRAPHTENANT = "YOUR_TENANT_ID"
@@ -176,101 +186,123 @@ $env:MSGRAPHSECRET = "YOUR_SECRET"
 ## Architecture
 
 ### Multi-File Design
+
 The application is structured into multiple files to support platform-specific authentication:
-- `msgraphgolangtestingtool.go`: Main logic and Graph API interaction.
-- `cert_windows.go`: Native Windows CryptoAPI implementation for certificate store access.
-- `cert_stub.go`: Stub implementation for non-Windows platforms.
+
+* `msgraphgolangtestingtool.go`: Main logic and Graph API interaction.
+* `cert_windows.go`: Native Windows CryptoAPI implementation for certificate store access.
+* `cert_stub.go`: Stub implementation for non-Windows platforms.
 
 This structure allows the tool to be cross-compiled while maintaining native integration on Windows.
 
 ### Environment Variable Support
+
 The tool supports configuration via environment variables with the `MSGRAPH` prefix (no underscores for easier PowerShell usage) (msgraphgolangtestingtool.go:35-81):
-- All command-line flags have corresponding environment variables
-- Command-line flags **take precedence** over environment variables
-- Environment variables are only used if the corresponding flag is not provided
-- Mapping: `-tenantid` → `MSGRAPHTENANT`, `-clientid` → `MSGRAPHCLIENTID`, `-mailbox` → `MSGRAPHMAILBOX`, `-proxy` → `MSGRAPHPROXY`, etc.
-- Useful for CI/CD pipelines, containerized environments, and reducing repetitive typing
-- All 17 configuration parameters support environment variables (see CHANGELOG for complete list)
+
+* All command-line flags have corresponding environment variables
+* Command-line flags **take precedence** over environment variables
+* Environment variables are only used if the corresponding flag is not provided
+* Mapping: `-tenantid` → `MSGRAPHTENANT`, `-clientid` → `MSGRAPHCLIENTID`, `-mailbox` → `MSGRAPHMAILBOX`, `-proxy` → `MSGRAPHPROXY`, etc.
+* Useful for CI/CD pipelines, containerized environments, and reducing repetitive typing
+* All 17 configuration parameters support environment variables (see CHANGELOG for complete list)
 
 ### Proxy Support
+
 The tool supports HTTP/HTTPS proxy configuration (msgraphgolangtestingtool.go:156-162):
-- Configure via `-proxy` flag or `MSGRAPHPROXY` environment variable
-- Supports standard proxy URL format: `http://proxy.example.com:8080`
-- Automatically sets `HTTP_PROXY` and `HTTPS_PROXY` system environment variables
-- All Microsoft Graph API requests will route through the specified proxy
-- Useful for corporate networks, testing environments, and traffic monitoring
+
+* Configure via `-proxy` flag or `MSGRAPHPROXY` environment variable
+* Supports standard proxy URL format: `http://proxy.example.com:8080`
+* Automatically sets `HTTP_PROXY` and `HTTPS_PROXY` system environment variables
+* All Microsoft Graph API requests will route through the specified proxy
+* Useful for corporate networks, testing environments, and traffic monitoring
 
 ### Authentication Flow
+
 The application supports three mutually exclusive authentication methods (msgraphgolangtestingtool.go:107-132):
+
 1. **Client Secret** (`-secret`): Standard App Registration secret authentication
 2. **PFX File** (`-pfx` + `-pfxpass`): Certificate-based authentication using a local .pfx file
 3. **Windows Certificate Store** (`-thumbprint`): Extracts certificate from `CurrentUser\My` store via native Windows CryptoAPI (crypt32.dll), exports it to a memory buffer as PFX, then authenticates.
 
 The Windows Certificate Store authentication (`cert_windows.go`) uses native Windows syscalls to:
-- Open the `CurrentUser\My` certificate store.
-- Find the certificate by its SHA1 thumbprint.
-- Export the certificate and its private key directly to a memory buffer (PFX format) using a temporary random password.
-- Perform all operations in memory without creating temporary files on disk.
+
+* Open the `CurrentUser\My` certificate store.
+* Find the certificate by its SHA1 thumbprint.
+* Export the certificate and its private key directly to a memory buffer (PFX format) using a temporary random password.
+* Perform all operations in memory without creating temporary files on disk.
 
 ### Action Dispatch
+
 The main function routes to four action handlers based on the `-action` flag (msgraphgolangtestingtool.go:71-89):
-- `getevents`: Lists upcoming calendar events for the specified mailbox
-- `sendmail`: Sends an email with support for To/CC/BCC recipients, custom subject/body
-- `sendinvite`: Creates a calendar meeting invitation with customizable subject, start time, and end time (defaults: now and +1 hour)
-- `getinbox`: Lists the newest 10 messages from inbox (shows sender, recipient, received date, subject)
+
+* `getevents`: Lists upcoming calendar events for the specified mailbox
+* `sendmail`: Sends an email with support for To/CC/BCC recipients, custom subject/body
+* `sendinvite`: Creates a calendar meeting invitation with customizable subject, start time, and end time (defaults: now and +1 hour)
+* `getinbox`: Lists the newest 10 messages from inbox (shows sender, recipient, received date, subject)
 
 ### Graph API Integration
+
 Uses Microsoft Graph SDK for Go (`github.com/microsoftgraph/msgraph-sdk-go`) with application permissions requiring:
-- `Mail.Send`
-- `Mail.Read`
-- `Calendars.ReadWrite`
+
+* `Mail.Send`
+* `Mail.Read`
+* `Calendars.ReadWrite`
 
 Admin consent must be granted in Azure AD.
 
 ### Recipient Handling
+
 Email recipients (msgraphgolangtestingtool.go:75-82):
-- Parses comma-separated lists for To/CC/BCC
-- Defaults to sending to self (the mailbox owner) if no recipients specified
-- Helper function `createRecipients` (msgraphgolangtestingtool.go:256-268) converts email strings to Graph API Recipient objects
+
+* Parses comma-separated lists for To/CC/BCC
+* Defaults to sending to self (the mailbox owner) if no recipients specified
+* Helper function `createRecipients` (msgraphgolangtestingtool.go:256-268) converts email strings to Graph API Recipient objects
 
 ### Email Content
+
 Currently supports TEXT-only email bodies (msgraphgolangtestingtool.go:245). HTML support will be added in future updates.
 
 ### CSV Logging System
+
 The tool implements automatic CSV logging (msgraphgolangtestingtool.go:357-425):
-- Creates a daily CSV file in `%TEMP%` directory with format `_msgraphgolangtestingtool_YYYY-MM-DD.csv`
-- File is opened in append mode (multiple runs on the same day append to the same file)
-- Headers are written only when creating a new file
-- Each action has a custom CSV schema (Status is always the 3rd column for consistency):
-  - `getevents`: Timestamp, Action, Status, Mailbox, Event Subject, Event ID
-  - `sendmail`: Timestamp, Action, Status, Mailbox, To, CC, BCC, Subject
-  - `sendinvite`: Timestamp, Action, Status, Mailbox, Subject, Start Time, End Time, Event ID
-  - `getinbox`: Timestamp, Action, Status, Mailbox, Subject, From, To, Received DateTime
-- All outputs are flushed immediately to ensure data is written even if the program terminates unexpectedly
+
+* Creates a daily CSV file in `%TEMP%` directory with format `_msgraphgolangtestingtool_YYYY-MM-DD.csv`
+* File is opened in append mode (multiple runs on the same day append to the same file)
+* Headers are written only when creating a new file
+* Each action has a custom CSV schema (Status is always the 3rd column for consistency):
+  * `getevents`: Timestamp, Action, Status, Mailbox, Event Subject, Event ID
+  * `sendmail`: Timestamp, Action, Status, Mailbox, To, CC, BCC, Subject
+  * `sendinvite`: Timestamp, Action, Status, Mailbox, Subject, Start Time, End Time, Event ID
+  * `getinbox`: Timestamp, Action, Status, Mailbox, Subject, From, To, Received DateTime
+* All outputs are flushed immediately to ensure data is written even if the program terminates unexpectedly
 
 ## Key Dependencies
 
-- `github.com/Azure/azure-sdk-for-go/sdk/azidentity`: Azure authentication
-- `github.com/microsoftgraph/msgraph-sdk-go`: Microsoft Graph SDK
-- `golang.org/x/crypto/pkcs12`: PFX certificate decoding
+* `github.com/Azure/azure-sdk-for-go/sdk/azidentity`: Azure authentication
+* `github.com/microsoftgraph/msgraph-sdk-go`: Microsoft Graph SDK
+* `golang.org/x/crypto/pkcs12`: PFX certificate decoding
 
 ## Certificate Management
 
 The `selfsignedcert.ps1` PowerShell script generates a self-signed certificate for **testing and development**:
-- Creates a 2048-bit RSA certificate with SHA256 hash
-- Stores in CurrentUser\My certificate store
-- Exports both PFX (private key) and CER (public key) files
-- Certificate valid for 2 years
-- Includes comprehensive error handling and validation
-- Provides clear instructions for Azure AD configuration
+
+* Creates a 2048-bit RSA certificate with SHA256 hash
+* Stores in CurrentUser\My certificate store
+* Exports both PFX (private key) and CER (public key) files
+* Certificate valid for 2 years
+* Includes comprehensive error handling and validation
+* Provides clear instructions for Azure AD configuration
 
 For production use, upload the public certificate (.cer) to your Azure AD App Registration and use a CA-signed certificate.
 
 ## Required Flags
 
 All executions require:
-- `-tenantid`: Azure Tenant ID
-- `-clientid`: Application (Client) ID
-- `-mailbox`: Target user email address
+
+* `-tenantid`: Azure Tenant ID
+* `-clientid`: Application (Client) ID
+* `-mailbox`: Target user email address
 
 Plus one authentication method (`-secret`, `-pfx`, or `-thumbprint`).
+
+..ooOO End OOoo..
