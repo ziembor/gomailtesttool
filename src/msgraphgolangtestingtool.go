@@ -66,46 +66,61 @@ const (
 	StatusError   = "Error"
 )
 
-// Config holds application configuration
+// Config holds all application configuration including command-line flags,
+// environment variables, and runtime state. This centralized configuration
+// structure simplifies passing configuration between functions and improves
+// testability.
 type Config struct {
-	VerboseMode bool
+	// Core configuration
+	ShowVersion bool   // Display version information and exit
+	TenantID    string // Azure AD Tenant ID (GUID format)
+	ClientID    string // Application (Client) ID (GUID format)
+	Mailbox     string // Target user email address
+	Action      string // Operation to perform (getevents, sendmail, sendinvite, getinbox)
+
+	// Authentication configuration (mutually exclusive)
+	Secret     string // Client Secret for authentication
+	PfxPath    string // Path to .pfx certificate file
+	PfxPass    string // Password for .pfx certificate file
+	Thumbprint string // SHA1 thumbprint of certificate in Windows Certificate Store
+
+	// Email recipients (using stringSlice type for comma-separated lists)
+	To              stringSlice // To recipients for email
+	Cc              stringSlice // CC recipients for email
+	Bcc             stringSlice // BCC recipients for email
+	AttachmentFiles stringSlice // File paths to attach to email
+
+	// Email content
+	Subject  string // Email subject line
+	Body     string // Email body text content
+	BodyHTML string // Email body HTML content (future use)
+
+	// Calendar invite configuration
+	InviteSubject string // Subject of calendar meeting invitation
+	StartTime     string // Start time in RFC3339 format (e.g., 2026-01-15T14:00:00Z)
+	EndTime       string // End time in RFC3339 format
+
+	// Network configuration
+	ProxyURL string // HTTP/HTTPS proxy URL (e.g., http://proxy.example.com:8080)
+
+	// Runtime configuration
+	VerboseMode bool // Enable verbose diagnostic output
+	Count       int  // Number of items to retrieve (for getevents and getinbox actions)
 }
 
-// Flags holds all command-line flag values and parsed configuration
-type Flags struct {
-	// Core flags
-	ShowVersion bool
-	TenantID    string
-	ClientID    string
-	Mailbox     string
-	Action      string
-
-	// Authentication flags
-	Secret      string
-	PfxPath     string
-	PfxPass     string
-	Thumbprint  string
-
-	// Email recipients (using stringSlice type)
-	To              stringSlice
-	Cc              stringSlice
-	Bcc             stringSlice
-	AttachmentFiles stringSlice
-
-	// Email content flags
-	Subject  string
-	Body     string
-	BodyHTML string
-
-	// Calendar invite flags
-	InviteSubject string
-	StartTime     string
-	EndTime       string
-
-	// Network and other flags
-	ProxyURL string
-	Verbose  bool
-	Count    int
+// NewConfig creates a new Config with sensible default values.
+// Command-line flags and environment variables will override these defaults.
+func NewConfig() *Config {
+	return &Config{
+		// Default values for optional fields
+		Subject:       "Automated Tool Notification",
+		Body:          "It's a test message, please ignore",
+		InviteSubject: "System Sync",
+		Action:        ActionGetEvents,
+		Count:         3,
+		VerboseMode:   false,
+		ShowVersion:   false,
+	}
 }
 
 // CSVLogger handles CSV logging operations with periodic buffering
@@ -203,10 +218,18 @@ func (l *CSVLogger) Close() error {
 	return nil
 }
 
-// stringSlice is a custom flag type for comma-separated lists
+// stringSlice implements the flag.Value interface for comma-separated string lists.
+// This allows natural command-line syntax for lists:
+//
+//	-to "user1@example.com,user2@example.com"
+//
+// Values are automatically split on commas and trimmed of whitespace.
+// Empty values and extra whitespace are automatically filtered out.
 type stringSlice []string
 
-// String implements the flag.Value interface
+// String returns the comma-separated string representation of the slice.
+// This implements the flag.Value interface's String method.
+// Returns an empty string if the slice is nil.
 func (s *stringSlice) String() string {
 	if s == nil {
 		return ""
@@ -214,7 +237,13 @@ func (s *stringSlice) String() string {
 	return strings.Join(*s, ",")
 }
 
-// Set implements the flag.Value interface
+// Set parses a comma-separated string into a slice of trimmed strings.
+// This implements the flag.Value interface's Set method.
+//
+// Empty strings are treated as nil slices. Comma-separated values are split,
+// trimmed of whitespace, and empty items are filtered out.
+//
+// Example: "a, b,  , c" becomes []string{"a", "b", "c"}
 func (s *stringSlice) Set(value string) error {
 	if value == "" {
 		*s = nil
@@ -323,8 +352,10 @@ func setupSignalHandling() (context.Context, context.CancelFunc) {
 }
 
 // parseAndConfigureFlags defines all command-line flags, parses them,
-// applies environment variables, and returns populated Flags and Config structs
-func parseAndConfigureFlags() (*Flags, *Config) {
+// applies environment variables, and returns a populated Config struct with
+// all configuration values merged from defaults, environment variables, and
+// command-line arguments (in that order of precedence).
+func parseAndConfigureFlags() *Config {
 	// Customize help output
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Microsoft Graph GoLang Testing Tool - Version %s\n\n", version)
@@ -420,8 +451,8 @@ func parseAndConfigureFlags() (*Flags, *Config) {
 		}
 	}
 
-	// Create and populate Flags struct
-	flags := &Flags{
+	// Create and populate Config struct with all parsed values
+	config := &Config{
 		ShowVersion:     *showVersion,
 		TenantID:        *tenantID,
 		ClientID:        *clientID,
@@ -442,13 +473,8 @@ func parseAndConfigureFlags() (*Flags, *Config) {
 		StartTime:       *startTime,
 		EndTime:         *endTime,
 		ProxyURL:        *proxyURL,
-		Verbose:         *verbose,
+		VerboseMode:     *verbose,
 		Count:           *count,
-	}
-
-	// Create Config struct
-	config := &Config{
-		VerboseMode: *verbose,
 	}
 
 	// Print verbose configuration if enabled
@@ -456,10 +482,17 @@ func parseAndConfigureFlags() (*Flags, *Config) {
 		printVerboseConfig(*tenantID, *clientID, *secret, *pfxPath, *thumbprint, *mailbox, *action, *proxyURL, to.String(), cc.String(), bcc.String(), *subject, *body, *bodyHTML, attachmentFiles.String(), *inviteSubject, *startTime, *endTime)
 	}
 
-	return flags, config
+	return config
 }
 
-// validateEmail performs basic email format validation
+// validateEmail performs basic email format validation by checking for the presence
+// of an @ symbol and ensuring both local-part and domain are non-empty.
+//
+// This is a simple structural validation, not RFC 5322 compliant. It's sufficient
+// for catching obvious typos before making API calls. Leading and trailing whitespace
+// is automatically trimmed.
+//
+// Returns an error if the email format is invalid, nil if valid.
 func validateEmail(email string) error {
 	email = strings.TrimSpace(email)
 	if email == "" {
@@ -475,7 +508,14 @@ func validateEmail(email string) error {
 	return nil
 }
 
-// validateEmails validates a slice of email addresses
+// validateEmails validates a slice of email addresses, ensuring all entries are
+// properly formatted. This is a convenience wrapper around validateEmail for batch validation.
+//
+// Parameters:
+//   - emails: slice of email addresses to validate
+//   - fieldName: descriptive name for error messages (e.g., "To recipients")
+//
+// Returns an error at the first invalid email found, nil if all are valid.
 func validateEmails(emails []string, fieldName string) error {
 	for _, email := range emails {
 		if err := validateEmail(email); err != nil {
@@ -485,7 +525,17 @@ func validateEmails(emails []string, fieldName string) error {
 	return nil
 }
 
-// validateGUID validates that a string is a valid GUID format
+// validateGUID validates that a string matches standard GUID format (36 characters
+// with dashes at positions 8, 13, 18, 23). This is used to validate Tenant ID and
+// Client ID before making API calls.
+//
+// Example valid GUID: "12345678-1234-1234-1234-123456789012"
+//
+// Parameters:
+//   - guid: the GUID string to validate
+//   - fieldName: descriptive name for error messages (e.g., "Tenant ID")
+//
+// Returns an error if the GUID format is invalid, nil if valid.
 func validateGUID(guid, fieldName string) error {
 	guid = strings.TrimSpace(guid)
 	if guid == "" {
@@ -502,7 +552,18 @@ func validateGUID(guid, fieldName string) error {
 	return nil
 }
 
-// validateRFC3339Time validates RFC3339 time format
+// validateRFC3339Time validates that a string matches RFC3339 timestamp format.
+// This is used for calendar invite start and end times.
+//
+// Example valid RFC3339: "2026-01-15T14:00:00Z" or "2026-01-15T14:00:00+01:00"
+//
+// Empty strings are allowed and return nil (defaults will be used).
+//
+// Parameters:
+//   - timeStr: the RFC3339 timestamp string to validate
+//   - fieldName: descriptive name for error messages (e.g., "Start time")
+//
+// Returns an error if the time format is invalid, nil if valid or empty.
 func validateRFC3339Time(timeStr, fieldName string) error {
 	if timeStr == "" {
 		return nil // Empty is allowed (defaults are used)
@@ -514,28 +575,33 @@ func validateRFC3339Time(timeStr, fieldName string) error {
 	return nil
 }
 
-// validateConfiguration checks that required configuration parameters are valid
-func validateConfiguration(flags *Flags) error {
+// validateConfiguration validates all required configuration fields and ensures
+// authentication method is properly configured. This performs both structural
+// validation (GUID format, email format) and business logic validation
+// (mutually exclusive auth methods, valid action names).
+//
+// Returns an error if validation fails, nil if all checks pass.
+func validateConfiguration(config *Config) error {
 	// Validate required fields with format checking
-	if err := validateGUID(flags.TenantID, "Tenant ID"); err != nil {
+	if err := validateGUID(config.TenantID, "Tenant ID"); err != nil {
 		return err
 	}
-	if err := validateGUID(flags.ClientID, "Client ID"); err != nil {
+	if err := validateGUID(config.ClientID, "Client ID"); err != nil {
 		return err
 	}
-	if err := validateEmail(flags.Mailbox); err != nil {
+	if err := validateEmail(config.Mailbox); err != nil {
 		return fmt.Errorf("invalid mailbox: %w", err)
 	}
 
 	// Check that at least one authentication method is provided
 	authMethodCount := 0
-	if flags.Secret != "" {
+	if config.Secret != "" {
 		authMethodCount++
 	}
-	if flags.PfxPath != "" {
+	if config.PfxPath != "" {
 		authMethodCount++
 	}
-	if flags.Thumbprint != "" {
+	if config.Thumbprint != "" {
 		authMethodCount++
 	}
 
@@ -547,27 +613,27 @@ func validateConfiguration(flags *Flags) error {
 	}
 
 	// Validate email lists if provided
-	if len(flags.To) > 0 {
-		if err := validateEmails(flags.To, "To recipients"); err != nil {
+	if len(config.To) > 0 {
+		if err := validateEmails(config.To, "To recipients"); err != nil {
 			return err
 		}
 	}
-	if len(flags.Cc) > 0 {
-		if err := validateEmails(flags.Cc, "CC recipients"); err != nil {
+	if len(config.Cc) > 0 {
+		if err := validateEmails(config.Cc, "CC recipients"); err != nil {
 			return err
 		}
 	}
-	if len(flags.Bcc) > 0 {
-		if err := validateEmails(flags.Bcc, "BCC recipients"); err != nil {
+	if len(config.Bcc) > 0 {
+		if err := validateEmails(config.Bcc, "BCC recipients"); err != nil {
 			return err
 		}
 	}
 
 	// Validate RFC3339 times if provided
-	if err := validateRFC3339Time(flags.StartTime, "Start time"); err != nil {
+	if err := validateRFC3339Time(config.StartTime, "Start time"); err != nil {
 		return err
 	}
-	if err := validateRFC3339Time(flags.EndTime, "End time"); err != nil {
+	if err := validateRFC3339Time(config.EndTime, "End time"); err != nil {
 		return err
 	}
 
@@ -578,18 +644,22 @@ func validateConfiguration(flags *Flags) error {
 		ActionSendInvite: true,
 		ActionGetInbox:   true,
 	}
-	if !validActions[flags.Action] {
-		return fmt.Errorf("invalid action: %s (use: getevents, sendmail, sendinvite, getinbox)", flags.Action)
+	if !validActions[config.Action] {
+		return fmt.Errorf("invalid action: %s (use: getevents, sendmail, sendinvite, getinbox)", config.Action)
 	}
 
 	return nil
 }
 
-// initializeServices sets up CSV logging and proxy configuration
-// Returns the CSV logger (or nil if initialization failed)
-func initializeServices(flags *Flags) (*CSVLogger, error) {
+// initializeServices sets up CSV logging and proxy configuration based on
+// the provided configuration. Creates a CSV logger for the specified action
+// and configures HTTP/HTTPS proxy environment variables if a proxy URL is specified.
+//
+// Returns the CSV logger (or nil if initialization failed) and any error encountered.
+// If CSV logger initialization fails, a warning is logged but execution continues.
+func initializeServices(config *Config) (*CSVLogger, error) {
 	// Initialize CSV logging
-	logger, err := NewCSVLogger(flags.Action)
+	logger, err := NewCSVLogger(config.Action)
 	if err != nil {
 		log.Printf("Warning: Could not initialize CSV logging: %v", err)
 		logger = nil // Continue without logging
@@ -597,19 +667,26 @@ func initializeServices(flags *Flags) (*CSVLogger, error) {
 
 	// Configure proxy if specified
 	// Go's http package automatically uses HTTP_PROXY/HTTPS_PROXY environment variables
-	if flags.ProxyURL != "" {
-		os.Setenv("HTTP_PROXY", flags.ProxyURL)
-		os.Setenv("HTTPS_PROXY", flags.ProxyURL)
-		fmt.Printf("Using proxy: %s\n", flags.ProxyURL)
+	if config.ProxyURL != "" {
+		os.Setenv("HTTP_PROXY", config.ProxyURL)
+		os.Setenv("HTTPS_PROXY", config.ProxyURL)
+		fmt.Printf("Using proxy: %s\n", config.ProxyURL)
 	}
 
 	return logger, nil
 }
 
 // setupGraphClient creates credentials and initializes the Microsoft Graph SDK client
-func setupGraphClient(ctx context.Context, flags *Flags, config *Config) (*msgraphsdk.GraphServiceClient, error) {
+// using the authentication method specified in the configuration (client secret, PFX
+// certificate, or Windows Certificate Store thumbprint).
+//
+// The function also retrieves and displays token information in verbose mode, including
+// token expiration time and validity period.
+//
+// Returns the initialized GraphServiceClient and any error encountered during setup.
+func setupGraphClient(ctx context.Context, config *Config) (*msgraphsdk.GraphServiceClient, error) {
 	// Setup Authentication
-	cred, err := getCredential(flags.TenantID, flags.ClientID, flags.Secret, flags.PfxPath, flags.PfxPass, flags.Thumbprint, config)
+	cred, err := getCredential(config.TenantID, config.ClientID, config.Secret, config.PfxPath, config.PfxPass, config.Thumbprint, config)
 	if err != nil {
 		return nil, fmt.Errorf("authentication setup failed: %w", err)
 	}
@@ -640,56 +717,71 @@ func setupGraphClient(ctx context.Context, flags *Flags, config *Config) (*msgra
 	return client, nil
 }
 
-// executeAction dispatches to the appropriate action handler based on flags.Action
-func executeAction(ctx context.Context, client *msgraphsdk.GraphServiceClient, flags *Flags, config *Config, logger *CSVLogger) error {
-	switch flags.Action {
+// executeAction dispatches to the appropriate action handler based on config.Action.
+// Supported actions are: getevents, sendmail, sendinvite, and getinbox.
+//
+// For sendmail action, if no recipients are specified, the email is sent to the
+// mailbox owner (self). All actions log their operations to the provided CSV logger.
+//
+// Returns an error if the action fails or if the action name is unknown.
+func executeAction(ctx context.Context, client *msgraphsdk.GraphServiceClient, config *Config, logger *CSVLogger) error {
+	switch config.Action {
 	case ActionGetEvents:
-		if err := listEvents(ctx, client, flags.Mailbox, flags.Count, config, logger); err != nil {
+		if err := listEvents(ctx, client, config.Mailbox, config.Count, config, logger); err != nil {
 			return fmt.Errorf("failed to list events: %w", err)
 		}
 	case ActionSendMail:
 		// If no recipients specified at all, default 'to' to the sender mailbox
-		if len(flags.To) == 0 && len(flags.Cc) == 0 && len(flags.Bcc) == 0 {
-			flags.To = []string{flags.Mailbox}
+		if len(config.To) == 0 && len(config.Cc) == 0 && len(config.Bcc) == 0 {
+			config.To = []string{config.Mailbox}
 		}
 
-		sendEmail(ctx, client, flags.Mailbox, flags.To, flags.Cc, flags.Bcc, flags.Subject, flags.Body, flags.BodyHTML, flags.AttachmentFiles, config, logger)
+		sendEmail(ctx, client, config.Mailbox, config.To, config.Cc, config.Bcc, config.Subject, config.Body, config.BodyHTML, config.AttachmentFiles, config, logger)
 	case ActionSendInvite:
-		createInvite(ctx, client, flags.Mailbox, flags.InviteSubject, flags.StartTime, flags.EndTime, config, logger)
+		createInvite(ctx, client, config.Mailbox, config.InviteSubject, config.StartTime, config.EndTime, config, logger)
 	case ActionGetInbox:
-		if err := listInbox(ctx, client, flags.Mailbox, flags.Count, config, logger); err != nil {
+		if err := listInbox(ctx, client, config.Mailbox, config.Count, config, logger); err != nil {
 			return fmt.Errorf("failed to list inbox: %w", err)
 		}
 	default:
-		return fmt.Errorf("unknown action: %s", flags.Action)
+		return fmt.Errorf("unknown action: %s", config.Action)
 	}
 
 	return nil
 }
 
+// run is the main application entry point that orchestrates the tool's execution flow.
+// It performs the following steps:
+//  1. Sets up graceful shutdown handling for interrupt signals
+//  2. Parses and validates configuration from flags and environment variables
+//  3. Initializes services (CSV logging, proxy configuration)
+//  4. Creates Microsoft Graph SDK client with appropriate authentication
+//  5. Executes the requested action (getevents, sendmail, sendinvite, getinbox)
+//
+// Returns an error if any step fails, nil on successful completion.
 func run() error {
 	// 1. Setup signal handling for graceful shutdown
 	ctx, cancel := setupSignalHandling()
 	defer cancel()
 
 	// 2. Parse command-line flags and apply environment variables
-	flags, config := parseAndConfigureFlags()
+	config := parseAndConfigureFlags()
 
 	// 3. Handle version flag early exit
-	if flags.ShowVersion {
+	if config.ShowVersion {
 		fmt.Printf("Microsoft Graph Golang Testing Tool - Version %s\n", version)
 		return nil
 	}
 
 	// 4. Validate configuration
-	if err := validateConfiguration(flags); err != nil {
+	if err := validateConfiguration(config); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	// 5. Initialize services (CSV logging and proxy)
-	logger, err := initializeServices(flags)
+	logger, err := initializeServices(config)
 	if err != nil {
 		// Error already logged in initializeServices, continue without logger
 	}
@@ -698,13 +790,13 @@ func run() error {
 	}
 
 	// 6. Setup Microsoft Graph client
-	client, err := setupGraphClient(ctx, flags, config)
+	client, err := setupGraphClient(ctx, config)
 	if err != nil {
 		return err
 	}
 
 	// 7. Execute the requested action
-	return executeAction(ctx, client, flags, config, logger)
+	return executeAction(ctx, client, config, logger)
 }
 
 func getCredential(tenantID, clientID, secret, pfxPath, pfxPass, thumbprint string, config *Config) (azcore.TokenCredential, error) {
