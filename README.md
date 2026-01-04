@@ -269,6 +269,8 @@ This creates:
 - **[BUILD.md](BUILD.md)**: Detailed build instructions
 - **[CLAUDE.md](CLAUDE.md)**: Architecture and code structure for AI assistants
 - **[GEMINI.md](GEMINI.md)**: Comprehensive usage guide
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**: Error troubleshooting and solutions
+- **[SECURITY_PRACTICES.md](SECURITY_PRACTICES.md)**: Security best practices and guidelines
 
 ## Output
 
