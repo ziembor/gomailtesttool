@@ -126,13 +126,13 @@ func TestMaskSecret(t *testing.T) {
 func TestValidateConfiguration(t *testing.T) {
 	tests := []struct {
 		name    string
-		flags   *Flags
+		config   *Config
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "valid with secret",
-			flags: &Flags{
+			config: &Config{
 				TenantID: "12345678-1234-1234-1234-123456789012",
 				ClientID: "abcdefgh-5678-9012-abcd-ef1234567890",
 				Mailbox:  "user@example.com",
@@ -143,7 +143,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 		{
 			name: "valid with pfx",
-			flags: &Flags{
+			config: &Config{
 				TenantID: "12345678-1234-1234-1234-123456789012",
 				ClientID: "abcdefgh-5678-9012-abcd-ef1234567890",
 				Mailbox:  "user@example.com",
@@ -154,7 +154,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 		{
 			name: "valid with thumbprint",
-			flags: &Flags{
+			config: &Config{
 				TenantID:   "12345678-1234-1234-1234-123456789012",
 				ClientID:   "abcdefgh-5678-9012-abcd-ef1234567890",
 				Mailbox:    "user@example.com",
@@ -165,7 +165,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 		{
 			name: "missing tenant ID",
-			flags: &Flags{
+			config: &Config{
 				ClientID: "abcdefgh-5678-9012-abcd-ef1234567890",
 				Mailbox:  "user@example.com",
 				Secret:   "my-secret",
@@ -175,7 +175,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 		{
 			name: "missing client ID",
-			flags: &Flags{
+			config: &Config{
 				TenantID: "12345678-1234-1234-1234-123456789012",
 				Mailbox:  "user@example.com",
 				Secret:   "my-secret",
@@ -185,7 +185,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 		{
 			name: "missing mailbox",
-			flags: &Flags{
+			config: &Config{
 				TenantID: "12345678-1234-1234-1234-123456789012",
 				ClientID: "abcdefgh-5678-9012-abcd-ef1234567890",
 				Secret:   "my-secret",
@@ -195,7 +195,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 		{
 			name: "no authentication method",
-			flags: &Flags{
+			config: &Config{
 				TenantID: "12345678-1234-1234-1234-123456789012",
 				ClientID: "abcdefgh-5678-9012-abcd-ef1234567890",
 				Mailbox:  "user@example.com",
@@ -205,7 +205,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 		{
 			name: "multiple authentication methods - secret and pfx",
-			flags: &Flags{
+			config: &Config{
 				TenantID: "12345678-1234-1234-1234-123456789012",
 				ClientID: "abcdefgh-5678-9012-abcd-ef1234567890",
 				Mailbox:  "user@example.com",
@@ -217,7 +217,7 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 		{
 			name: "multiple authentication methods - all three",
-			flags: &Flags{
+			config: &Config{
 				TenantID:   "12345678-1234-1234-1234-123456789012",
 				ClientID:   "abcdefgh-5678-9012-abcd-ef1234567890",
 				Mailbox:    "user@example.com",
@@ -232,7 +232,7 @@ func TestValidateConfiguration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateConfiguration(tt.flags)
+			err := validateConfiguration(tt.config)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validateConfiguration() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -244,9 +244,9 @@ func TestValidateConfiguration(t *testing.T) {
 	}
 }
 
-// Test Flags struct initialization
+// Test Config struct initialization
 func TestFlagsStruct(t *testing.T) {
-	flags := &Flags{
+	config := &Config{
 		ShowVersion: false,
 		TenantID:    "test-tenant",
 		ClientID:    "test-client",
@@ -256,14 +256,14 @@ func TestFlagsStruct(t *testing.T) {
 		Count:       5,
 	}
 
-	if flags.TenantID != "test-tenant" {
-		t.Errorf("TenantID = %q, want %q", flags.TenantID, "test-tenant")
+	if config.TenantID != "test-tenant" {
+		t.Errorf("TenantID = %q, want %q", config.TenantID, "test-tenant")
 	}
-	if flags.Count != 5 {
-		t.Errorf("Count = %d, want %d", flags.Count, 5)
+	if config.Count != 5 {
+		t.Errorf("Count = %d, want %d", config.Count, 5)
 	}
-	if flags.Action != "sendmail" {
-		t.Errorf("Action = %q, want %q", flags.Action, "sendmail")
+	if config.Action != "sendmail" {
+		t.Errorf("Action = %q, want %q", config.Action, "sendmail")
 	}
 }
 
@@ -389,13 +389,13 @@ func TestValidateRFC3339Time(t *testing.T) {
 func TestValidateConfigurationEnhanced(t *testing.T) {
 	tests := []struct {
 		name    string
-		flags   *Flags
+		config   *Config
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name: "valid configuration",
-			flags: &Flags{
+			config: &Config{
 				TenantID: "12345678-1234-1234-1234-123456789012",
 				ClientID: "abcdefgh-1234-5678-90ab-cdef12345678",
 				Mailbox:  "user@example.com",
@@ -406,7 +406,7 @@ func TestValidateConfigurationEnhanced(t *testing.T) {
 		},
 		{
 			name: "invalid tenant GUID",
-			flags: &Flags{
+			config: &Config{
 				TenantID: "invalid-guid",
 				ClientID: "abcdefgh-1234-5678-90ab-cdef12345678",
 				Mailbox:  "user@example.com",
@@ -416,7 +416,7 @@ func TestValidateConfigurationEnhanced(t *testing.T) {
 		},
 		{
 			name: "invalid mailbox email",
-			flags: &Flags{
+			config: &Config{
 				TenantID: "12345678-1234-1234-1234-123456789012",
 				ClientID: "abcdefgh-1234-5678-90ab-cdef12345678",
 				Mailbox:  "invalid-email",
@@ -426,7 +426,7 @@ func TestValidateConfigurationEnhanced(t *testing.T) {
 		},
 		{
 			name: "invalid To recipient",
-			flags: &Flags{
+			config: &Config{
 				TenantID: "12345678-1234-1234-1234-123456789012",
 				ClientID: "abcdefgh-1234-5678-90ab-cdef12345678",
 				Mailbox:  "user@example.com",
@@ -438,7 +438,7 @@ func TestValidateConfigurationEnhanced(t *testing.T) {
 		},
 		{
 			name: "invalid start time",
-			flags: &Flags{
+			config: &Config{
 				TenantID:  "12345678-1234-1234-1234-123456789012",
 				ClientID:  "abcdefgh-1234-5678-90ab-cdef12345678",
 				Mailbox:   "user@example.com",
@@ -450,7 +450,7 @@ func TestValidateConfigurationEnhanced(t *testing.T) {
 		},
 		{
 			name: "invalid action",
-			flags: &Flags{
+			config: &Config{
 				TenantID: "12345678-1234-1234-1234-123456789012",
 				ClientID: "abcdefgh-1234-5678-90ab-cdef12345678",
 				Mailbox:  "user@example.com",
@@ -463,7 +463,7 @@ func TestValidateConfigurationEnhanced(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateConfiguration(tt.flags)
+			err := validateConfiguration(tt.config)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validateConfiguration() error = %v, wantErr %v", err, tt.wantErr)
 			}
