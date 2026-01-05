@@ -30,14 +30,16 @@ The `release.ps1` script is an **interactive PowerShell tool** that automates th
 ### What It Does
 
 1. ✅ Validates current git status
-2. ✅ Prompts for new version (enforces 1.x.y format)
-3. ✅ Updates `src/VERSION` file
-4. ✅ Creates/updates changelog entry
-5. ✅ Commits changes with formatted message
-6. ✅ Pushes to remote branch
-7. ✅ Creates and pushes git tag (triggers GitHub Actions)
-8. ✅ Optionally creates Pull Request
-9. ✅ Optionally monitors GitHub Actions workflow
+2. ✅ **Scans for non-sanitized secrets (NEW!)**
+3. ✅ Prompts for new version (enforces 1.x.y format)
+4. ✅ Updates `src/VERSION` file
+5. ✅ Creates/updates changelog entry
+6. ✅ Commits changes with formatted message
+7. ✅ Pushes to remote branch
+8. ✅ Creates and pushes git tag (triggers GitHub Actions)
+9. ✅ Optionally creates Pull Request
+10. ✅ Optionally monitors GitHub Actions workflow
+11. ✅ Bumps version for next development cycle
 
 ### Version Requirements
 
@@ -68,7 +70,74 @@ Do you want to continue anyway? (y/N):
 
 **Best Practice:** Commit or stash changes before running the release script.
 
-### Step 2: Version Information
+### Step 2: Security Scan for Secrets
+
+**NEW!** The script automatically scans for non-sanitized secrets before proceeding with the release.
+
+```
+========================================
+Step 2: Security Scan for Secrets
+========================================
+
+Scanning repository for non-sanitized secrets...
+✓ No unsanitized secrets detected
+```
+
+**What It Scans:**
+- `test-results/*.md` - Integration test results
+- `ChangeLog/*.md` - Changelog entries
+- `*.md` - All markdown documentation
+- `src/*.go` - Source code files
+
+**Detected Secret Types:**
+- **Azure AD Client Secrets** - Pattern: `z3P8Q~...` (34+ characters)
+- **GUIDs/UUIDs** - Pattern: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+- **Email Addresses** - Real email addresses (non-example domains)
+- **API Keys** - Access tokens and secret keys
+
+**Smart Filtering:**
+The scanner automatically skips:
+- Documentation files: `EXAMPLES.md`, `README.md`, `CLAUDE.md`, `IMPROVEMENTS.md`, `UNIT_TESTS.md`
+- Placeholder patterns: `xxx`, `yyy`, `example.com`, `user@example`, `tenant-guid`, `client-guid`
+- Known safe patterns: `noreply@anthropic.com`, `user@example.com`, `test@example.com`
+
+**If Secrets Are Detected:**
+
+```
+✗ Potential secrets detected in repository!
+
+Found 3 potential secret(s):
+
+File                                    Line Type                      Value
+----                                    ---- ----                      -----
+test-results/INTEGRATION_TEST_...md    262  Azure AD Client Secret    z3P8Q~V8VQt8Cao2fInZ0s96xJqTBxtKmSn...
+test-results/INTEGRATION_TEST_...md    260  GUID/UUID                 68057f34-a627-4a49-b61b-61bc9375549f
+test-results/INTEGRATION_TEST_...md    263  Email addresses           user@realdomain.com
+
+⚠ These may be sensitive credentials that should be sanitized before release.
+
+Common fixes:
+  • Replace real GUIDs with: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  • Replace real emails with: user@example.com
+  • Replace secrets with: xxx~xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+  • Review test-results/*.md files for real credentials
+
+Do you want to continue anyway? (y/N):
+```
+
+**Recommended Actions:**
+1. **Cancel the release** (press N)
+2. **Sanitize the detected secrets** in the files shown
+3. **Commit the sanitized files**
+4. **Run the release script again**
+
+**Why This Matters:**
+- Prevents accidental exposure of Azure credentials
+- Protects against GitHub push protection blocks
+- Maintains security best practices
+- Avoids having to rewrite git history later
+
+### Step 3: Version Information
 
 Shows current version from `src/VERSION` and suggests next versions.
 
@@ -95,7 +164,7 @@ Enter new version (must be 1.x.y format, or press Enter for patch: 1.16.2):
 - **Patch (1.x.Y)**: Bug fixes, documentation updates, minor improvements
 - **Minor (1.X.0)**: New features, significant changes
 
-### Step 3: Update Version File
+### Step 4: Update Version File
 
 Updates `src/VERSION` with the new version.
 
@@ -116,7 +185,7 @@ Note: Version is automatically embedded into the binary at compile time via go:e
 - Version is read from `src/VERSION` at compile time
 - No manual code changes needed
 
-### Step 4: Changelog Entry
+### Step 5: Changelog Entry
 
 Interactive changelog creation with prompts for each section.
 
@@ -170,7 +239,7 @@ Enter changelog entries (press Enter on empty line to finish each section)
 - Fixed CSV logging issue
 ```
 
-### Step 5: Review Changes
+### Step 6: Review Changes
 
 Shows summary of all changes before committing.
 
@@ -207,7 +276,7 @@ Do you want to proceed with these changes? (y/N):
 - Check changelog entries are accurate
 - Confirm commit message looks good
 
-### Step 6: Commit Changes
+### Step 7: Commit Changes
 
 Creates a git commit with formatted message.
 
@@ -231,7 +300,7 @@ Current branch: main
 - `src/VERSION` - Updated version
 - `Changelog/{version}.md` - Changelog entry
 
-### Step 7: Push to Remote
+### Step 8: Push to Remote
 
 Optional push to remote repository.
 
@@ -250,7 +319,7 @@ Pushing to origin/main...
 - Press **Enter** or **y** to push
 - Type **n** to skip (you can push manually later)
 
-### Step 8: Create Git Tag (Triggers GitHub Actions)
+### Step 9: Create Git Tag (Triggers GitHub Actions)
 
 **⚡ IMPORTANT: This step triggers the automated build!**
 
@@ -287,7 +356,7 @@ Pushing tag v1.16.2...
 - **Creates**: ZIP files with binaries + EXAMPLES.md + LICENSE + README.md
 - **Publishes**: GitHub Release with automatic release notes
 
-### Step 9: Pull Request (Optional)
+### Step 10: Pull Request (Optional)
 
 If you're on a feature branch, optionally create a PR.
 
@@ -311,7 +380,7 @@ Merge PR immediately? (y/N): n
 **Requires:**
 - GitHub CLI (`gh`) installed and authenticated
 
-### Step 10: Monitor GitHub Actions
+### Step 11: Monitor GitHub Actions
 
 Optional workflow monitoring.
 
@@ -653,6 +722,7 @@ Run `.\release.ps1` again with corrected version.
 ## Script Features
 
 ### Safety Features
+- ✅ **Secret detection** (scans for non-sanitized credentials)
 - ✅ Version format validation (enforces 1.x.y)
 - ✅ Version increment validation (must be greater than current)
 - ✅ Git status check (warns about uncommitted changes)
@@ -737,6 +807,6 @@ For issues with the release script:
 
 ---
 
-**Last Updated:** 2026-01-04
-**Script Version:** 1.0
+**Last Updated:** 2026-01-05
+**Script Version:** 2.0 (added security scanning)
 **Compatibility:** PowerShell 5.1+, Windows 10+
