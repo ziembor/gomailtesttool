@@ -78,8 +78,101 @@ if ($gitStatus) {
 }
 Write-Success "Git status checked"
 
+# Security scan for secrets
+Write-Header "Step 2: Security Scan for Secrets"
+Write-Info "Scanning repository for non-sanitized secrets..."
+
+# Define patterns to search for
+$secretPatterns = @{
+    "Azure AD Client Secret" = "[a-zA-Z0-9~_-]{34,}"  # Pattern like z3P8Q~...
+    "GUID/UUID" = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+    "Email addresses" = "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+    "API Keys" = "(api[_-]?key|apikey|access[_-]?token|secret[_-]?key)[\s:=]+['\"]?[a-zA-Z0-9_-]{20,}['\"]?"
+}
+
+# Files/paths to scan
+$filesToScan = @(
+    "test-results/*.md",
+    "ChangeLog/*.md",
+    "*.md",
+    "src/*.go"
+)
+
+$secretsFound = @()
+
+foreach ($pattern in $filesToScan) {
+    $files = Get-ChildItem -Path $pattern -Recurse -ErrorAction SilentlyContinue
+
+    foreach ($file in $files) {
+        # Skip files that should have example secrets
+        if ($file.Name -match "EXAMPLES|README|CLAUDE|IMPROVEMENTS|UNIT_TESTS") {
+            continue
+        }
+
+        $content = Get-Content $file.FullName -Raw -ErrorAction SilentlyContinue
+        if (-not $content) { continue }
+
+        foreach ($secretType in $secretPatterns.Keys) {
+            $regex = $secretPatterns[$secretType]
+
+            if ($content -match $regex) {
+                $matches = [regex]::Matches($content, $regex)
+
+                foreach ($match in $matches) {
+                    $value = $match.Value
+
+                    # Skip if it's a placeholder pattern
+                    if ($value -match "^x+$|^y+$|xxx|yyy|example\.com|user@example|tenant-guid|client-guid|your-.*-here") {
+                        continue
+                    }
+
+                    # Skip common false positives
+                    if ($secretType -eq "Email addresses" -and $value -match "noreply@anthropic\.com|example@example\.com|test@example\.com|user@example\.com") {
+                        continue
+                    }
+
+                    # Get line number
+                    $lineNumber = ($content.Substring(0, $match.Index) -split "`n").Count
+
+                    $secretsFound += [PSCustomObject]@{
+                        File = $file.FullName.Replace((Get-Location).Path + "\", "")
+                        Line = $lineNumber
+                        Type = $secretType
+                        Value = if ($value.Length -gt 40) { $value.Substring(0, 40) + "..." } else { $value }
+                    }
+                }
+            }
+        }
+    }
+}
+
+if ($secretsFound.Count -gt 0) {
+    Write-Error "Potential secrets detected in repository!"
+    Write-Host "`nFound $($secretsFound.Count) potential secret(s):" -ForegroundColor Yellow
+
+    $secretsFound | Format-Table -AutoSize
+
+    Write-Warning "`nThese may be sensitive credentials that should be sanitized before release."
+    Write-Info "Common fixes:"
+    Write-Host "  • Replace real GUIDs with: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    Write-Host "  • Replace real emails with: user@example.com"
+    Write-Host "  • Replace secrets with: xxx~xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    Write-Host "  • Review test-results/*.md files for real credentials"
+
+    $continue = Read-Host "`nDo you want to continue anyway? (y/N)"
+    if ($continue -ne 'y' -and $continue -ne 'Y') {
+        Write-Error "Release cancelled due to security concerns"
+        Write-Info "Please sanitize the detected secrets and try again"
+        exit 1
+    }
+
+    Write-Warning "Proceeding with release despite security warnings..."
+} else {
+    Write-Success "No unsanitized secrets detected"
+}
+
 # Read current version
-Write-Header "Step 2: Version Information"
+Write-Header "Step 3: Version Information"
 $currentVersion = (Get-Content "src\VERSION" -Raw).Trim()
 Write-Info "Current version: $currentVersion"
 
@@ -138,7 +231,7 @@ $releaseType = if ($currentMinor -eq $newMinor) { "Patch" } else { "Minor" }
 Write-Info "Release type: $releaseType"
 
 # Update src/VERSION file
-Write-Header "Step 3: Updating Version File"
+Write-Header "Step 4: Updating Version File"
 Write-Info "Updating src\VERSION..."
 Set-Content -Path "src\VERSION" -Value $newVersion -NoNewline
 Write-Success "Updated src\VERSION to $newVersion"
@@ -147,7 +240,7 @@ Write-Info "`nNote: Version is automatically embedded into the binary at compile
 Write-Info "      (No need to update source code - it reads from VERSION file)"
 
 # Create/update changelog entry
-Write-Header "Step 4: Changelog Entry"
+Write-Header "Step 5: Changelog Entry"
 $changelogPath = "CHANGELOG.md"
 $changelogEntryPath = "Changelog\$newVersion.md"
 
@@ -270,7 +363,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 "@
 
 # Show summary
-Write-Header "Step 5: Review Changes"
+Write-Header "Step 6: Review Changes"
 Write-Info "The following changes will be made:"
 Write-Host "  • src\VERSION: $currentVersion → $newVersion (embedded via go:embed)"
 Write-Host "  • ${changelogEntryPath}: $(if (Test-Path $changelogEntryPath) { "Updated" } else { "Created" })"
@@ -290,7 +383,7 @@ if ($confirm -ne 'y' -and $confirm -ne 'Y') {
 }
 
 # Stage changes
-Write-Header "Step 6: Committing Changes"
+Write-Header "Step 7: Committing Changes"
 Write-Info "Staging changes..."
 git add src\VERSION $changelogEntryPath
 
@@ -313,7 +406,7 @@ $currentBranch = git rev-parse --abbrev-ref HEAD
 Write-Info "Current branch: $currentBranch"
 
 # Ask about pushing
-Write-Header "Step 7: Push to Remote"
+Write-Header "Step 8: Push to Remote"
 $pushBranch = Read-Host "Push commit to remote branch '$currentBranch'? (Y/n)"
 if ($pushBranch -ne 'n' -and $pushBranch -ne 'N') {
     Write-Info "Pushing to origin/$currentBranch..."
@@ -328,7 +421,7 @@ if ($pushBranch -ne 'n' -and $pushBranch -ne 'N') {
 }
 
 # Create and push tag (THIS TRIGGERS GITHUB ACTIONS)
-Write-Header "Step 8: Create Git Tag (Triggers GitHub Actions)"
+Write-Header "Step 9: Create Git Tag (Triggers GitHub Actions)"
 $tagName = "v$newVersion"
 Write-Warning "Creating and pushing tag '$tagName' will trigger GitHub Actions workflow!"
 Write-Info "This will:"
@@ -363,7 +456,7 @@ if ($createTag -eq 'y' -or $createTag -eq 'Y') {
 }
 
 # Optionally create PR
-Write-Header "Step 9: Pull Request (Optional)"
+Write-Header "Step 10: Pull Request (Optional)"
 if ($currentBranch -ne 'main') {
     $createPR = Read-Host "Create Pull Request to merge '$currentBranch' into 'main'? (y/N)"
 
@@ -415,7 +508,7 @@ $changelogForCommit
 }
 
 # Monitor GitHub Actions (optional)
-Write-Header "Step 10: Monitor GitHub Actions (Optional)"
+Write-Header "Step 11: Monitor GitHub Actions (Optional)"
 $monitor = Read-Host "Monitor GitHub Actions workflow? (y/N)"
 if ($monitor -eq 'y' -or $monitor -eq 'Y') {
     $ghInstalled = Get-Command gh -ErrorAction SilentlyContinue
@@ -459,7 +552,7 @@ if ($createTag -eq 'y' -or $createTag -eq 'Y') {
 Write-Success "`nRelease process complete!"
 
 # Bump version for next development cycle
-Write-Header "Step 11: Prepare Next Development Cycle"
+Write-Header "Step 12: Prepare Next Development Cycle"
 $bumpVersion = Read-Host "Bump patch version and create new development branch? (Y/n)"
 if ($bumpVersion -ne 'n' -and $bumpVersion -ne 'N') {
     # Parse current (released) version
