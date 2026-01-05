@@ -24,7 +24,7 @@ Comprehensive integration testing performed on Microsoft Graph GoLang CLI Tool v
 | Platform | Windows (Git Bash) |
 | Go Version | 1.25.5 windows/amd64 |
 | Test Date | 2026-01-05 11:19-11:22 UTC+01:00 |
-| Test Mailbox | user@example.com |
+| Test Mailbox | <user@example.com> |
 | Tenant ID | 6805****-****-****-****549f (masked) |
 | Client ID | 182a****-****-****-****7f21 (masked) |
 | Authentication Method | Client Secret |
@@ -63,11 +63,13 @@ cd src && go build -o ../msgraphgolangtestingtool.exe
 ### 1. getinbox Action (Default)
 
 **Test Command:**
+
 ```bash
 ./msgraphgolangtestingtool.exe -verbose -action getinbox -count 3
 ```
 
 **Results:**
+
 - ✅ Successfully retrieved 3 newest inbox messages
 - ✅ Displayed sender, recipient, subject, received date
 - ✅ Verbose mode showed environment variables (masked)
@@ -77,26 +79,28 @@ cd src && go build -o ../msgraphgolangtestingtool.exe
 - ✅ CSV log created: `C:\Users\ZIEMEK~1\AppData\Local\Temp\_msgraphgolangtestingtool_getinbox_2026-01-05.csv`
 
 **Sample Output:**
-```
-Newest 3 messages in inbox for user@example.com:
+
+powershell
+Newest 3 messages in inbox for <user@example.com>:
 
 1. Subject: Integration Test - 2026-01-05_11:19:32
-   From: user@example.com
-   To: user@example.com
+   From: <user@example.com>
+   To: <user@example.com>
    Received: 2026-01-05 10:19:36
 
 2. Subject: Integration Test - 2026-01-05_11:19:32
-   From: user@example.com
-   To: user@example.com
+   From: <user@example.com>
+   To: <user@example.com>
    Received: 2026-01-05 10:19:34
 
 3. Subject: Automated Tool Notification
-   From: user@example.com
-   To: user@example.com
+   From: <user@example.com>
+   To: <user@example.com>
    Received: 2026-01-04 06:42:49
 
 Total messages retrieved: 3
-```
+
+```powershell
 
 **Status:** ✅ PASS
 
@@ -105,18 +109,21 @@ Total messages retrieved: 3
 ### 2. getevents Action
 
 **Test Command:**
+
 ```bash
 ./msgraphgolangtestingtool.exe -action getevents -count 5
 ```
 
 **Results:**
+
 - ✅ Successfully retrieved 5 upcoming calendar events
 - ✅ Event subjects and IDs displayed correctly
 - ✅ Structured logging enabled
 - ✅ CSV log created: `C:\Users\ZIEMEK~1\AppData\Local\Temp\_msgraphgolangtestingtool_getevents_2026-01-05.csv`
 
 **Sample Output:**
-```
+
+```powershell
 Upcoming events for user@example.com:
 - System Sync (ID: AQMkADQ4NTBlZjZlLWY3MzEtNGRjOC05YTFkLTBkNTljNzQwOWRkAQBGAAADJhA0AkP67k2...)
 - System Sync (ID: AQMkADQ4NTBlZjZlLWY3MzEtNGRjOC05YTFkLTBkNTljNzQwOWRkAQBGAAADJhA0AkP67k2...)
@@ -134,6 +141,7 @@ Total events retrieved: 5
 ### 3. sendmail Action
 
 **Test Command:**
+
 ```bash
 ./msgraphgolangtestingtool.exe -action sendmail \
   -subject "Integration Test - 2026-01-05_11:19:32" \
@@ -142,8 +150,9 @@ Total events retrieved: 5
 ```
 
 **Results:**
-- ✅ Email sent successfully from user@example.com
-- ✅ To recipient: user@example.com
+
+- ✅ Email sent successfully from <user@example.com>
+- ✅ To recipient: <user@example.com>
 - ✅ CC: empty (as expected)
 - ✅ BCC: empty (as expected)
 - ✅ Body Type: Text
@@ -151,7 +160,8 @@ Total events retrieved: 5
 - ✅ CSV log created: `C:\Users\ZIEMEK~1\AppData\Local\Temp\_msgraphgolangtestingtool_sendmail_2026-01-05.csv`
 
 **Sample Output:**
-```
+
+```powershell
 Email sent successfully from user@example.com.
 To: [user@example.com]
 Cc: []
@@ -169,6 +179,7 @@ Body Type: Text
 ### 4. sendinvite Action
 
 **Test Command:**
+
 ```bash
 ./msgraphgolangtestingtool.exe -action sendinvite \
   -invite-subject "Integration Test Event - 2026-01-05_11:19" \
@@ -177,8 +188,9 @@ Body Type: Text
 ```
 
 **Results:**
+
 - ✅ Calendar invitation created successfully
-- ✅ Mailbox: user@example.com
+- ✅ Mailbox: <user@example.com>
 - ✅ Subject: Integration Test Event - 2026-01-05_11:19
 - ✅ Start Time: 2026-01-10 14:00:00 UTC
 - ✅ End Time: 2026-01-10 15:00:00 UTC
@@ -186,7 +198,8 @@ Body Type: Text
 - ✅ CSV log created: `C:\Users\ZIEMEK~1\AppData\Local\Temp\_msgraphgolangtestingtool_sendinvite_2026-01-05.csv`
 
 **Sample Output:**
-```
+
+```powershell
 Calendar invitation created in mailbox: user@example.com
 Subject: Integration Test Event - 2026-01-05_11:19
 Start: 2026-01-10 14:00:00 UTC
@@ -216,6 +229,7 @@ $ ls -la /c/Users/ZIEMEK~1/AppData/Local/Temp/_msgraphgolangtestingtool_*_2026-0
 ### CSV Schemas Verified
 
 #### getinbox_2026-01-05.csv
+
 ```csv
 Timestamp,Action,Status,Mailbox,Subject,From,To,Received DateTime
 2026-01-05 11:19:01,getinbox,Success,user@example.com,Automated Tool Notification,user@example.com,user@example.com,2026-01-04 06:42:49
@@ -225,6 +239,7 @@ Timestamp,Action,Status,Mailbox,Subject,From,To,Received DateTime
 ```
 
 #### getevents_2026-01-05.csv
+
 ```csv
 Timestamp,Action,Status,Mailbox,Event Subject,Event ID
 2026-01-05 11:19:14,getevents,Success,user@example.com,System Sync,AQMkADQ4NTBlZjZlLWY3MzEtNGRjOC05YTFkLTBkNTljNzQwOWRkAQBGAAADJhA0AkP67k2...
@@ -236,12 +251,14 @@ Timestamp,Action,Status,Mailbox,Event Subject,Event ID
 ```
 
 #### sendmail_2026-01-05.csv
+
 ```csv
 Timestamp,Action,Status,Mailbox,To,CC,BCC,Subject,Body Type,Attachments
 2026-01-05 11:19:33,sendmail,Success,user@example.com,user@example.com,,,Integration Test - 2026-01-05_11:19:32,Text,0
 ```
 
 #### sendinvite_2026-01-05.csv
+
 ```csv
 Timestamp,Action,Status,Mailbox,Subject,Start Time,End Time,Event ID
 2026-01-05 11:19:49,sendinvite,Success,user@example.com,Integration Test Event - 2026-01-05_11:19,2026-01-10T14:00:00Z,2026-01-10T15:00:00Z,AQMkADQ4NTBlZjZlLWY3MzEtNGRjOC05YTFkLTBkNTljNzQwOWRkAQBGAAADJhA0AkP67k2...
@@ -256,6 +273,7 @@ Timestamp,Action,Status,Mailbox,Subject,Start Time,End Time,Event ID
 ### Test 1: Using Environment Variables
 
 **Environment Variables Set:**
+
 ```bash
 MSGRAPHTENANTID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 MSGRAPHCLIENTID=yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy
@@ -264,12 +282,14 @@ MSGRAPHMAILBOX=user@example.com
 ```
 
 **Test Command:**
+
 ```bash
 ./msgraphgolangtestingtool.exe -action getinbox
 # No flags provided - should use environment variables
 ```
 
 **Result:**
+
 - ✅ Application successfully read all environment variables
 - ✅ Default action (getinbox) executed
 - ✅ Default count (3) applied
@@ -280,12 +300,14 @@ MSGRAPHMAILBOX=user@example.com
 ### Test 2: Command-Line Flags Override Environment Variables
 
 **Test Command:**
+
 ```bash
 ./msgraphgolangtestingtool.exe -action getevents -count 5
 # Flags override environment variables
 ```
 
 **Result:**
+
 - ✅ Action flag overrode default (getinbox → getevents)
 - ✅ Count flag overrode default (3 → 5)
 - ✅ Other parameters read from environment variables
@@ -299,6 +321,7 @@ MSGRAPHMAILBOX=user@example.com
 ### Test 1: Invalid Tenant ID Format
 
 **Test Command:**
+
 ```bash
 ./msgraphgolangtestingtool.exe -tenantid "invalid-tenant-id" \
   -clientid "invalid-client-id" \
@@ -309,7 +332,8 @@ MSGRAPHMAILBOX=user@example.com
 
 **Expected:** Error message about invalid GUID format
 **Actual Output:**
-```
+
+```powershell
 Error: Tenant ID should be a GUID (36 characters, format: 12345678-1234-1234-1234-123456789012)
 ```
 
@@ -319,6 +343,7 @@ Error: Tenant ID should be a GUID (36 characters, format: 12345678-1234-1234-123
 ### Test 2: Missing Required Parameter
 
 **Test Command:**
+
 ```bash
 unset MSGRAPHTENANTID
 ./msgraphgolangtestingtool.exe -action getinbox \
@@ -329,7 +354,8 @@ unset MSGRAPHTENANTID
 
 **Expected:** Error about missing tenant ID
 **Actual Output:**
-```
+
+```powershell
 Error: Tenant ID cannot be empty
 ```
 
@@ -341,6 +367,7 @@ Error: Tenant ID cannot be empty
 ## Verbose Mode Testing
 
 ### Test Command
+
 ```bash
 ./msgraphgolangtestingtool.exe -verbose -action getinbox -count 3
 ```
@@ -348,7 +375,8 @@ Error: Tenant ID cannot be empty
 ### Verbose Output Verified
 
 **1. Environment Variables Display (Masked):**
-```
+
+```powershell
 Environment Variables (MSGRAPH*):
 ----------------------------------
   MSGRAPHCLIENTID = yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy
@@ -356,10 +384,12 @@ Environment Variables (MSGRAPH*):
   MSGRAPHSECRET = z3P8********NdlZ
   MSGRAPHTENANTID = xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
+
 ✅ All environment variables shown with secrets properly masked
 
 **2. Final Configuration:**
-```
+
+```powershell
 Final Configuration (after env vars + flags):
 ----------------------------------------------
 Version: 1.16.8
@@ -372,10 +402,12 @@ Authentication:
   Method: Client Secret
   Secret: z3P8********NdlZ (length: 40)
 ```
+
 ✅ Configuration displayed with authentication details
 
 **3. Token Information:**
-```
+
+```powershell
 Token Information:
 ------------------
 Token acquired successfully
@@ -384,15 +416,18 @@ Valid for: 59m59s
 Token (truncated): eyJ0eXAiOiJKV1QiLCJu...MRNlG_JrVW4ibWk3ayxg
 Token length: 2051 characters
 ```
+
 ✅ Token metadata shown (expiry, validity, truncated value)
 
 **4. API Call Details:**
-```
+
+```powershell
 [VERBOSE] Graph SDK client initialized successfully
 [VERBOSE] Target scope: https://graph.microsoft.com/.default
 [VERBOSE] Calling Graph API: GET /users/user@example.com/messages?$top=3&$orderby=receivedDateTime DESC
 [VERBOSE] API response received: 3 messages
 ```
+
 ✅ API endpoint, parameters, and response details logged
 
 **Status:** ✅ PASS
@@ -404,13 +439,14 @@ Token length: 2051 characters
 ### Test Execution
 
 **Command:**
+
 ```bash
 cd src && go test -v -short
 ```
 
 ### Test Results Summary
 
-```
+```powershell
 === Test Categories ===
 
 StringSlice Tests:
