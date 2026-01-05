@@ -51,7 +51,7 @@ cd src && go build -o ../msgraphgolangtestingtool.exe
 
 # Verify version
 ./msgraphgolangtestingtool.exe -version
-# Output: Microsoft Graph Golang Testing Tool - Version 1.16.8
+# Output: Microsoft Graph EXO Mails/Calendar Golang Testing Tool - Version 1.16.8
 ```
 
 **Status:** ✅ PASS

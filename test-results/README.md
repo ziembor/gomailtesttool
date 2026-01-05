@@ -1,6 +1,6 @@
 # Integration Test Results Archive
 
-This directory contains historical integration test results for the Microsoft Graph GoLang Testing Tool.
+This directory contains historical integration test results for the Microsoft Graph EXO Mails/Calendar Golang Testing Tool.
 
 ## Purpose
 
