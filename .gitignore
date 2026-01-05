@@ -32,8 +32,9 @@ go.work.sum
 
 # env file
 .env
+.env.d/
 
 # Editor/IDE
 # .idea/
-# .vscode/
-.claude/settings.local.json
+.vscode/
+.claude/

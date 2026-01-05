@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"mime"
 	"os"
 	"path/filepath"
@@ -88,8 +89,9 @@ type Config struct {
 	RetryDelay time.Duration // Base delay between retries in milliseconds (default: 2000ms)
 
 	// Runtime configuration
-	VerboseMode bool // Enable verbose diagnostic output
-	Count       int  // Number of items to retrieve (for getevents and getinbox actions)
+	VerboseMode bool   // Enable verbose diagnostic output (maps to DEBUG log level)
+	LogLevel    string // Logging level: DEBUG, INFO, WARN, ERROR (default: INFO)
+	Count       int    // Number of items to retrieve (for getevents and getinbox actions)
 }
 
 // NewConfig creates a new Config with sensible default values.
@@ -103,9 +105,81 @@ func NewConfig() *Config {
 		Action:        ActionGetInbox,
 		Count:         3,
 		VerboseMode:   false,
+		LogLevel:      "INFO",                  // Default: INFO level logging
 		ShowVersion:   false,
 		MaxRetries:    3,                       // Default: 3 retry attempts
 		RetryDelay:    2000 * time.Millisecond, // Default: 2 second base delay
+	}
+}
+
+// setupLogger configures the global logger based on the provided log level.
+// Valid levels are: DEBUG, INFO, WARN, ERROR
+// If VerboseMode is true, it overrides LogLevel to DEBUG.
+// Returns a configured *slog.Logger that can be used throughout the application.
+func setupLogger(config *Config) *slog.Logger {
+	// Determine log level
+	level := parseLogLevel(config.LogLevel)
+
+	// Verbose mode overrides log level to DEBUG
+	if config.VerboseMode {
+		level = slog.LevelDebug
+	}
+
+	// Create handler options with the determined level
+	opts := &slog.HandlerOptions{
+		Level: level,
+	}
+
+	// Create a text handler that writes to stdout
+	handler := slog.NewTextHandler(os.Stdout, opts)
+
+	// Create and return the logger
+	return slog.New(handler)
+}
+
+// parseLogLevel converts a string log level to slog.Level.
+// Defaults to INFO if an invalid level is provided.
+func parseLogLevel(levelStr string) slog.Level {
+	switch strings.ToUpper(levelStr) {
+	case "DEBUG":
+		return slog.LevelDebug
+	case "INFO":
+		return slog.LevelInfo
+	case "WARN", "WARNING":
+		return slog.LevelWarn
+	case "ERROR":
+		return slog.LevelError
+	default:
+		// Default to INFO if invalid level provided
+		return slog.LevelInfo
+	}
+}
+
+// logDebug logs a debug message if debug level is enabled
+func logDebug(logger *slog.Logger, msg string, args ...any) {
+	if logger != nil {
+		logger.Debug(msg, args...)
+	}
+}
+
+// logInfo logs an informational message
+func logInfo(logger *slog.Logger, msg string, args ...any) {
+	if logger != nil {
+		logger.Info(msg, args...)
+	}
+}
+
+// logWarn logs a warning message
+func logWarn(logger *slog.Logger, msg string, args ...any) {
+	if logger != nil {
+		logger.Warn(msg, args...)
+	}
+}
+
+// logError logs an error message
+func logError(logger *slog.Logger, msg string, args ...any) {
+	if logger != nil {
+		logger.Error(msg, args...)
 	}
 }
 
@@ -255,9 +329,11 @@ func (s *stringSlice) Set(value string) error {
 // token expiration time and validity period.
 //
 // Returns the initialized GraphServiceClient and any error encountered during setup.
-func setupGraphClient(ctx context.Context, config *Config) (*msgraphsdk.GraphServiceClient, error) {
+func setupGraphClient(ctx context.Context, config *Config, logger *slog.Logger) (*msgraphsdk.GraphServiceClient, error) {
 	// Setup Authentication
-	cred, err := getCredential(config.TenantID, config.ClientID, config.Secret, config.PfxPath, config.PfxPass, config.Thumbprint, config)
+	logDebug(logger, "Setting up Microsoft Graph client", "tenantID", maskGUID(config.TenantID), "clientID", maskGUID(config.ClientID))
+
+	cred, err := getCredential(config.TenantID, config.ClientID, config.Secret, config.PfxPath, config.PfxPass, config.Thumbprint, config, logger)
 	if err != nil {
 		return nil, fmt.Errorf("authentication setup failed: %w", err)
 	}
@@ -288,43 +364,42 @@ func setupGraphClient(ctx context.Context, config *Config) (*msgraphsdk.GraphSer
 	return client, nil
 }
 
-func getCredential(tenantID, clientID, secret, pfxPath, pfxPass, thumbprint string, config *Config) (azcore.TokenCredential, error) {
+func getCredential(tenantID, clientID, secret, pfxPath, pfxPass, thumbprint string, config *Config, logger *slog.Logger) (azcore.TokenCredential, error) {
 	// 1. Client Secret
 	if secret != "" {
-		logVerbose(config.VerboseMode, "Authentication method: Client Secret")
-		logVerbose(config.VerboseMode, "Creating ClientSecretCredential...")
+		logDebug(logger, "Authentication method: Client Secret")
+		logDebug(logger, "Creating ClientSecretCredential")
 		return azidentity.NewClientSecretCredential(tenantID, clientID, secret, nil)
 	}
 
 	// 2. PFX File
 	if pfxPath != "" {
-		logVerbose(config.VerboseMode, "Authentication method: PFX Certificate File")
-		logVerbose(config.VerboseMode, "PFX file path: %s", pfxPath)
+		logDebug(logger, "Authentication method: PFX Certificate File", "path", pfxPath)
 		pfxData, err := os.ReadFile(pfxPath)
 		if err != nil {
+			logError(logger, "Failed to read PFX file", "path", pfxPath, "error", err)
 			return nil, fmt.Errorf("failed to read PFX file: %w", err)
 		}
-		logVerbose(config.VerboseMode, "PFX file read successfully (%d bytes)", len(pfxData))
-		return createCertCredential(tenantID, clientID, pfxData, pfxPass)
+		logDebug(logger, "PFX file read successfully", "bytes", len(pfxData))
+		return createCertCredential(tenantID, clientID, pfxData, pfxPass, logger)
 	}
 
 	// 3. Windows Cert Store (Thumbprint)
 	if thumbprint != "" {
-		logVerbose(config.VerboseMode, "Authentication method: Windows Certificate Store")
-		logVerbose(config.VerboseMode, "Certificate thumbprint: %s", thumbprint)
-		logVerbose(config.VerboseMode, "Exporting certificate from CurrentUser\\My store...")
+		logDebug(logger, "Authentication method: Windows Certificate Store", "thumbprint", thumbprint)
+		logDebug(logger, "Exporting certificate from CurrentUser\\My store")
 		pfxData, tempPass, err := exportCertFromStore(thumbprint)
 		if err != nil {
 			return nil, fmt.Errorf("failed to export cert from store: %w", err)
 		}
-		logVerbose(config.VerboseMode, "Certificate exported successfully (%d bytes)", len(pfxData))
-		return createCertCredential(tenantID, clientID, pfxData, tempPass)
+		logDebug(logger, "Certificate exported successfully", "bytes", len(pfxData))
+		return createCertCredential(tenantID, clientID, pfxData, tempPass, logger)
 	}
 
 	return nil, fmt.Errorf("no valid authentication method provided (use -secret, -pfx, or -thumbprint)")
 }
 
-func createCertCredential(tenantID, clientID string, pfxData []byte, password string) (*azidentity.ClientCertificateCredential, error) {
+func createCertCredential(tenantID, clientID string, pfxData []byte, password string, logger *slog.Logger) (*azidentity.ClientCertificateCredential, error) {
 	// Decode PFX using go-pkcs12 library (supports SHA-256 and other modern algorithms)
 	// pkcs12.DecodeChain returns private key and full certificate chain
 	key, cert, caCerts, err := pkcs12.DecodeChain(pfxData, password)
@@ -915,6 +990,62 @@ func validateRFC3339Time(timeStr, fieldName string) error {
 	return nil
 }
 
+// validateFilePath validates and sanitizes a file path for security and usability.
+// It checks for path traversal attempts, normalizes the path, and verifies file existence.
+// Returns nil if the path is empty (allows optional file paths).
+func validateFilePath(path, fieldName string) error {
+	if path == "" {
+		return nil // Empty is allowed for optional fields
+	}
+
+	// Clean and normalize path (resolves . and .. elements)
+	cleanPath := filepath.Clean(path)
+
+	// Check for path traversal attempts
+	// After cleaning, ".." should not remain in the path unless it's at the start (relative path going up)
+	// We need to check if the cleaned path tries to escape the current directory context
+	absPath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		return fmt.Errorf("%s: invalid path: %w", fieldName, err)
+	}
+
+	// Get current working directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		// If we can't get cwd, just verify the file exists
+		cwd = ""
+	}
+
+	// If we have a cwd, check if the absolute path tries to go outside reasonable bounds
+	// For absolute paths (like C:\file.pfx or /etc/file.pfx), this is allowed
+	// For relative paths, we verify they don't traverse outside the working directory tree
+	if cwd != "" && !filepath.IsAbs(path) {
+		// Check if cleaned path still contains ".." which indicates traversal
+		if strings.Contains(cleanPath, "..") {
+			return fmt.Errorf("%s: path contains directory traversal (..) which is not allowed", fieldName)
+		}
+	}
+
+	// Verify file exists and is accessible
+	fileInfo, err := os.Stat(absPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("%s: file not found: %s", fieldName, path)
+		}
+		if os.IsPermission(err) {
+			return fmt.Errorf("%s: permission denied: %s", fieldName, path)
+		}
+		return fmt.Errorf("%s: cannot access file: %w", fieldName, err)
+	}
+
+	// Verify it's a regular file (not a directory or special file)
+	if !fileInfo.Mode().IsRegular() {
+		return fmt.Errorf("%s: not a regular file (is it a directory?): %s", fieldName, path)
+	}
+
+	return nil
+}
+
 // validateConfiguration validates all required configuration fields
 func validateConfiguration(config *Config) error {
 	// Validate required fields with format checking
@@ -945,6 +1076,21 @@ func validateConfiguration(config *Config) error {
 	}
 	if authMethodCount > 1 {
 		return fmt.Errorf("multiple authentication methods provided: use only one of -secret, -pfx, or -thumbprint")
+	}
+
+	// Validate PFX file path if provided
+	if config.PfxPath != "" {
+		if err := validateFilePath(config.PfxPath, "PFX certificate file"); err != nil {
+			return err
+		}
+	}
+
+	// Validate attachment file paths
+	for i, attachmentPath := range config.AttachmentFiles {
+		fieldName := fmt.Sprintf("Attachment file #%d", i+1)
+		if err := validateFilePath(attachmentPath, fieldName); err != nil {
+			return err
+		}
 	}
 
 	// Validate email lists if provided

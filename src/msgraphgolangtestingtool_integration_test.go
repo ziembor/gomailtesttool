@@ -54,7 +54,7 @@ func TestIntegration_GraphClientCreation(t *testing.T) {
 	config := loadTestConfig(t)
 	ctx := context.Background()
 
-	client, err := setupGraphClient(ctx, config)
+	client, err := setupGraphClient(ctx, config, nil)
 	if err != nil {
 		t.Fatalf("Failed to create Graph client: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestIntegration_ListEvents(t *testing.T) {
 	config := loadTestConfig(t)
 	ctx := context.Background()
 
-	client, err := setupGraphClient(ctx, config)
+	client, err := setupGraphClient(ctx, config, nil)
 	if err != nil {
 		t.Fatalf("Failed to create Graph client: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestIntegration_ListInbox(t *testing.T) {
 	config := loadTestConfig(t)
 	ctx := context.Background()
 
-	client, err := setupGraphClient(ctx, config)
+	client, err := setupGraphClient(ctx, config, nil)
 	if err != nil {
 		t.Fatalf("Failed to create Graph client: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestIntegration_SendEmail(t *testing.T) {
 	config := loadTestConfig(t)
 	ctx := context.Background()
 
-	client, err := setupGraphClient(ctx, config)
+	client, err := setupGraphClient(ctx, config, nil)
 	if err != nil {
 		t.Fatalf("Failed to create Graph client: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestIntegration_CreateCalendarEvent(t *testing.T) {
 	config := loadTestConfig(t)
 	ctx := context.Background()
 
-	client, err := setupGraphClient(ctx, config)
+	client, err := setupGraphClient(ctx, config, nil)
 	if err != nil {
 		t.Fatalf("Failed to create Graph client: %v", err)
 	}
