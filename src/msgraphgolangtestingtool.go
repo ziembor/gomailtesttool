@@ -29,6 +29,7 @@ import (
 	"os/signal"
 	"sort"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -150,6 +151,7 @@ func parseAndConfigureFlags() *Config {
 
 	// Define Command Line Parameters
 	showVersion := flag.Bool("version", false, "Show version information")
+	completionShell := flag.String("completion", "", "Generate shell completion script (bash or powershell) and exit")
 	tenantID := flag.String("tenantid", "", "The Azure Tenant ID (env: MSGRAPHTENANTID)")
 	clientID := flag.String("clientid", "", "The Application (Client) ID (env: MSGRAPHCLIENTID)")
 	secret := flag.String("secret", "", "The Client Secret (env: MSGRAPHSECRET)")
@@ -280,6 +282,7 @@ func parseAndConfigureFlags() *Config {
 	// Create and populate Config struct with all parsed values
 	config := &Config{
 		ShowVersion:     *showVersion,
+		CompletionShell: *completionShell,
 		TenantID:        *tenantID,
 		ClientID:        *clientID,
 		Mailbox:         *mailbox,
@@ -393,6 +396,25 @@ func run() error {
 	if config.ShowVersion {
 		fmt.Printf("Microsoft Graph Golang Testing Tool - Version %s\n", version)
 		return nil
+	}
+
+	// 3a. Handle completion script generation early exit
+	if config.CompletionShell != "" {
+		shellType := strings.ToLower(config.CompletionShell)
+		switch shellType {
+		case "bash":
+			fmt.Print(generateBashCompletion())
+			return nil
+		case "powershell", "pwsh", "ps1":
+			fmt.Print(generatePowerShellCompletion())
+			return nil
+		default:
+			fmt.Fprintf(os.Stderr, "Error: Unknown shell type '%s'. Supported shells: bash, powershell\n", config.CompletionShell)
+			fmt.Fprintf(os.Stderr, "\nUsage:\n")
+			fmt.Fprintf(os.Stderr, "  %s -completion bash > msgraphgolangtestingtool-completion.bash\n", os.Args[0])
+			fmt.Fprintf(os.Stderr, "  %s -completion powershell > msgraphgolangtestingtool-completion.ps1\n", os.Args[0])
+			os.Exit(1)
+		}
 	}
 
 	// 4. Validate configuration
