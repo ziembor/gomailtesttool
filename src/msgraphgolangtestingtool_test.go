@@ -153,17 +153,8 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "valid with pfx",
-			config: &Config{
-				TenantID: "12345678-1234-1234-1234-123456789012",
-				ClientID: "abcdefgh-5678-9012-abcd-ef1234567890",
-				Mailbox:  "user@example.com",
-				PfxPath:  "/path/to/cert.pfx",
-				Action:   "getevents",
-			},
-			wantErr: false,
-		},
+		// Note: "valid with pfx" test removed - now covered by TestValidateConfiguration_PfxPathValidation in shared_test.go
+		// This avoids creating temp files in every test run
 		{
 			name: "valid with thumbprint",
 			config: &Config{
