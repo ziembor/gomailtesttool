@@ -365,3 +365,498 @@ func TestLogHelpers(t *testing.T) {
 	logWarn(logger, "test warn", "key", "value")
 	logError(logger, "test error", "key", "value")
 }
+
+// TestEnrichGraphAPIError tests the enrichGraphAPIError function with various error types
+func TestEnrichGraphAPIError(t *testing.T) {
+	tests := []struct {
+		name      string
+		err       error
+		operation string
+		wantNil   bool
+		wantErr   bool
+	}{
+		{
+			name:      "nil error returns nil",
+			err:       nil,
+			operation: "testOperation",
+			wantNil:   true,
+			wantErr:   false,
+		},
+		{
+			name:      "non-OData error returned unchanged",
+			err:       &testError{msg: "generic error"},
+			operation: "testOperation",
+			wantNil:   false,
+			wantErr:   true,
+		},
+		{
+			name:      "empty operation name",
+			err:       &testError{msg: "test error"},
+			operation: "",
+			wantNil:   false,
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := enrichGraphAPIError(tt.err, nil, tt.operation)
+
+			if tt.wantNil && result != nil {
+				t.Errorf("enrichGraphAPIError() expected nil, got %v", result)
+			}
+
+			if !tt.wantNil && tt.wantErr && result == nil {
+				t.Error("enrichGraphAPIError() expected error, got nil")
+			}
+
+			if !tt.wantNil && !tt.wantErr && result != nil {
+				t.Errorf("enrichGraphAPIError() expected no error, got %v", result)
+			}
+		})
+	}
+}
+
+// testError is a simple error type for testing
+type testError struct {
+	msg string
+}
+
+func (e *testError) Error() string {
+	return e.msg
+}
+
+// TestEnrichGraphAPIError_NoP panic tests that enrichGraphAPIError doesn't panic
+func TestEnrichGraphAPIError_NoPanic(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("enrichGraphAPIError() panicked: %v", r)
+		}
+	}()
+
+	// Test with various nil combinations
+	enrichGraphAPIError(nil, nil, "")
+	enrichGraphAPIError(nil, nil, "operation")
+	enrichGraphAPIError(&testError{msg: "test"}, nil, "")
+	enrichGraphAPIError(&testError{msg: "test"}, nil, "operation")
+}
+
+// TestCreateFileAttachments tests the createFileAttachments function
+func TestCreateFileAttachments(t *testing.T) {
+	// Create temporary test files
+	tmpFile1, err := os.CreateTemp("", "attach1-*.txt")
+	if err != nil {
+		t.Fatalf("Failed to create temp file 1: %v", err)
+	}
+	defer os.Remove(tmpFile1.Name())
+
+	content1 := []byte("This is test attachment 1")
+	if _, err := tmpFile1.Write(content1); err != nil {
+		t.Fatalf("Failed to write to temp file 1: %v", err)
+	}
+	tmpFile1.Close()
+
+	tmpFile2, err := os.CreateTemp("", "attach2-*.pdf")
+	if err != nil {
+		t.Fatalf("Failed to create temp file 2: %v", err)
+	}
+	defer os.Remove(tmpFile2.Name())
+
+	content2 := []byte("PDF content here")
+	if _, err := tmpFile2.Write(content2); err != nil {
+		t.Fatalf("Failed to write to temp file 2: %v", err)
+	}
+	tmpFile2.Close()
+
+	tests := []struct {
+		name          string
+		filePaths     []string
+		config        *Config
+		wantErr       bool
+		wantCount     int
+		checkFilename string
+	}{
+		{
+			name:      "single file attachment",
+			filePaths: []string{tmpFile1.Name()},
+			config:    &Config{VerboseMode: false},
+			wantErr:   false,
+			wantCount: 1,
+			checkFilename: filepath.Base(tmpFile1.Name()),
+		},
+		{
+			name:      "multiple file attachments",
+			filePaths: []string{tmpFile1.Name(), tmpFile2.Name()},
+			config:    &Config{VerboseMode: false},
+			wantErr:   false,
+			wantCount: 2,
+		},
+		{
+			name:      "empty file list",
+			filePaths: []string{},
+			config:    &Config{VerboseMode: false},
+			wantErr:   false,
+			wantCount: 0,
+		},
+		{
+			name:      "nonexistent file should skip",
+			filePaths: []string{tmpFile1.Name(), "/nonexistent/file.txt"},
+			config:    &Config{VerboseMode: false},
+			wantErr:   false,
+			wantCount: 1, // Only valid file should be processed
+		},
+		{
+			name:      "all files nonexistent",
+			filePaths: []string{"/nonexistent/file1.txt", "/nonexistent/file2.txt"},
+			config:    &Config{VerboseMode: false},
+			wantErr:   true, // Should error when no attachments could be processed
+			wantCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attachments, err := createFileAttachments(tt.filePaths, tt.config)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("createFileAttachments() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if len(attachments) != tt.wantCount {
+				t.Errorf("createFileAttachments() returned %d attachments, want %d", len(attachments), tt.wantCount)
+			}
+
+			// Check filename if specified
+			if tt.checkFilename != "" && len(attachments) > 0 {
+				firstAttachment := attachments[0]
+				// We can't access the Name field directly in the test without reflection
+				// So just verify we got an attachment object
+				if firstAttachment == nil {
+					t.Error("First attachment is nil")
+				}
+			}
+		})
+	}
+}
+
+// TestGetAttachmentContentBase64 tests the getAttachmentContentBase64 function
+func TestGetAttachmentContentBase64(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected string
+	}{
+		{
+			name:     "empty data",
+			input:    []byte{},
+			expected: "",
+		},
+		{
+			name:     "simple text",
+			input:    []byte("Hello World"),
+			expected: "SGVsbG8gV29ybGQ=",
+		},
+		{
+			name:     "binary data",
+			input:    []byte{0x00, 0xFF, 0xAA, 0x55},
+			expected: "AP+qVQ==",
+		},
+		{
+			name:     "newline character",
+			input:    []byte("Line1\nLine2"),
+			expected: "TGluZTEKTGluZTI=",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getAttachmentContentBase64(tt.input)
+			if result != tt.expected {
+				t.Errorf("getAttachmentContentBase64() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestGenerateBashCompletion tests the bash completion script generator
+func TestGenerateBashCompletion(t *testing.T) {
+	script := generateBashCompletion()
+
+	// Check that script is not empty
+	if script == "" {
+		t.Error("generateBashCompletion() returned empty string")
+	}
+
+	// Check for essential bash completion elements
+	requiredStrings := []string{
+		"_msgraphgolangtestingtool_completions",
+		"COMPREPLY",
+		"COMP_WORDS",
+		"COMP_CWORD",
+		"-action",
+		"-tenantid",
+		"-clientid",
+		"complete -F",
+		"getevents",
+		"sendmail",
+		"sendinvite",
+		"getinbox",
+	}
+
+	for _, required := range requiredStrings {
+		if !strings.Contains(script, required) {
+			t.Errorf("generateBashCompletion() missing required string: %q", required)
+		}
+	}
+
+	// Check for installation instructions
+	if !strings.Contains(script, "Installation:") {
+		t.Error("generateBashCompletion() missing installation instructions")
+	}
+
+	// Check that it completes basic flags
+	if !strings.Contains(script, "-loglevel") {
+		t.Error("generateBashCompletion() missing -loglevel flag")
+	}
+
+	// Check that it has action completions
+	if !strings.Contains(script, "case") && !strings.Contains(script, "-action") {
+		t.Error("generateBashCompletion() missing action case handling")
+	}
+}
+
+// TestGeneratePowerShellCompletion tests the PowerShell completion script generator
+func TestGeneratePowerShellCompletion(t *testing.T) {
+	script := generatePowerShellCompletion()
+
+	// Check that script is not empty
+	if script == "" {
+		t.Error("generatePowerShellCompletion() returned empty string")
+	}
+
+	// Check for essential PowerShell completion elements
+	requiredStrings := []string{
+		"Register-ArgumentCompleter",
+		"msgraphgolangtestingtool.exe",
+		"param(",
+		"$commandName",
+		"$wordToComplete",
+		"-action",
+		"-tenantid",
+		"-clientid",
+		"getevents",
+		"sendmail",
+		"sendinvite",
+		"getinbox",
+		"CompletionResult",
+	}
+
+	for _, required := range requiredStrings {
+		if !strings.Contains(script, required) {
+			t.Errorf("generatePowerShellCompletion() missing required string: %q", required)
+		}
+	}
+
+	// Check for installation instructions
+	if !strings.Contains(script, "Installation:") {
+		t.Error("generatePowerShellCompletion() missing installation instructions")
+	}
+
+	// Check for log levels
+	logLevels := []string{"DEBUG", "INFO", "WARN", "ERROR"}
+	for _, level := range logLevels {
+		if !strings.Contains(script, level) {
+			t.Errorf("generatePowerShellCompletion() missing log level: %q", level)
+		}
+	}
+
+	// Check for shell types
+	shellTypes := []string{"bash", "powershell"}
+	for _, shell := range shellTypes {
+		if !strings.Contains(script, shell) {
+			t.Errorf("generatePowerShellCompletion() missing shell type: %q", shell)
+		}
+	}
+
+	// Check for success message
+	if !strings.Contains(script, "Write-Host") {
+		t.Error("generatePowerShellCompletion() missing success message")
+	}
+}
+
+// TestInt32Ptr tests the Int32Ptr helper function
+func TestInt32Ptr(t *testing.T) {
+	tests := []struct {
+		name  string
+		input int32
+	}{
+		{
+			name:  "zero value",
+			input: 0,
+		},
+		{
+			name:  "positive value",
+			input: 42,
+		},
+		{
+			name:  "negative value",
+			input: -100,
+		},
+		{
+			name:  "max int32",
+			input: 2147483647,
+		},
+		{
+			name:  "min int32",
+			input: -2147483648,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := Int32Ptr(tt.input)
+
+			// Check that result is not nil
+			if result == nil {
+				t.Error("Int32Ptr() returned nil")
+				return
+			}
+
+			// Check that dereferenced value matches input
+			if *result != tt.input {
+				t.Errorf("Int32Ptr(%d) = %d, want %d", tt.input, *result, tt.input)
+			}
+
+			// Check that the pointer points to a different address than the input
+			// (This verifies that a new memory location was created)
+			inputAddr := &tt.input
+			if result == inputAddr {
+				t.Error("Int32Ptr() returned pointer to input variable instead of new allocation")
+			}
+		})
+	}
+}
+
+// TestMaskGUID tests the maskGUID function
+func TestMaskGUID(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "standard GUID",
+			input:    "12345678-1234-1234-1234-123456789012",
+			expected: "1234****-****-****-****9012",
+		},
+		{
+			name:     "GUID without dashes",
+			input:    "12345678123412341234123456789012",
+			expected: "1234****-****-****-****9012",
+		},
+		{
+			name:     "short string",
+			input:    "short",
+			expected: "****",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "****",
+		},
+		{
+			name:     "exactly 8 characters",
+			input:    "12345678",
+			expected: "****",
+		},
+		{
+			name:     "9 characters",
+			input:    "123456789",
+			expected: "1234****-****-****-****6789",
+		},
+		{
+			name:     "uppercase GUID",
+			input:    "ABCDEFAB-1234-5678-9ABC-DEF012345678",
+			expected: "ABCD****-****-****-****5678",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := maskGUID(tt.input)
+			if result != tt.expected {
+				t.Errorf("maskGUID(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestLogVerbose tests the logVerbose function
+func TestLogVerbose(t *testing.T) {
+	// We can't easily capture stdout in a unit test without complex setup,
+	// but we can at least verify the function doesn't panic and executes
+	tests := []struct {
+		name    string
+		verbose bool
+		format  string
+		args    []interface{}
+	}{
+		{
+			name:    "verbose mode enabled with no args",
+			verbose: true,
+			format:  "Test message",
+			args:    nil,
+		},
+		{
+			name:    "verbose mode enabled with args",
+			verbose: true,
+			format:  "Test message with %s and %d",
+			args:    []interface{}{"string", 42},
+		},
+		{
+			name:    "verbose mode disabled",
+			verbose: false,
+			format:  "This should not print",
+			args:    []interface{}{"arg1", "arg2"},
+		},
+		{
+			name:    "empty format string",
+			verbose: true,
+			format:  "",
+			args:    nil,
+		},
+		{
+			name:    "format with multiple placeholders",
+			verbose: true,
+			format:  "User: %s, ID: %s, Count: %d, Active: %t",
+			args:    []interface{}{"test@example.com", "12345678-1234", 10, true},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This test primarily verifies that logVerbose doesn't panic
+			defer func() {
+				if r := recover(); r != nil {
+					t.Errorf("logVerbose() panicked: %v", r)
+				}
+			}()
+
+			logVerbose(tt.verbose, tt.format, tt.args...)
+		})
+	}
+}
+
+// TestLogVerbose_NilArgs tests that logVerbose handles nil args gracefully
+func TestLogVerbose_NilArgs(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("logVerbose() with nil args panicked: %v", r)
+		}
+	}()
+
+	// Should not panic with nil args
+	logVerbose(true, "Test with no args")
+	logVerbose(false, "Test with no args")
+}

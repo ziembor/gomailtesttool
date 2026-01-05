@@ -55,11 +55,12 @@ const (
 // testability.
 type Config struct {
 	// Core configuration
-	ShowVersion bool   // Display version information and exit
-	TenantID    string // Azure AD Tenant ID (GUID format)
-	ClientID    string // Application (Client) ID (GUID format)
-	Mailbox     string // Target user email address
-	Action      string // Operation to perform (getevents, sendmail, sendinvite, getinbox)
+	ShowVersion    bool   // Display version information and exit
+	CompletionShell string // Generate completion script for specified shell (bash, powershell) and exit
+	TenantID       string // Azure AD Tenant ID (GUID format)
+	ClientID       string // Application (Client) ID (GUID format)
+	Mailbox        string // Target user email address
+	Action         string // Operation to perform (getevents, sendmail, sendinvite, getinbox)
 
 	// Authentication configuration (mutually exclusive)
 	Secret     string // Client Secret for authentication
@@ -472,6 +473,82 @@ func isRetryableError(err error) bool {
 	return false
 }
 
+// enrichGraphAPIError enriches Graph API errors with additional context,
+// particularly for rate limiting scenarios. It detects rate limit errors (429)
+// and extracts the Retry-After header if available.
+//
+// For rate limit errors, it returns an enriched error message with:
+// - Clear indication that rate limit was exceeded
+// - Retry-After duration if provided by the API
+// - Guidance on remediation (reduce request frequency or implement retry logic)
+//
+// For other OData errors, it logs the error code and message for debugging.
+// For non-OData errors, it returns the original error unchanged.
+func enrichGraphAPIError(err error, logger *CSVLogger, operation string) error {
+	if err == nil {
+		return nil
+	}
+
+	// Check if this is an OData error from Microsoft Graph
+	var odataErr *odataerrors.ODataError
+	if !errors.As(err, &odataErr) {
+		// Not an OData error, return as-is
+		return err
+	}
+
+	// Extract error details if available
+	if odataErr.GetErrorEscaped() == nil {
+		return err
+	}
+
+	errorInfo := odataErr.GetErrorEscaped()
+	code := ""
+	message := ""
+
+	if errorInfo.GetCode() != nil {
+		code = *errorInfo.GetCode()
+	}
+	if errorInfo.GetMessage() != nil {
+		message = *errorInfo.GetMessage()
+	}
+
+	// Handle rate limiting (429 TooManyRequests)
+	if code == "TooManyRequests" || code == "activityLimitReached" {
+		log.Printf("[WARN] Graph API rate limit exceeded during %s (code: %s)", operation, code)
+
+		// Try to extract Retry-After header
+		retryAfter := ""
+		if odataErr.GetResponseHeaders() != nil {
+			if retryHeaders := odataErr.GetResponseHeaders().Get("Retry-After"); len(retryHeaders) > 0 {
+				retryAfter = retryHeaders[0] // Get first value
+				log.Printf("[INFO] Rate limit retry guidance available: retry after %s seconds", retryAfter)
+			}
+		}
+
+		// Build enriched error message
+		enrichedMsg := fmt.Sprintf("rate limit exceeded during %s", operation)
+		if retryAfter != "" {
+			enrichedMsg += fmt.Sprintf(" (retry after %s seconds)", retryAfter)
+		}
+		enrichedMsg += ". Consider: 1) Reducing request frequency, 2) Implementing exponential backoff, 3) Reviewing API throttling limits"
+
+		return fmt.Errorf("%s: %w", enrichedMsg, err)
+	}
+
+	// Handle other service errors (503, 504)
+	if code == "ServiceUnavailable" || code == "GatewayTimeout" {
+		log.Printf("[WARN] Graph API service error during %s (code: %s, message: %s)", operation, code, message)
+		return fmt.Errorf("service temporarily unavailable during %s (code: %s): %w", operation, code, err)
+	}
+
+	// For other OData errors, log details for debugging
+	if code != "" {
+		log.Printf("[DEBUG] Graph API error during %s (code: %s, message: %s)", operation, code, message)
+	}
+
+	return err
+}
+
 // retryWithBackoff wraps an operation with exponential backoff retry logic.
 // It attempts the operation up to maxRetries times, waiting with exponential
 // backoff between attempts. Only retries errors identified by isRetryableError.
@@ -548,15 +625,9 @@ func listEvents(ctx context.Context, client *msgraphsdk.GraphServiceClient, mail
 	})
 
 	if err != nil {
-		var oDataError *odataerrors.ODataError
-		if errors.As(err, &oDataError) {
-			log.Printf("OData Error:")
-			if oDataError.GetErrorEscaped() != nil {
-				log.Printf("  Code: %s", *oDataError.GetErrorEscaped().GetCode())
-				log.Printf("  Message: %s", *oDataError.GetErrorEscaped().GetMessage())
-			}
-		}
-		return fmt.Errorf("error fetching calendar for %s: %w", mailbox, err)
+		// Enrich error with rate limit and service error details
+		enrichedErr := enrichGraphAPIError(err, logger, "listEvents")
+		return fmt.Errorf("error fetching calendar for %s: %w", mailbox, enrichedErr)
 	}
 
 	events := getValueFunc()
@@ -653,8 +724,10 @@ func sendEmail(ctx context.Context, client *msgraphsdk.GraphServiceClient, sende
 	status := StatusSuccess
 	attachmentCount := len(attachmentPaths)
 	if err != nil {
-		log.Printf("Error sending mail: %v", err)
-		status = fmt.Sprintf("%s: %v", StatusError, err)
+		// Enrich error with rate limit and service error details
+		enrichedErr := enrichGraphAPIError(err, logger, "sendEmail")
+		log.Printf("Error sending mail: %v", enrichedErr)
+		status = fmt.Sprintf("%s: %v", StatusError, enrichedErr)
 	} else {
 		logVerbose(config.VerboseMode, "Email sent successfully via Graph API")
 		fmt.Printf("Email sent successfully from %s.\n", senderMailbox)
@@ -800,8 +873,10 @@ func createInvite(ctx context.Context, client *msgraphsdk.GraphServiceClient, ma
 	status := StatusSuccess
 	eventID := "N/A"
 	if err != nil {
-		log.Printf("Error creating invite: %v", err)
-		status = fmt.Sprintf("%s: %v", StatusError, err)
+		// Enrich error with rate limit and service error details
+		enrichedErr := enrichGraphAPIError(err, logger, "createInvite")
+		log.Printf("Error creating invite: %v", enrichedErr)
+		status = fmt.Sprintf("%s: %v", StatusError, enrichedErr)
 	} else {
 		if createdEvent.GetId() != nil {
 			eventID = *createdEvent.GetId()
@@ -844,7 +919,9 @@ func listInbox(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailb
 	})
 
 	if err != nil {
-		return fmt.Errorf("error fetching inbox for %s: %w", mailbox, err)
+		// Enrich error with rate limit and service error details
+		enrichedErr := enrichGraphAPIError(err, logger, "listInbox")
+		return fmt.Errorf("error fetching inbox for %s: %w", mailbox, enrichedErr)
 	}
 
 	messages := getValueFunc()
@@ -1189,4 +1266,197 @@ func maskGUID(guid string) string {
 		return "****"
 	}
 	return guid[:4] + "****-****-****-****" + guid[len(guid)-4:]
+}
+
+// generateBashCompletion generates a bash completion script for the tool
+func generateBashCompletion() string {
+	return `# msgraphgolangtestingtool bash completion script
+# Installation:
+#   Linux: Copy to /etc/bash_completion.d/msgraphgolangtestingtool
+#   macOS: Copy to /usr/local/etc/bash_completion.d/msgraphgolangtestingtool
+#   Manual: source this file in your ~/.bashrc
+
+_msgraphgolangtestingtool_completions() {
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    # All available flags
+    opts="-action -tenantid -clientid -secret -pfx -pfxpass -thumbprint -mailbox
+          -to -cc -bcc -subject -body -bodyHTML -attachments
+          -invite-subject -start -end -proxy -count -verbose -version -help
+          -maxretries -retrydelay -loglevel -completion"
+
+    # Flag-specific completions
+    case "${prev}" in
+        -action)
+            # Suggest valid actions
+            COMPREPLY=( $(compgen -W "getevents sendmail sendinvite getinbox" -- ${cur}) )
+            return 0
+            ;;
+        -pfx|-attachments)
+            # File path completion
+            COMPREPLY=( $(compgen -f -- ${cur}) )
+            return 0
+            ;;
+        -loglevel)
+            # Suggest log levels
+            COMPREPLY=( $(compgen -W "DEBUG INFO WARN ERROR" -- ${cur}) )
+            return 0
+            ;;
+        -completion)
+            # Suggest shell types
+            COMPREPLY=( $(compgen -W "bash powershell" -- ${cur}) )
+            return 0
+            ;;
+        -version|-verbose|-help)
+            # No completion after boolean flags
+            return 0
+            ;;
+        -maxretries|-retrydelay|-count)
+            # Numeric values - no completion
+            return 0
+            ;;
+        -tenantid|-clientid|-secret|-pfxpass|-thumbprint|-mailbox|-to|-cc|-bcc|-subject|-body|-bodyHTML|-invite-subject|-start|-end|-proxy)
+            # String values - no completion
+            return 0
+            ;;
+    esac
+
+    # Default: complete with flag names
+    COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+    return 0
+}
+
+# Register the completion function for the tool
+complete -F _msgraphgolangtestingtool_completions msgraphgolangtestingtool.exe
+complete -F _msgraphgolangtestingtool_completions msgraphgolangtestingtool
+complete -F _msgraphgolangtestingtool_completions ./msgraphgolangtestingtool.exe
+complete -F _msgraphgolangtestingtool_completions ./msgraphgolangtestingtool
+`
+}
+
+// generatePowerShellCompletion generates a PowerShell completion script for the tool
+func generatePowerShellCompletion() string {
+	return `# msgraphgolangtestingtool PowerShell completion script
+# Installation:
+#   Add to your PowerShell profile: notepad $PROFILE
+#   Or run manually: . .\msgraphgolangtestingtool-completion.ps1
+
+Register-ArgumentCompleter -CommandName msgraphgolangtestingtool.exe,msgraphgolangtestingtool,'.\msgraphgolangtestingtool.exe','.\msgraphgolangtestingtool' -ScriptBlock {
+    param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
+
+    # Define valid actions
+    $actions = @('getevents', 'sendmail', 'sendinvite', 'getinbox')
+
+    # Define log levels
+    $logLevels = @('DEBUG', 'INFO', 'WARN', 'ERROR')
+
+    # Define shell types for completion flag
+    $shellTypes = @('bash', 'powershell')
+
+    # All flags that accept values
+    $flags = @(
+        '-action', '-tenantid', '-clientid', '-secret', '-pfx', '-pfxpass',
+        '-thumbprint', '-mailbox', '-to', '-cc', '-bcc', '-subject', '-body',
+        '-bodyHTML', '-attachments', '-invite-subject', '-start', '-end',
+        '-proxy', '-count', '-maxretries', '-retrydelay', '-loglevel',
+        '-completion', '-verbose', '-version', '-help'
+    )
+
+    # Get the last word from command line
+    $lastWord = ''
+    if ($commandAst.CommandElements.Count -gt 1) {
+        $lastWord = $commandAst.CommandElements[-2].ToString()
+    }
+
+    # Provide context-specific completions based on the previous flag
+    switch ($lastWord) {
+        '-action' {
+            $actions | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', "Action: $_")
+            }
+            return
+        }
+        '-loglevel' {
+            $logLevels | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', "Log Level: $_")
+            }
+            return
+        }
+        '-completion' {
+            $shellTypes | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', "Shell: $_")
+            }
+            return
+        }
+        '-pfx' {
+            # File completion for PFX files
+            Get-ChildItem -Path "$wordToComplete*" -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Extension -in @('.pfx', '.p12') -or $wordToComplete -eq '' } |
+                ForEach-Object {
+                    [System.Management.Automation.CompletionResult]::new(
+                        $_.FullName,
+                        $_.Name,
+                        'ParameterValue',
+                        "Certificate: $($_.Name)"
+                    )
+                }
+            return
+        }
+        '-attachments' {
+            # File completion for any file type
+            Get-ChildItem -Path "$wordToComplete*" -File -ErrorAction SilentlyContinue |
+                ForEach-Object {
+                    [System.Management.Automation.CompletionResult]::new(
+                        $_.FullName,
+                        $_.Name,
+                        'ParameterValue',
+                        "File: $($_.Name)"
+                    )
+                }
+            return
+        }
+    }
+
+    # Default: complete with flag names
+    $flags | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+        $description = switch ($_) {
+            '-action' { 'Operation to perform (getevents, sendmail, sendinvite, getinbox)' }
+            '-tenantid' { 'Azure Tenant ID (GUID)' }
+            '-clientid' { 'Application (Client) ID (GUID)' }
+            '-secret' { 'Client Secret for authentication' }
+            '-pfx' { 'Path to .pfx certificate file' }
+            '-pfxpass' { 'Password for .pfx certificate' }
+            '-thumbprint' { 'Certificate thumbprint (Windows Certificate Store)' }
+            '-mailbox' { 'Target user email address' }
+            '-to' { 'Comma-separated TO recipients' }
+            '-cc' { 'Comma-separated CC recipients' }
+            '-bcc' { 'Comma-separated BCC recipients' }
+            '-subject' { 'Email subject line' }
+            '-body' { 'Email body (text)' }
+            '-bodyHTML' { 'Email body (HTML)' }
+            '-attachments' { 'Comma-separated file paths to attach' }
+            '-invite-subject' { 'Calendar invite subject' }
+            '-start' { 'Start time for calendar invite (RFC3339)' }
+            '-end' { 'End time for calendar invite (RFC3339)' }
+            '-proxy' { 'HTTP/HTTPS proxy URL' }
+            '-count' { 'Number of items to retrieve (default: 3)' }
+            '-maxretries' { 'Maximum retry attempts (default: 3)' }
+            '-retrydelay' { 'Retry delay in milliseconds (default: 2000)' }
+            '-loglevel' { 'Logging level (DEBUG, INFO, WARN, ERROR)' }
+            '-completion' { 'Generate completion script (bash or powershell)' }
+            '-verbose' { 'Enable verbose output' }
+            '-version' { 'Show version information' }
+            '-help' { 'Show help message' }
+            default { $_ }
+        }
+        [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterName', $description)
+    }
+}
+
+Write-Host "PowerShell completion for msgraphgolangtestingtool loaded successfully!" -ForegroundColor Green
+Write-Host "Try typing: msgraphgolangtestingtool.exe -<TAB>" -ForegroundColor Cyan
+`
 }
