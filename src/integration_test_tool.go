@@ -157,7 +157,7 @@ func runIntegrationTests(config *Config) *IntegrationTestResults {
 	fmt.Println("Creating Microsoft Graph client...")
 
 	// Create Graph client (shared across all tests)
-	client, err := setupGraphClient(ctx, config)
+	client, err := setupGraphClient(ctx, config, nil)
 	if err != nil {
 		fmt.Printf("❌ Failed to create Graph client: %v\n", err)
 		return results

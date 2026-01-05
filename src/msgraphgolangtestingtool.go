@@ -185,6 +185,9 @@ func parseAndConfigureFlags() *Config {
 	// Verbose mode
 	verbose := flag.Bool("verbose", false, "Enable verbose output (shows configuration, tokens, API details)")
 
+	// Log level
+	logLevel := flag.String("loglevel", "INFO", "Logging level: DEBUG, INFO, WARN, ERROR (default: INFO)")
+
 	// Count for getevents and getinbox
 	count := flag.Int("count", 3, "Number of items to retrieve for getevents and getinbox actions (default: 3) (env: MSGRAPHCOUNT)")
 
@@ -261,6 +264,19 @@ func parseAndConfigureFlags() *Config {
 		}
 	}
 
+	// Apply MSGRAPHLOGLEVEL environment variable if flag wasn't provided
+	logLevelFlagProvided := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "loglevel" {
+			logLevelFlagProvided = true
+		}
+	})
+	if !logLevelFlagProvided {
+		if envLogLevel := os.Getenv("MSGRAPHLOGLEVEL"); envLogLevel != "" {
+			*logLevel = envLogLevel
+		}
+	}
+
 	// Create and populate Config struct with all parsed values
 	config := &Config{
 		ShowVersion:     *showVersion,
@@ -286,6 +302,7 @@ func parseAndConfigureFlags() *Config {
 		MaxRetries:      *maxRetries,
 		RetryDelay:      time.Duration(*retryDelay) * time.Millisecond,
 		VerboseMode:     *verbose,
+		LogLevel:        *logLevel,
 		Count:           *count,
 	}
 
@@ -385,23 +402,27 @@ func run() error {
 		os.Exit(1)
 	}
 
-	// 5. Initialize services (CSV logging and proxy)
-	logger, err := initializeServices(config)
+	// 5. Setup structured logger
+	slogger := setupLogger(config)
+	slogger.Info("Application starting", "version", version, "action", config.Action)
+
+	// 6. Initialize services (CSV logging and proxy)
+	csvLogger, err := initializeServices(config)
 	if err != nil {
 		// Error already logged in initializeServices, continue without logger
 	}
-	if logger != nil {
-		defer logger.Close()
+	if csvLogger != nil {
+		defer csvLogger.Close()
 	}
 
-	// 6. Setup Microsoft Graph client
-	client, err := setupGraphClient(ctx, config)
+	// 7. Setup Microsoft Graph client
+	client, err := setupGraphClient(ctx, config, slogger)
 	if err != nil {
 		return err
 	}
 
-	// 7. Execute the requested action
-	return executeAction(ctx, client, config, logger)
+	// 8. Execute the requested action
+	return executeAction(ctx, client, config, csvLogger)
 }
 
 // Print verbose configuration summary
@@ -537,6 +558,7 @@ func getEnvVariables() map[string]string {
 		"MSGRAPHCOUNT",
 		"MSGRAPHMAXRETRIES",
 		"MSGRAPHRETRYDELAY",
+		"MSGRAPHLOGLEVEL",
 	}
 
 	for _, envVar := range msgraphEnvVars {
