@@ -203,10 +203,36 @@ This is a portable, single-binary Go CLI tool for interacting with Microsoft Gra
 
 **Platform**: Cross-platform (Windows, Linux, macOS), but `-thumbprint` auth is Windows-only.
 **Module name**: `msgraphgolangtestingtool` (defined in go.mod)
-**Go version**: 1.25+
+**Go version**: 1.21+
 **Current Version**: See `VERSION` file in project root
 
 **Versioning Policy**: The major version of this project is locked at 1 and must not be upgraded. All changes, including breaking ones, must be released within the 1.x.y version range. The version is maintained in two places: the `VERSION` file and `src/msgraphgolangtestingtool.go` (const version).
+
+### Project Structure
+
+**IMPORTANT:** All Go and PowerShell source code must be kept in the `src/` directory.
+
+```
+msgraphgolangtestingtool/
+├── src/                          # All source code (Go + PowerShell)
+│   ├── *.go                      # Go source files
+│   ├── go.mod                    # Go module definition
+│   ├── go.sum                    # Go dependencies
+│   ├── VERSION                   # Version file (embedded at compile time)
+│   └── *.ps1                     # PowerShell scripts (if any)
+├── release.ps1                   # Release automation script (project root)
+├── selfsignedcert.ps1            # Certificate generation script (project root)
+├── ChangeLog/                    # Version changelogs
+├── CLAUDE.md                     # Project documentation (this file)
+└── README.md                     # Public documentation
+```
+
+**Key Points:**
+- All `.go` files belong in `src/`
+- `go.mod` and `go.sum` are in `src/`
+- The `VERSION` file is in `src/` (not project root)
+- Build from project root: `go build -C src -o msgraphgolangtestingtool.exe`
+- Or build from src directory: `cd src && go build -o ../msgraphgolangtestingtool.exe`
 
 ### CSV Logging
 
