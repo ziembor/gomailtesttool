@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"mime"
@@ -55,6 +56,14 @@ func executeAction(ctx context.Context, client *msgraphsdk.GraphServiceClient, c
 	case ActionGetSchedule:
 		if err := checkAvailability(ctx, client, config.Mailbox, config.To[0], config, logger); err != nil {
 			return fmt.Errorf("failed to check availability: %w", err)
+		}
+	case ActionExportInbox:
+		if err := exportInbox(ctx, client, config.Mailbox, config.Count, config, logger); err != nil {
+			return fmt.Errorf("failed to export inbox: %w", err)
+		}
+	case ActionSearchAndExport:
+		if err := searchAndExport(ctx, client, config.Mailbox, config.MessageID, config, logger); err != nil {
+			return fmt.Errorf("failed to search and export: %w", err)
 		}
 	default:
 		return fmt.Errorf("unknown action: %s", config.Action)
@@ -495,6 +504,240 @@ func checkAvailability(ctx context.Context, client *msgraphsdk.GraphServiceClien
 	}
 
 	return nil
+}
+
+// exportInbox exports messages from the inbox to JSON files
+func exportInbox(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, count int, config *Config, logger *CSVLogger) error {
+	// Configure request to get top N messages
+	requestConfig := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
+			Top:     Int32Ptr(int32(count)),
+			Orderby: []string{"receivedDateTime DESC"},
+			Select:  []string{"id", "internetMessageId", "subject", "receivedDateTime", "from", "toRecipients", "ccRecipients", "bccRecipients", "body", "hasAttachments"},
+		},
+	}
+
+	logVerbose(config.VerboseMode, "Calling Graph API: GET /users/%s/mailFolders/Inbox/messages?$top=%d&$orderby=receivedDateTime DESC", mailbox, count)
+
+	// Execute API call with retry logic
+	var getValueFunc func() []models.Messageable
+	err := retryWithBackoff(ctx, config.MaxRetries, config.RetryDelay, func() error {
+		// Specifically target Inbox folder
+		apiResult, apiErr := client.Users().ByUserId(mailbox).MailFolders().ByMailFolderId("Inbox").Messages().Get(ctx, requestConfig)
+		if apiErr == nil {
+			getValueFunc = apiResult.GetValue
+		}
+		return apiErr
+	})
+
+	if err != nil {
+		enrichedErr := enrichGraphAPIError(err, logger, "exportInbox")
+		return fmt.Errorf("error fetching inbox for %s: %w", mailbox, enrichedErr)
+	}
+
+	messages := getValueFunc()
+	messageCount := len(messages)
+
+	logVerbose(config.VerboseMode, "API response received: %d messages", messageCount)
+	fmt.Printf("Exporting %d messages from inbox for %s...\n", messageCount, mailbox)
+
+	if messageCount == 0 {
+		fmt.Println("No messages found.")
+		if logger != nil {
+			logger.WriteRow([]string{ActionExportInbox, StatusSuccess, mailbox, "No messages found (0 messages)", "N/A"})
+		}
+		return nil
+	}
+
+	// Create export directory
+	exportDir, err := createExportDir()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Export directory: %s\n", exportDir)
+
+	successCount := 0
+	for _, message := range messages {
+		if err := exportMessageToJSON(message, exportDir, config); err != nil {
+			log.Printf("Error exporting message ID %s: %v", *message.GetId(), err)
+			continue
+		}
+		successCount++
+	}
+
+	fmt.Printf("Successfully exported %d/%d messages.\n", successCount, messageCount)
+	if logger != nil {
+		logger.WriteRow([]string{ActionExportInbox, StatusSuccess, mailbox, fmt.Sprintf("Exported %d/%d messages", successCount, messageCount), exportDir})
+	}
+
+	return nil
+}
+
+// searchAndExport searches for a message by Internet Message ID and exports it
+func searchAndExport(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, messageID string, config *Config, logger *CSVLogger) error {
+	// Configure request with filter
+	// Note: We search the whole mailbox (Messages endpoint), not just Inbox
+	filter := fmt.Sprintf("internetMessageId eq '%s'", messageID)
+	requestConfig := &users.ItemMessagesRequestBuilderGetRequestConfiguration{
+		QueryParameters: &users.ItemMessagesRequestBuilderGetQueryParameters{
+			Filter: &filter,
+			Select: []string{"id", "internetMessageId", "subject", "receivedDateTime", "from", "toRecipients", "ccRecipients", "bccRecipients", "body", "hasAttachments"},
+		},
+	}
+
+	logVerbose(config.VerboseMode, "Calling Graph API: GET /users/%s/messages?$filter=%s", mailbox, filter)
+
+	// Execute API call with retry logic
+	var getValueFunc func() []models.Messageable
+	err := retryWithBackoff(ctx, config.MaxRetries, config.RetryDelay, func() error {
+		apiResult, apiErr := client.Users().ByUserId(mailbox).Messages().Get(ctx, requestConfig)
+		if apiErr == nil {
+			getValueFunc = apiResult.GetValue
+		}
+		return apiErr
+	})
+
+	if err != nil {
+		enrichedErr := enrichGraphAPIError(err, logger, "searchAndExport")
+		return fmt.Errorf("error searching message for %s: %w", mailbox, enrichedErr)
+	}
+
+	messages := getValueFunc()
+	messageCount := len(messages)
+
+	logVerbose(config.VerboseMode, "API response received: %d messages", messageCount)
+
+	if messageCount == 0 {
+		fmt.Printf("No message found with Internet Message ID: %s\n", messageID)
+		if logger != nil {
+			logger.WriteRow([]string{ActionSearchAndExport, StatusSuccess, mailbox, "Message not found", messageID})
+		}
+		return nil
+	}
+
+	// Create export directory
+	exportDir, err := createExportDir()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Export directory: %s\n", exportDir)
+
+	// Export found messages (usually 1, but duplicates technically possible in some scenarios)
+	for _, message := range messages {
+		if err := exportMessageToJSON(message, exportDir, config); err != nil {
+			return fmt.Errorf("failed to export message: %w", err)
+		}
+		fmt.Printf("Successfully exported message: %s\n", *message.GetSubject())
+		if logger != nil {
+			logger.WriteRow([]string{ActionSearchAndExport, StatusSuccess, mailbox, "Exported successfully", *message.GetId()})
+		}
+	}
+
+	return nil
+}
+
+// exportMessageToJSON serializes a message to JSON and saves it to a file
+func exportMessageToJSON(message models.Messageable, dir string, config *Config) error {
+	// Extract basic info for filename
+	id := "unknown_id"
+	if message.GetId() != nil {
+		id = *message.GetId()
+	}
+
+	// Create a simplified structure for export to ensure clean JSON
+	// We could use the model directly but it might be verbose or have circular refs depending on serialization
+	// Extracting fields explicitly gives us control.
+	exportData := make(map[string]interface{})
+	
+	if message.GetId() != nil { exportData["id"] = *message.GetId() }
+	if message.GetInternetMessageId() != nil { exportData["internetMessageId"] = *message.GetInternetMessageId() }
+	if message.GetSubject() != nil { exportData["subject"] = *message.GetSubject() }
+	if message.GetReceivedDateTime() != nil { exportData["receivedDateTime"] = message.GetReceivedDateTime().Format(time.RFC3339) }
+	
+	// From
+	if message.GetFrom() != nil && message.GetFrom().GetEmailAddress() != nil {
+		exportData["from"] = extractEmailAddress(message.GetFrom().GetEmailAddress())
+	}
+
+	// Recipients
+	if message.GetToRecipients() != nil {
+		exportData["to"] = extractRecipients(message.GetToRecipients())
+	}
+	if message.GetCcRecipients() != nil {
+		exportData["cc"] = extractRecipients(message.GetCcRecipients())
+	}
+	if message.GetBccRecipients() != nil {
+		exportData["bcc"] = extractRecipients(message.GetBccRecipients())
+	}
+
+	// Body
+	if message.GetBody() != nil {
+		bodyData := make(map[string]string)
+		if message.GetBody().GetContentType() != nil {
+			bodyData["contentType"] = message.GetBody().GetContentType().String()
+		}
+		if message.GetBody().GetContent() != nil {
+			bodyData["content"] = *message.GetBody().GetContent()
+		}
+		exportData["body"] = bodyData
+	}
+
+	// Marshal to JSON
+	jsonData, err := json.MarshalIndent(exportData, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal message to JSON: %w", err)
+	}
+
+	// Sanitize filename
+	filename := fmt.Sprintf("msg_%s.json", sanitizeFilename(id))
+	filePath := filepath.Join(dir, filename)
+
+	if err := os.WriteFile(filePath, jsonData, 0644); err != nil {
+		return fmt.Errorf("failed to write JSON file: %w", err)
+	}
+
+	logVerbose(config.VerboseMode, "Exported message to %s", filePath)
+	return nil
+}
+
+// createExportDir creates the export directory structure: $TEMP/export/YYYY-MM-DD
+func createExportDir() (string, error) {
+	tempDir := os.TempDir()
+	dateStr := time.Now().Format("2006-01-02")
+	exportDir := filepath.Join(tempDir, "export", dateStr)
+
+	if err := os.MkdirAll(exportDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create export directory %s: %w", exportDir, err)
+	}
+	return exportDir, nil
+}
+
+// extractEmailAddress helper
+func extractEmailAddress(addr models.EmailAddressable) map[string]string {
+	res := make(map[string]string)
+	if addr.GetName() != nil { res["name"] = *addr.GetName() }
+	if addr.GetAddress() != nil { res["address"] = *addr.GetAddress() }
+	return res
+}
+
+// extractRecipients helper
+func extractRecipients(recipients []models.Recipientable) []map[string]string {
+	var res []map[string]string
+	for _, r := range recipients {
+		if r.GetEmailAddress() != nil {
+			res = append(res, extractEmailAddress(r.GetEmailAddress()))
+		}
+	}
+	return res
+}
+
+// sanitizeFilename helper
+func sanitizeFilename(name string) string {
+	invalid := []string{"<", ">", ":", "\"", "/", "\\", "|", "?", "*", "="}
+	for _, char := range invalid {
+		name = strings.ReplaceAll(name, char, "_")
+	}
+	return name
 }
 
 // interpretAvailability converts Microsoft Graph availability view codes to human-readable status.

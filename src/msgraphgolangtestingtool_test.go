@@ -9,11 +9,14 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"software.sslmate.com/src/go-pkcs12"
 )
 
@@ -1064,3 +1067,148 @@ func TestRetryWithBackoff_DelayCap(t *testing.T) {
 		t.Errorf("Expected duration <= %v (with 30s cap), got %v", maxExpectedDuration, duration)
 	}
 }
+
+// Test sanitizeFilename helper
+func TestSanitizeFilename(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"standard", "message123", "message123"},
+		{"with spaces", "message 123", "message 123"},
+		{"with slashes", "message/123\\abc", "message_123_abc"},
+		{"with forbidden chars", "<>:\"|?*", "_______"},
+		{"complex id", "AAMkAGI2...==", "AAMkAGI2...__"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sanitizeFilename(tt.input)
+			if result != tt.expected {
+				t.Errorf("sanitizeFilename(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+// Test createExportDir helper
+func TestCreateExportDir(t *testing.T) {
+	dir, err := createExportDir()
+	if err != nil {
+		t.Fatalf("createExportDir() returned error: %v", err)
+	}
+
+	// Verify it's within temp dir
+	tempDir := os.TempDir()
+	if !strings.HasPrefix(dir, tempDir) {
+		t.Errorf("Export dir %q should be under temp dir %q", dir, tempDir)
+	}
+
+	// Verify it contains "export" and date
+	dateStr := time.Now().Format("2006-01-02")
+	if !strings.Contains(dir, "export") || !strings.Contains(dir, dateStr) {
+		t.Errorf("Export dir %q should contain 'export' and %q", dir, dateStr)
+	}
+
+	// Verify it exists
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Errorf("Could not stat export dir: %v", err)
+	} else if !info.IsDir() {
+		t.Errorf("Export dir %q is not a directory", dir)
+	}
+}
+
+// Test email extraction helpers
+func TestEmailExtractionHelpers(t *testing.T) {
+	t.Run("extractEmailAddress", func(t *testing.T) {
+		// Mock model-like behavior if possible, or use real models
+		addr := models.NewEmailAddress()
+		name := "John Doe"
+		email := "john@example.com"
+		addr.SetName(&name)
+		addr.SetAddress(&email)
+
+		res := extractEmailAddress(addr)
+		if res["name"] != name || res["address"] != email {
+			t.Errorf("extractEmailAddress() = %v, want name=%q, address=%q", res, name, email)
+		}
+	})
+
+	t.Run("extractRecipients", func(t *testing.T) {
+		r1 := models.NewRecipient()
+		a1 := models.NewEmailAddress()
+		e1 := "u1@ex.com"
+		a1.SetAddress(&e1)
+		r1.SetEmailAddress(a1)
+
+		r2 := models.NewRecipient()
+		a2 := models.NewEmailAddress()
+		e2 := "u2@ex.com"
+		a2.SetAddress(&e2)
+		r2.SetEmailAddress(a2)
+
+		res := extractRecipients([]models.Recipientable{r1, r2})
+		if len(res) != 2 {
+			t.Fatalf("Expected 2 recipients, got %d", len(res))
+		}
+		if res[0]["address"] != e1 || res[1]["address"] != e2 {
+			t.Errorf("Recipient addresses mismatch: %v", res)
+		}
+	})
+}
+
+// Test validateConfiguration for new actions
+func TestValidateConfigurationNewActions(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *Config
+		wantErr bool
+	}{
+		{
+			name: "exportinbox valid",
+			config: &Config{
+				TenantID: "12345678-1234-1234-1234-123456789012",
+				ClientID: "abcdefgh-1234-5678-90ab-cdef12345678",
+				Mailbox:  "user@example.com",
+				Secret:   "my-secret",
+				Action:   ActionExportInbox,
+			},
+			wantErr: false,
+		},
+		{
+			name: "searchandexport valid",
+			config: &Config{
+				TenantID:  "12345678-1234-1234-1234-123456789012",
+				ClientID:  "abcdefgh-1234-5678-90ab-cdef12345678",
+				Mailbox:   "user@example.com",
+				Secret:    "my-secret",
+				Action:    ActionSearchAndExport,
+				MessageID: "<unique-id@host>",
+			},
+			wantErr: false,
+		},
+		{
+			name: "searchandexport missing messageid",
+			config: &Config{
+				TenantID: "12345678-1234-1234-1234-123456789012",
+				ClientID: "abcdefgh-1234-5678-90ab-cdef12345678",
+				Mailbox:  "user@example.com",
+				Secret:   "my-secret",
+				Action:   ActionSearchAndExport,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateConfiguration(tt.config)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateConfiguration(%s) error = %v, wantErr %v", tt.name, err, tt.wantErr)
+			}
+		})
+	}
+}
+
