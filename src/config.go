@@ -43,6 +43,9 @@ type Config struct {
 	StartTime     string // Start time in RFC3339 format (e.g., 2026-01-15T14:00:00Z)
 	EndTime       string // End time in RFC3339 format
 
+	// Search configuration
+	MessageID string // Internet Message ID for searchandexport action
+
 	// Network configuration
 	ProxyURL   string        // HTTP/HTTPS proxy URL (e.g., http://proxy.example.com:8080)
 	MaxRetries int           // Maximum retry attempts for transient failures (default: 3)
@@ -120,6 +123,9 @@ func parseAndConfigureFlags() *Config {
 	startTime := flag.String("start", "", "Start time for calendar invite (RFC3339 or PowerShell 'Get-Date -Format s' format). Examples: '2026-01-15T14:00:00Z', '2026-01-15T14:00:00'. Defaults to now if empty (env: MSGRAPHSTART)")
 	endTime := flag.String("end", "", "End time for calendar invite (RFC3339 or PowerShell 'Get-Date -Format s' format). Examples: '2026-01-15T15:00:00Z', '2026-01-15T15:00:00'. Defaults to 1 hour after start if empty (env: MSGRAPHEND)")
 
+	// Search flags
+	messageID := flag.String("messageid", "", "Internet Message ID for searchandexport action (env: MSGRAPHMESSAGEID)")
+
 	// Proxy configuration
 	proxyURL := flag.String("proxy", "", "HTTP/HTTPS proxy URL (e.g., http://proxy.example.com:8080) (env: MSGRAPHPROXY)")
 
@@ -136,7 +142,7 @@ func parseAndConfigureFlags() *Config {
 	// Count for getevents and getinbox
 	count := flag.Int("count", 3, "Number of items to retrieve for getevents and getinbox actions (default: 3) (env: MSGRAPHCOUNT)")
 
-	action := flag.String("action", "getinbox", "Action to perform: getevents, sendmail, sendinvite, getinbox, getschedule (env: MSGRAPHACTION)")
+	action := flag.String("action", "getinbox", "Action to perform: getevents, sendmail, sendinvite, getinbox, getschedule, exportinbox, searchandexport (env: MSGRAPHACTION)")
 	flag.Parse()
 
 	// Apply environment variables if flags not set via command line
@@ -154,6 +160,7 @@ func parseAndConfigureFlags() *Config {
 		"MSGRAPHINVITESUBJECT": inviteSubject,
 		"MSGRAPHSTART":         startTime,
 		"MSGRAPHEND":           endTime,
+		"MSGRAPHMESSAGEID":     messageID,
 		"MSGRAPHACTION":        action,
 		"MSGRAPHPROXY":         proxyURL,
 	})
@@ -243,6 +250,7 @@ func parseAndConfigureFlags() *Config {
 		InviteSubject:   *inviteSubject,
 		StartTime:       *startTime,
 		EndTime:         *endTime,
+		MessageID:       *messageID,
 		ProxyURL:        *proxyURL,
 		MaxRetries:      *maxRetries,
 		RetryDelay:      time.Duration(*retryDelay) * time.Millisecond,
@@ -253,7 +261,7 @@ func parseAndConfigureFlags() *Config {
 
 	// Print verbose configuration if enabled
 	if config.VerboseMode {
-		printVerboseConfig(*tenantID, *clientID, *secret, *pfxPath, *thumbprint, *mailbox, *action, *proxyURL, to.String(), cc.String(), bcc.String(), *subject, *body, *bodyHTML, attachmentFiles.String(), *inviteSubject, *startTime, *endTime)
+		printVerboseConfig(*tenantID, *clientID, *secret, *pfxPath, *thumbprint, *mailbox, *action, *proxyURL, to.String(), cc.String(), bcc.String(), *subject, *body, *bodyHTML, attachmentFiles.String(), *inviteSubject, *startTime, *endTime, *messageID)
 	}
 
 	return config
@@ -398,14 +406,16 @@ func validateConfiguration(config *Config) error {
 
 	// Validate action
 	validActions := map[string]bool{
-		ActionGetEvents:   true,
-		ActionSendMail:    true,
-		ActionSendInvite:  true,
-		ActionGetInbox:    true,
-		ActionGetSchedule: true,
+		ActionGetEvents:       true,
+		ActionSendMail:        true,
+		ActionSendInvite:      true,
+		ActionGetInbox:        true,
+		ActionGetSchedule:     true,
+		ActionExportInbox:     true,
+		ActionSearchAndExport: true,
 	}
 	if !validActions[config.Action] {
-		return fmt.Errorf("invalid action: %s (use: getevents, sendmail, sendinvite, getinbox, getschedule)", config.Action)
+		return fmt.Errorf("invalid action: %s (use: getevents, sendmail, sendinvite, getinbox, getschedule, exportinbox, searchandexport)", config.Action)
 	}
 
 	// Validate getschedule-specific requirements
@@ -418,11 +428,18 @@ func validateConfiguration(config *Config) error {
 		}
 	}
 
+	// Validate searchandexport-specific requirements
+	if config.Action == ActionSearchAndExport {
+		if config.MessageID == "" {
+			return fmt.Errorf("searchandexport action requires -messageid parameter")
+		}
+	}
+
 	return nil
 }
 
 // Print verbose configuration summary
-func printVerboseConfig(tenantID, clientID, secret, pfxPath, thumbprint, mailbox, action, proxyURL, to, cc, bcc, subject, body, bodyHTML, attachments, inviteSubject, startTime, endTime string) {
+func printVerboseConfig(tenantID, clientID, secret, pfxPath, thumbprint, mailbox, action, proxyURL, to, cc, bcc, subject, body, bodyHTML, attachments, inviteSubject, startTime, endTime, messageID string) {
 	fmt.Println("========================================")
 	fmt.Println("VERBOSE MODE ENABLED")
 	fmt.Println("========================================")
@@ -501,9 +518,12 @@ func printVerboseConfig(tenantID, clientID, secret, pfxPath, thumbprint, mailbox
 		fmt.Printf("  Invite Subject: %s\n", inviteSubject)
 		fmt.Printf("  Start Time: %s\n", ifEmpty(startTime, "(now)"))
 		fmt.Printf("  End Time: %s\n", ifEmpty(endTime, "(start + 1 hour)"))
-	case "getevents", "getinbox":
+	case "searchandexport":
+		fmt.Printf("  Message ID: %s\n", messageID)
+	case "getevents", "getinbox", "exportinbox":
 		fmt.Println("  (no additional parameters)")
 	}
+
 
 	fmt.Println()
 	fmt.Println("========================================")
@@ -533,6 +553,7 @@ func getEnvVariables() map[string]string {
 		"MSGRAPHINVITESUBJECT",
 		"MSGRAPHSTART",
 		"MSGRAPHEND",
+		"MSGRAPHMESSAGEID",
 		"MSGRAPHACTION",
 		"MSGRAPHPROXY",
 		"MSGRAPHCOUNT",
@@ -694,7 +715,9 @@ const (
 	ActionSendMail     = "sendmail"
 	ActionSendInvite   = "sendinvite"
 	ActionGetInbox     = "getinbox"
-	ActionGetSchedule  = "getschedule"
+	ActionGetSchedule     = "getschedule"
+	ActionExportInbox     = "exportinbox"
+	ActionSearchAndExport = "searchandexport"
 )
 
 // generateBashCompletion generates a bash completion script for the tool
@@ -714,14 +737,14 @@ _msgraphgolangtestingtool_completions() {
     # All available flags
     opts="-action -tenantid -clientid -secret -pfx -pfxpass -thumbprint -mailbox
           -to -cc -bcc -subject -body -bodyHTML -attachments
-          -invite-subject -start -end -proxy -count -verbose -version -help
+          -invite-subject -start -end -messageid -proxy -count -verbose -version -help
           -maxretries -retrydelay -loglevel -completion"
 
     # Flag-specific completions
     case "${prev}" in
         -action)
             # Suggest valid actions
-            COMPREPLY=( $(compgen -W "getevents sendmail sendinvite getinbox" -- ${cur}) )
+            COMPREPLY=( $(compgen -W "getevents sendmail sendinvite getinbox getschedule exportinbox searchandexport" -- ${cur}) )
             return 0
             ;;
         -pfx|-attachments)
@@ -747,7 +770,7 @@ _msgraphgolangtestingtool_completions() {
             # Numeric values - no completion
             return 0
             ;;
-        -tenantid|-clientid|-secret|-pfxpass|-thumbprint|-mailbox|-to|-cc|-bcc|-subject|-body|-bodyHTML|-invite-subject|-start|-end|-proxy)
+        -tenantid|-clientid|-secret|-pfxpass|-thumbprint|-mailbox|-to|-cc|-bcc|-subject|-body|-bodyHTML|-invite-subject|-start|-end|-messageid|-proxy)
             # String values - no completion
             return 0
             ;;
@@ -777,7 +800,7 @@ Register-ArgumentCompleter -CommandName msgraphgolangtestingtool.exe,msgraphgola
     param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
 
     # Define valid actions
-    $actions = @('getevents', 'sendmail', 'sendinvite', 'getinbox')
+    $actions = @('getevents', 'sendmail', 'sendinvite', 'getinbox', 'getschedule', 'exportinbox', 'searchandexport')
 
     # Define log levels
     $logLevels = @('DEBUG', 'INFO', 'WARN', 'ERROR')
@@ -790,7 +813,7 @@ Register-ArgumentCompleter -CommandName msgraphgolangtestingtool.exe,msgraphgola
         '-action', '-tenantid', '-clientid', '-secret', '-pfx', '-pfxpass',
         '-thumbprint', '-mailbox', '-to', '-cc', '-bcc', '-subject', '-body',
         '-bodyHTML', '-attachments', '-invite-subject', '-start', '-end',
-        '-proxy', '-count', '-maxretries', '-retrydelay', '-loglevel',
+        '-messageid', '-proxy', '-count', '-maxretries', '-retrydelay', '-loglevel',
         '-completion', '-verbose', '-version', '-help'
     )
 
@@ -870,6 +893,7 @@ Register-ArgumentCompleter -CommandName msgraphgolangtestingtool.exe,msgraphgola
             '-invite-subject' { 'Calendar invite subject' }
             '-start' { 'Start time for calendar invite (RFC3339)' }
             '-end' { 'End time for calendar invite (RFC3339)' }
+            '-messageid' { 'Internet Message ID for searchandexport' }
             '-proxy' { 'HTTP/HTTPS proxy URL' }
             '-count' { 'Number of items to retrieve (default: 3)' }
             '-maxretries' { 'Maximum retry attempts (default: 3)' }
