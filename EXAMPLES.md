@@ -388,7 +388,100 @@ All flags can be set via environment variables with the `MSGRAPH` prefix:
 
 ---
 
-## 17. Retry Configuration (v1.16.0+)
+## 17. Export Inbox to JSON
+
+Export email messages from your inbox to individual JSON files in a date-stamped directory.
+
+```powershell
+# Export default 3 newest messages to JSON
+./msgraphgolangtestingtool.exe -action exportinbox
+
+# Export 10 newest messages
+./msgraphgolangtestingtool.exe -action exportinbox -count 10
+
+# Export 50 messages with verbose output
+./msgraphgolangtestingtool.exe -action exportinbox -count 50 -verbose
+```
+
+**Output Directory Structure:**
+```
+%TEMP%\export\2026-01-07\
+├── message_1_2026-01-07T10-30-45.json
+├── message_2_2026-01-07T10-25-12.json
+└── message_3_2026-01-07T09-58-03.json
+```
+
+**Example JSON File Contents:**
+```json
+{
+  "id": "AAMkAGI...",
+  "subject": "Project Update",
+  "from": {
+    "emailAddress": {
+      "address": "sender@example.com",
+      "name": "John Doe"
+    }
+  },
+  "receivedDateTime": "2026-01-07T10:30:45Z",
+  "bodyPreview": "Hi team, here's the latest update...",
+  "hasAttachments": false
+}
+```
+
+**Use Cases:**
+- Archiving important emails for compliance
+- Backing up inbox messages for offline access
+- Migrating email data to another system
+- Analyzing email metadata with external tools
+
+---
+
+## 18. Search and Export by Message ID
+
+Find a specific email by its Internet Message ID and export it to JSON.
+
+```powershell
+# Search for specific email and export
+./msgraphgolangtestingtool.exe -action searchandexport \
+    -messageid "<message-id@example.com>"
+
+# With verbose output to see search details
+./msgraphgolangtestingtool.exe -action searchandexport \
+    -messageid "<CABcD123@mail.gmail.com>" \
+    -verbose
+```
+
+**How to Obtain Message ID:**
+
+You can get the Internet Message ID from the `getinbox` action or by viewing email headers:
+
+```powershell
+# List recent messages (Message ID shown in verbose mode)
+./msgraphgolangtestingtool.exe -action getinbox -count 5 -verbose
+```
+
+Or in Outlook:
+1. Open the email
+2. File → Properties
+3. Look for "Internet headers" section
+4. Find the "Message-ID:" field
+
+**Output:**
+```
+Searching for message with ID: <message-id@example.com>
+Found message: "Re: Q4 Budget Review"
+Exported to: C:\Users\...\AppData\Local\Temp\export\2026-01-07\message_search_2026-01-07T11-15-30.json
+```
+
+**Use Cases:**
+- Retrieving specific emails for legal discovery
+- Archiving emails referenced in support tickets
+- Exporting emails for audit purposes
+- Finding emails across multiple mailboxes
+
+---
+
+## 19. Retry Configuration (v1.16.0+)
 
 Configure network resilience with automatic retry on transient failures:
 
@@ -439,7 +532,7 @@ $env:MSGRAPHRETRYDELAY = "2500"
 
 ---
 
-## 18. Environment Variables Reference (Updated v1.16.0)
+## 20. Environment Variables Reference (Updated v1.21.0)
 
 All flags can be set via environment variables with the `MSGRAPH` prefix:
 
@@ -467,10 +560,11 @@ All flags can be set via environment variables with the `MSGRAPH` prefix:
 | `-count` | `MSGRAPHCOUNT` | `"10"` |
 | `-maxretries` | `MSGRAPHMAXRETRIES` | `"5"` |
 | `-retrydelay` | `MSGRAPHRETRYDELAY` | `"2000"` |
+| `-messageid` | `MSGRAPHMESSAGEID` | `"<msg-id@example.com>"` |
 
 ---
 
-NOTE: *Generated for msgraphgolangtestingtool v1.16.0*
+NOTE: *Generated for msgraphgolangtestingtool v1.21.0*
 
                           ..ooOO END OOoo..
 

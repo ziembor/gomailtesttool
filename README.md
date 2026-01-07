@@ -11,7 +11,7 @@ This tool provides a lightweight, standalone executable for testing and managing
 ## Key Features
 
 - **Authentication**: Client Secret, PFX Certificate, Windows Certificate Store (Thumbprint).
-- **Operations**: Get Events, Send Mail, Send Invite, Get Inbox, Get Schedule.
+- **Operations**: Get Events, Send Mail, Send Invite, Get Inbox, Get Schedule, Export Inbox, Search and Export.
 - **Logging**: Automatic CSV logging of all operations to `%TEMP%`.
 - **Portable**: Single binary, no dependencies.
 
