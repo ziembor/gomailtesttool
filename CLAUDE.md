@@ -23,6 +23,8 @@ The tool is designed for **minimal external dependencies** — it compiles into 
   * **Create Invite:** Create and send calendar meeting invitations.
   * **List Inbox:** Retrieve the newest 10 messages from inbox with sender, recipients, subject, and received date.
   * **Check Availability:** Check recipient availability for next working day at 12:00 UTC (returns Free/Busy status).
+  * **Export Inbox:** Export inbox messages to individual JSON files in date-stamped directories (`%TEMP%\export\{date}`).
+  * **Search and Export:** Find and export specific email by Internet Message ID to JSON file.
  **Network:**
   * **Proxy Support:** Route traffic through HTTP/HTTPS proxies via flag or environment variable.
 * **CSV Logging:**
@@ -45,7 +47,7 @@ The project follows Semantic Versioning, but the **major version is locked at 1*
 
 * **Microsoft Entra ID (Azure AD):** App Registration.
 * **Exchange Online RBAC Permissions:**
-  * **Application Mail.ReadWrite** (for sendmail, getinbox actions)
+  * **Application Mail.ReadWrite** (for sendmail, getinbox, exportinbox, searchandexport actions)
   * **Application Calendars.ReadWrite** (for getevents, sendinvite, getschedule actions)
   * **Important**: These are Exchange Online RBAC permissions, NOT Entra ID API permissions.
 
