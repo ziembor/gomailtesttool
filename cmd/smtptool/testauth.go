@@ -131,7 +131,11 @@ func testAuth(ctx context.Context, config *Config, csvLogger *logger.CSVLogger, 
 		status = "FAILURE"
 		errorMsg = err.Error()
 		fmt.Printf("\n✗ Authentication failed: %v\n", err)
-		logger.LogError(slogLogger, "Authentication failed", "error", err)
+		logger.LogError(slogLogger, "Authentication failed",
+			"error", err,
+			"username", maskUsername(config.Username),
+			"password", maskPassword(config.Password),
+			"method", methodUsed)
 	} else {
 		fmt.Printf("\n✓ Authentication successful\n")
 		logger.LogInfo(slogLogger, "Authentication successful", "method", methodUsed)
