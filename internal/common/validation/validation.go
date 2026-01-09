@@ -55,37 +55,66 @@ func ValidateGUID(guid, fieldName string) error {
 }
 
 // ValidateFilePath validates and sanitizes a file path for security and usability.
-// Checks for path traversal attempts, verifies file exists and is accessible.
+//
+// Security Policy:
+//   - Absolute paths are ALLOWED (e.g., C:\certs\cert.pfx, /etc/ssl/cert.pfx)
+//     Users need flexibility to specify certificate files anywhere on the filesystem
+//   - Relative paths within working directory are ALLOWED (e.g., ./certs/cert.pfx, subdir/cert.pfx)
+//   - Relative paths attempting to escape working directory are REJECTED (e.g., ../../etc/passwd)
+//
+// Use Case: This function is used for validating -pfxpath flag where authorized users
+// specify certificate files. Users are trusted (CLI tool context), but defense-in-depth
+// prevents accidental directory traversal.
+//
+// Empty paths are allowed for optional fields (returns nil).
 func ValidateFilePath(path, fieldName string) error {
 	if path == "" {
 		return nil // Empty is allowed for optional fields
 	}
 
-	// Clean and normalize path (resolves . and .. elements)
+	// Clean and normalize path
+	// filepath.Clean() resolves . and .. elements, but preserves meaningful ".." at the start
+	// Examples:
+	//   - "safe/../file.txt" becomes "file.txt" (cancelled out)
+	//   - "../../etc/passwd" remains "../../etc/passwd" (meaningful traversal)
+	//   - "safe/../../etc/passwd" becomes "../etc/passwd" (simplified but still escapes)
 	cleanPath := filepath.Clean(path)
 
-	// Check for path traversal attempts
-	// After cleaning, ".." should not remain in the path unless it's at the start (relative path going up)
-	// We need to check if the cleaned path tries to escape the current directory context
+	// Convert to absolute path for file existence checks
 	absPath, err := filepath.Abs(cleanPath)
 	if err != nil {
 		return fmt.Errorf("%s: invalid path: %w", fieldName, err)
 	}
 
-	// Get current working directory
+	// Get current working directory for relative path validation
 	cwd, err := os.Getwd()
 	if err != nil {
-		// If we can't get cwd, just verify the file exists
+		// If we can't get cwd, skip traversal check and just verify file exists
 		cwd = ""
 	}
 
-	// If we have a cwd, check if the absolute path tries to go outside reasonable bounds
-	// For absolute paths, this is allowed
-	// For relative paths, we verify they don't traverse outside the working directory tree
+	// Path Traversal Check (defense-in-depth)
+	// Apply only to RELATIVE paths (absolute paths are intentionally allowed)
 	if cwd != "" && !filepath.IsAbs(path) {
-		// Check if cleaned path still contains ".." which indicates traversal
+		// After filepath.Clean(), if ".." remains in the path, it means the path
+		// attempts to escape the working directory tree.
+		//
+		// Why this works:
+		//   - filepath.Clean() cancels out unnecessary ".." (e.g., "a/../b" -> "b")
+		//   - Remaining ".." indicate actual upward traversal (e.g., "../../etc" -> "../../etc")
+		//   - For relative paths, any remaining ".." would escape the working directory
+		//
+		// Examples of REJECTED paths:
+		//   - "../../etc/passwd" (tries to escape cwd)
+		//   - "../../../sensitive" (tries to escape cwd)
+		//   - "safe/../../etc" (simplified to "../etc", still escapes)
+		//
+		// Examples of ALLOWED paths:
+		//   - "certs/cert.pfx" (within cwd)
+		//   - "safe/../cert.pfx" (cleaned to "cert.pfx", within cwd)
+		//   - "/etc/ssl/cert.pfx" (absolute path, bypasses this check)
 		if strings.Contains(cleanPath, "..") {
-			return fmt.Errorf("%s: path contains directory traversal (..) which is not allowed", fieldName)
+			return fmt.Errorf("%s: relative paths with '..' are not allowed (use absolute path if file is outside working directory)", fieldName)
 		}
 	}
 
