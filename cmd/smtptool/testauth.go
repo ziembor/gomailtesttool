@@ -13,7 +13,7 @@ import (
 )
 
 // testAuth performs SMTP authentication testing.
-func testAuth(ctx context.Context, config *Config, csvLogger *logger.CSVLogger, slogLogger *slog.Logger) error {
+func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slogLogger *slog.Logger) error {
 	fmt.Printf("Testing SMTP authentication on %s:%d...\n\n", config.Host, config.Port)
 
 	// Write CSV header
@@ -123,7 +123,7 @@ func testAuth(ctx context.Context, config *Config, csvLogger *logger.CSVLogger, 
 	}
 
 	fmt.Printf("Attempting authentication with method: %s\n", methodUsed)
-	logger.LogDebug(slogLogger, "Authenticating", "method", methodUsed, "username", config.Username)
+	logger.LogDebug(slogLogger, "Authenticating", "method", methodUsed, "username", maskUsername(config.Username))
 
 	// Authenticate
 	err = client.Auth(config.Username, config.Password, []string{methodUsed})

@@ -211,19 +211,27 @@ func NewCSVLogger(toolName, action string) (*CSVLogger, error) {
 **Category:** Information Disclosure Prevention
 **Severity:** LOW
 **Confidence:** 80%
-**Status:** Open
+**Status:** ✅ **Completed (2026-01-09)**
 
 **Description:**
 When SMTP authentication fails, error messages might include the password in stack traces or debug output. Add password masking to all error paths.
 
 **Files Affected:**
-- `cmd/smtptool/testauth.go`
-- `cmd/smtptool/sendmail.go`
-- `cmd/smtptool/smtp_client.go`
+- `cmd/smtptool/testauth.go` - Fixed debug log to mask username
+- `cmd/smtptool/sendmail.go` - Already implemented
+- `cmd/smtptool/smtp_client.go` - No changes needed (doesn't log credentials)
 
-**Recommendation:**
+**What Was Done:**
+- ✅ Password/username masking utilities already existed in `cmd/smtptool/utils.go`
+- ✅ Authentication error logging in `sendmail.go` (lines 110-114) already used masking
+- ✅ Authentication error logging in `testauth.go` (lines 140-144) already used masking
+- ✅ **Fixed**: Debug log in `testauth.go` line 126 to mask username (was exposing raw username)
+- ✅ Verified all 19 unit tests pass for masking functions
+- ✅ Verified no fmt.Printf or CSV logging exposes raw passwords
+
+**Implementation:**
 ```go
-// Add password masking utility (similar to msgraphtool)
+// Already existed in utils.go
 func maskPassword(password string) string {
     if len(password) <= 4 {
         return "****"
@@ -231,15 +239,19 @@ func maskPassword(password string) string {
     return password[:2] + "****" + password[len(password)-2:]
 }
 
-// Use in error messages
-if err != nil {
-    return fmt.Errorf("authentication failed for user %s (password: %s): %w",
-        config.Username, maskPassword(config.Password), err)
+func maskUsername(username string) string {
+    if len(username) <= 4 {
+        return "****"
+    }
+    return username[:2] + "****" + username[len(username)-2:]
 }
+
+// Fixed in testauth.go line 126:
+logger.LogDebug(slogLogger, "Authenticating", "method", methodUsed, "username", maskUsername(config.Username))
 ```
 
-**Effort:** 2-3 hours
-**Risk:** Low (improved error messages)
+**Actual Effort:** <1 hour (most work already done)
+**Risk:** None (single line fix)
 
 ---
 
@@ -313,19 +325,48 @@ Add optional rate limiting to prevent accidental flooding of SMTP servers during
 ### T302: Add Structured JSON Output for CSV Logs
 **Category:** Enhancement
 **Severity:** LOW
-**Status:** Open
+**Status:** ✅ **Completed (2026-01-09)**
 
 **Description:**
 In addition to CSV, support JSON output format for easier parsing by monitoring/automation tools.
 
-**Recommendation:**
+**What Was Done:**
+- ✅ Created `internal/common/logger/logger.go` with Logger interface abstraction
+- ✅ Created `internal/common/logger/json.go` with JSONLogger implementation (JSONL format)
+- ✅ Added `-logformat` flag to both msgraphtool and smtptool (default: csv)
+- ✅ Updated all handlers to use `logger.Logger` interface instead of concrete types
+- ✅ Added comprehensive unit tests (10 test cases, all passing)
+- ✅ Verified builds for both tools
+
+**Implementation:**
 ```go
-// Add -logformat flag
--logformat    Log format: csv, json (default: csv)
+// Logger interface (supports CSV and JSON)
+type Logger interface {
+    WriteHeader(columns []string) error
+    WriteRow(row []string) error
+    Close() error
+    ShouldWriteHeader() (bool, error)
+}
+
+// Factory function
+func NewLogger(format LogFormat, toolName, action string) (Logger, error)
+
+// Usage in both tools:
+// msgraphtool.exe -logformat json -action sendmail ...
+// smtptool.exe -logformat json -action testauth ...
 ```
 
-**Effort:** 4-6 hours
-**Risk:** Low (additive feature)
+**Output Format:**
+- **CSV**: `%TEMP%\_toolname_action_date.csv` (existing format)
+- **JSON**: `%TEMP%\_toolname_action_date.jsonl` (JSONL - one JSON object per line)
+
+**Example JSON Output:**
+```json
+{"timestamp":"2026-01-09 14:30:45","Action":"testauth","Status":"SUCCESS","Server":"smtp.example.com","Port":"587","Username":"user@example.com","Auth_Mechanisms_Available":"PLAIN, LOGIN","Auth_Method_Used":"PLAIN","Auth_Result":"SUCCESS","Error":""}
+```
+
+**Actual Effort:** 4 hours
+**Risk:** None (backward compatible, CSV remains default)
 
 ---
 
@@ -402,13 +443,13 @@ Allowing absolute paths for certificate files is the correct design. Restricting
 
 ## Summary Statistics
 
-| Priority | Open Tasks | Estimated Effort |
-|----------|-----------|------------------|
-| P0 (Critical) | 0 | 0 hours |
-| P1 (High) | 2 | 3-5 hours |
-| P2 (Medium) | 4 | 11-17 hours |
-| P3 (Low) | 3 | 9-14 hours |
-| **Total** | **9** | **23-36 hours** |
+| Priority | Open Tasks | Completed | Estimated Effort (Remaining) |
+|----------|-----------|-----------|------------------------------|
+| P0 (Critical) | 0 | 0 | 0 hours |
+| P1 (High) | 0 | 2 | 0 hours |
+| P2 (Medium) | 0 | 4 | 0 hours |
+| P3 (Low) | 2 | 1 | 5-8 hours |
+| **Total** | **2** | **7** | **5-8 hours** |
 
 **False Positives:** 3 (all correctly categorized)
 
@@ -421,14 +462,14 @@ Allowing absolute paths for certificate files is the correct design. Restricting
 - [ ] **T102**: Add security documentation (1-2 hours)
 
 ### Before v2.1.0 Minor Release:
-- [ ] **T201**: Add timeout to SMTP response reading (3-4 hours)
-- [ ] **T202**: Improve CSV log file permissions (4-6 hours)
-- [ ] **T203**: Add password masking in errors (2-3 hours)
+- [x] **T201**: Add timeout to SMTP response reading (completed in v2.1.1)
+- [x] **T202**: Improve CSV log file permissions (completed 2026-01-09)
+- [x] **T203**: Add password masking in errors (completed 2026-01-09)
 
 ### Before v2.2.0 Minor Release:
-- [ ] **T204**: Enhance path validation clarity (1-2 hours)
+- [x] **T204**: Enhance path validation clarity (completed in v2.1.1)
 - [ ] **T301**: Add rate limiting (optional) (3-4 hours)
-- [ ] **T302**: Add JSON log format (optional) (4-6 hours)
+- [x] **T302**: Add JSON log format (completed 2026-01-09)
 
 ---
 
