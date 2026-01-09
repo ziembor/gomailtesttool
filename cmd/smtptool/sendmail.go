@@ -14,7 +14,7 @@ import (
 )
 
 // sendMail performs end-to-end email sending test.
-func sendMail(ctx context.Context, config *Config, csvLogger *logger.CSVLogger, slogLogger *slog.Logger) error {
+func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slogLogger *slog.Logger) error {
 	fmt.Printf("Sending test email via %s:%d...\n\n", config.Host, config.Port)
 
 	// Write CSV header

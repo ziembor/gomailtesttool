@@ -125,7 +125,7 @@ func validateMessageID(msgID string) error {
 // enrichGraphAPIError enriches Graph API errors with additional context,
 // particularly for rate limiting scenarios. It detects rate limit errors (429)
 // and extracts the Retry-After header if available.
-func enrichGraphAPIError(err error, csvLogger *logger.CSVLogger, operation string) error {
+func enrichGraphAPIError(err error, csvLogger logger.Logger, operation string) error {
 	if err == nil {
 		return nil
 	}

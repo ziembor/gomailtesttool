@@ -25,7 +25,7 @@ import (
 // mailbox owner (self). All actions log their operations to the provided CSV logger.
 //
 // Returns an error if the action fails or if the action name is unknown.
-func executeAction(ctx context.Context, client *msgraphsdk.GraphServiceClient, config *Config, logger *logger.CSVLogger) error {
+func executeAction(ctx context.Context, client *msgraphsdk.GraphServiceClient, config *Config, logger logger.Logger) error {
 	switch config.Action {
 	case ActionGetEvents:
 		if err := listEvents(ctx, client, config.Mailbox, config.Count, config, logger); err != nil {
@@ -73,7 +73,7 @@ func executeAction(ctx context.Context, client *msgraphsdk.GraphServiceClient, c
 	return nil
 }
 
-func listEvents(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, count int, config *Config, logger *logger.CSVLogger) error {
+func listEvents(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, count int, config *Config, logger logger.Logger) error {
 	// Configure request to get top N events
 	requestConfig := &users.ItemEventsRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemEventsRequestBuilderGetQueryParameters{
@@ -153,7 +153,7 @@ func listEvents(ctx context.Context, client *msgraphsdk.GraphServiceClient, mail
 	return nil
 }
 
-func sendEmail(ctx context.Context, client *msgraphsdk.GraphServiceClient, senderMailbox string, to, cc, bcc []string, subject, textContent, htmlContent string, attachmentPaths []string, config *Config, logger *logger.CSVLogger) {
+func sendEmail(ctx context.Context, client *msgraphsdk.GraphServiceClient, senderMailbox string, to, cc, bcc []string, subject, textContent, htmlContent string, attachmentPaths []string, config *Config, logger logger.Logger) {
 	message := models.NewMessage()
 
 	// Set Subject
@@ -240,7 +240,7 @@ func sendEmail(ctx context.Context, client *msgraphsdk.GraphServiceClient, sende
 	}
 }
 
-func createInvite(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox, subject, startTimeStr, endTimeStr string, config *Config, logger *logger.CSVLogger) {
+func createInvite(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox, subject, startTimeStr, endTimeStr string, config *Config, logger logger.Logger) {
 	event := models.NewEvent()
 	event.SetSubject(&subject)
 
@@ -315,7 +315,7 @@ func createInvite(ctx context.Context, client *msgraphsdk.GraphServiceClient, ma
 	}
 }
 
-func listInbox(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, count int, config *Config, logger *logger.CSVLogger) error {
+func listInbox(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, count int, config *Config, logger logger.Logger) error {
 	// Configure request to get top N messages ordered by received date
 	requestConfig := &users.ItemMessagesRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMessagesRequestBuilderGetQueryParameters{
@@ -440,7 +440,7 @@ func listInbox(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailb
 }
 
 // checkAvailability checks the recipient's availability for the next working day at 12:00 UTC.
-func checkAvailability(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, recipient string, config *Config, logger *logger.CSVLogger) error {
+func checkAvailability(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, recipient string, config *Config, logger logger.Logger) error {
 	// Calculate next working day
 	now := time.Now().UTC()
 	nextWorkingDay := addWorkingDays(now, 1)
@@ -555,7 +555,7 @@ func checkAvailability(ctx context.Context, client *msgraphsdk.GraphServiceClien
 }
 
 // exportInbox exports messages from the inbox to JSON files
-func exportInbox(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, count int, config *Config, logger *logger.CSVLogger) error {
+func exportInbox(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, count int, config *Config, logger logger.Logger) error {
 	// Configure request to get top N messages
 	requestConfig := &users.ItemMailFoldersItemMessagesRequestBuilderGetRequestConfiguration{
 		QueryParameters: &users.ItemMailFoldersItemMessagesRequestBuilderGetQueryParameters{
@@ -639,7 +639,7 @@ func exportInbox(ctx context.Context, client *msgraphsdk.GraphServiceClient, mai
 }
 
 // searchAndExport searches for a message by Internet Message ID and exports it
-func searchAndExport(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, messageID string, config *Config, logger *logger.CSVLogger) error {
+func searchAndExport(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, messageID string, config *Config, logger logger.Logger) error {
 	// Configure request with filter
 	// Note: We search the whole mailbox (Messages endpoint), not just Inbox
 	// SECURITY: Escape single quotes for OData filter (defense-in-depth)

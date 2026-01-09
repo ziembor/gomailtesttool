@@ -9,7 +9,7 @@ import (
 )
 
 // executeAction dispatches to the appropriate action handler.
-func executeAction(ctx context.Context, config *Config, csvLogger *logger.CSVLogger, slogLogger *slog.Logger) error {
+func executeAction(ctx context.Context, config *Config, csvLogger logger.Logger, slogLogger *slog.Logger) error {
 	switch config.Action {
 	case ActionTestConnect:
 		return testConnect(ctx, config, csvLogger, slogLogger)

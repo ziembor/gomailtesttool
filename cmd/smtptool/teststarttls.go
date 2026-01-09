@@ -14,7 +14,7 @@ import (
 )
 
 // testStartTLS performs comprehensive TLS/SSL testing with detailed diagnostics.
-func testStartTLS(ctx context.Context, config *Config, csvLogger *logger.CSVLogger, slogLogger *slog.Logger) error {
+func testStartTLS(ctx context.Context, config *Config, csvLogger logger.Logger, slogLogger *slog.Logger) error {
 	fmt.Printf("Testing STARTTLS on %s:%d...\n\n", config.Host, config.Port)
 
 	// Write CSV header

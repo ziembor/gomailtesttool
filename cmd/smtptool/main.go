@@ -43,10 +43,16 @@ func run() error {
 	slogLogger := logger.SetupLogger(config.VerboseMode, config.LogLevel)
 	logger.LogInfo(slogLogger, "SMTP Connectivity Testing Tool started", "action", config.Action, "host", config.Host, "port", config.Port)
 
-	// Initialize CSV logger
-	csvLogger, err := logger.NewCSVLogger("smtptool", config.Action)
+	// Parse log format
+	logFormat, err := logger.ParseLogFormat(config.LogFormat)
 	if err != nil {
-		return fmt.Errorf("failed to initialize CSV logger: %w", err)
+		return fmt.Errorf("invalid log format: %w", err)
+	}
+
+	// Initialize file logger (CSV or JSON)
+	csvLogger, err := logger.NewLogger(logFormat, "smtptool", config.Action)
+	if err != nil {
+		return fmt.Errorf("failed to initialize file logger: %w", err)
 	}
 	defer csvLogger.Close()
 

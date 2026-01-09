@@ -58,6 +58,7 @@ type Config struct {
 	VerboseMode  bool   // Enable verbose diagnostic output (maps to DEBUG log level)
 	LogLevel     string // Logging level: DEBUG, INFO, WARN, ERROR (default: INFO)
 	OutputFormat string // Output format: text, json (default: text)
+	LogFormat    string // Log file format: csv, json (default: csv)
 	Count        int    // Number of items to retrieve (for getevents and getinbox actions)
 }
 
@@ -74,6 +75,7 @@ func NewConfig() *Config {
 		VerboseMode:   false,
 		LogLevel:      "INFO",                  // Default: INFO level logging
 		OutputFormat:  "text",                  // Default: text output
+		LogFormat:     "csv",                   // Default: CSV log format
 		ShowVersion:   false,
 		MaxRetries:    3,                       // Default: 3 retry attempts
 		RetryDelay:    2000 * time.Millisecond, // Default: 2 second base delay
@@ -147,6 +149,9 @@ func parseAndConfigureFlags() *Config {
 
 	// Output format
 	outputFormat := flag.String("output", "text", "Output format: text, json (default: text) (env: MSGRAPHOUTPUT)")
+
+	// Log file format
+	logFormat := flag.String("logformat", "csv", "Log file format: csv, json (default: csv) (env: MSGRAPHLOGFORMAT)")
 
 	// Count for getevents and getinbox
 	count := flag.Int("count", 3, "Number of items to retrieve for getevents and getinbox actions (default: 3) (env: MSGRAPHCOUNT)")
@@ -269,6 +274,7 @@ func parseAndConfigureFlags() *Config {
 		VerboseMode:     *verbose,
 		LogLevel:        *logLevel,
 		OutputFormat:    strings.ToLower(*outputFormat),
+		LogFormat:       strings.ToLower(*logFormat),
 		Count:           *count,
 	}
 

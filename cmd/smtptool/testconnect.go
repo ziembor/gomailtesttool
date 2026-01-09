@@ -11,7 +11,7 @@ import (
 )
 
 // testConnect performs basic SMTP connectivity and capability testing.
-func testConnect(ctx context.Context, config *Config, csvLogger *logger.CSVLogger, slogLogger *slog.Logger) error {
+func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, slogLogger *slog.Logger) error {
 	fmt.Printf("Testing SMTP connectivity to %s:%d...\n\n", config.Host, config.Port)
 
 	// Write CSV header

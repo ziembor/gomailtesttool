@@ -47,6 +47,7 @@ type Config struct {
 	VerboseMode  bool
 	LogLevel     string
 	OutputFormat string
+	LogFormat    string // Log file format: csv, json
 }
 
 // Action constants
@@ -73,6 +74,7 @@ func NewConfig() *Config {
 		VerboseMode:  false,
 		LogLevel:     "INFO",
 		OutputFormat: "text",
+		LogFormat:    "csv",
 	}
 }
 
@@ -123,6 +125,7 @@ func parseAndConfigureFlags() *Config {
 	verbose := flag.Bool("verbose", false, "Enable verbose output")
 	logLevel := flag.String("loglevel", "INFO", "Logging level: DEBUG, INFO, WARN, ERROR")
 	outputFormat := flag.String("output", "text", "Output format: text, json (env: SMTPOUTPUT)")
+	logFormat := flag.String("logformat", "csv", "Log file format: csv, json (env: SMTPLOGFORMAT)")
 
 	flag.Parse()
 
@@ -150,6 +153,7 @@ func parseAndConfigureFlags() *Config {
 	config.VerboseMode = *verbose
 	config.LogLevel = *logLevel
 	config.OutputFormat = *outputFormat
+	config.LogFormat = *logFormat
 
 	// Apply environment variables (if flags not set)
 	applyEnvironmentVariables(config)

@@ -80,17 +80,24 @@ func setupSignalHandling() (context.Context, context.CancelFunc) {
 	return ctx, cancel
 }
 
-// initializeServices sets up CSV logging and proxy configuration based on
-// the provided configuration. Creates a CSV logger for the specified action
+// initializeServices sets up file logging and proxy configuration based on
+// the provided configuration. Creates a file logger (CSV or JSON) for the specified action
 // and configures HTTP/HTTPS proxy environment variables if a proxy URL is specified.
 //
-// Returns the CSV logger (or nil if initialization failed) and any error encountered.
-// If CSV logger initialization fails, a warning is logged but execution continues.
-func initializeServices(config *Config) (*logger.CSVLogger, error) {
-	// Initialize CSV logging
-	csvLogger, err := logger.NewCSVLogger("msgraphgolangtestingtool", config.Action)
+// Returns the file logger (or nil if initialization failed) and any error encountered.
+// If file logger initialization fails, a warning is logged but execution continues.
+func initializeServices(config *Config) (logger.Logger, error) {
+	// Parse log format
+	logFormat, err := logger.ParseLogFormat(config.LogFormat)
 	if err != nil {
-		log.Printf("Warning: Could not initialize CSV logging: %v", err)
+		log.Printf("Warning: Invalid log format '%s', falling back to CSV: %v", config.LogFormat, err)
+		logFormat = logger.LogFormatCSV
+	}
+
+	// Initialize file logging (CSV or JSON)
+	csvLogger, err := logger.NewLogger(logFormat, "msgraphgolangtestingtool", config.Action)
+	if err != nil {
+		log.Printf("Warning: Could not initialize file logging: %v", err)
 		csvLogger = nil // Continue without logging
 	}
 
