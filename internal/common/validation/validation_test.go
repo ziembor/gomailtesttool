@@ -40,11 +40,11 @@ func TestValidateFilePath(t *testing.T) {
 		{"Valid: Relative path to current file", "validation_test.go", "TestFile", false, ""},
 
 		// Security: Path traversal attacks (CRITICAL)
-		{"Security: Unix path traversal (../../)", "../../etc/passwd", "TestFile", true, "traversal"},
-		{"Security: Windows path traversal (..\\..\\)", "..\\..\\Windows\\System32\\config", "TestFile", true, "traversal"},
-		{"Security: Mixed path traversal", "../../../sensitive", "TestFile", true, "traversal"},
-		{"Security: Multiple traversal attempts", "../../../../../../../../etc/shadow", "TestFile", true, "traversal"},
-		{"Security: Hidden traversal in path", "safe/../../etc/passwd", "TestFile", true, "traversal"},
+		{"Security: Unix path traversal (../../)", "../../etc/passwd", "TestFile", true, "not allowed"},
+		{"Security: Windows path traversal (..\\..\\)", "..\\..\\Windows\\System32\\config", "TestFile", true, "not allowed"},
+		{"Security: Mixed path traversal", "../../../sensitive", "TestFile", true, "not allowed"},
+		{"Security: Multiple traversal attempts", "../../../../../../../../etc/shadow", "TestFile", true, "not allowed"},
+		{"Security: Hidden traversal in path", "safe/../../etc/passwd", "TestFile", true, "not allowed"},
 
 		// File not found
 		{"Error: File does not exist", "/nonexistent/file/path.txt", "TestFile", true, "not found"},
