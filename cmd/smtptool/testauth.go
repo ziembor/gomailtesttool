@@ -68,6 +68,7 @@ func testAuth(ctx context.Context, config *Config, csvLogger *logger.CSVLogger, 
 	fmt.Printf("✓ Server supports AUTH mechanisms: %s\n\n", strings.Join(authMechanisms, ", "))
 
 	// STARTTLS if on port 25/587 and available
+	var tlsState *tls.ConnectionState
 	if (config.Port == 25 || config.Port == 587) && caps.SupportsSTARTTLS() {
 		fmt.Println("Upgrading to TLS before authentication...")
 		tlsConfig := &tls.Config{
@@ -76,7 +77,7 @@ func testAuth(ctx context.Context, config *Config, csvLogger *logger.CSVLogger, 
 			MinVersion:         smtptls.ParseTLSVersion(config.TLSVersion),
 		}
 
-		_, err := client.StartTLS(tlsConfig)
+		tlsState, err = client.StartTLS(tlsConfig)
 		if err != nil {
 			logger.LogError(slogLogger, "STARTTLS failed", "error", err)
 			csvLogger.WriteRow([]string{
@@ -87,6 +88,11 @@ func testAuth(ctx context.Context, config *Config, csvLogger *logger.CSVLogger, 
 		}
 
 		fmt.Println("✓ TLS upgrade successful")
+
+		// Show TLS cipher information in verbose mode
+		if config.VerboseMode {
+			displayTLSCipherInfo(tlsState)
+		}
 
 		// Re-run EHLO on encrypted connection
 		caps, err = client.EHLO("smtptool.local")
@@ -136,6 +142,12 @@ func testAuth(ctx context.Context, config *Config, csvLogger *logger.CSVLogger, 
 			"username", maskUsername(config.Username),
 			"password", maskPassword(config.Password),
 			"method", methodUsed)
+
+		// Show TLS cipher information on auth failure if verbose and TLS was used
+		if config.VerboseMode && tlsState != nil {
+			fmt.Println("\nAuthentication failed. TLS Connection Details:")
+			displayTLSCipherInfo(tlsState)
+		}
 	} else {
 		fmt.Printf("\n✓ Authentication successful\n")
 		logger.LogInfo(slogLogger, "Authentication successful", "method", methodUsed)
