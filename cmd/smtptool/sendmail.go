@@ -101,7 +101,11 @@ func sendMail(ctx context.Context, config *Config, csvLogger *logger.CSVLogger, 
 		}
 
 		if err := client.Auth(config.Username, config.Password, []string{methodToUse}); err != nil {
-			logger.LogError(slogLogger, "Authentication failed", "error", err)
+			logger.LogError(slogLogger, "Authentication failed",
+				"error", err,
+				"username", maskUsername(config.Username),
+				"password", maskPassword(config.Password),
+				"method", methodToUse)
 			csvLogger.WriteRow([]string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 				config.From, strings.Join(config.To, ", "), config.Subject, "", "", fmt.Sprintf("Auth failed: %v", err),
