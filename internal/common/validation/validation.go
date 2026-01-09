@@ -3,6 +3,7 @@ package validation
 import (
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -198,4 +199,67 @@ func ValidateSMTPAddress(address string) error {
 
 	// Validate as email
 	return ValidateEmail(address)
+}
+
+// ValidateProxyURL validates a proxy URL for HTTP/HTTPS/SOCKS5 proxies.
+// Validates URL format, scheme, hostname, and port.
+//
+// Supported formats:
+//   - http://proxy.example.com:8080
+//   - https://proxy.example.com:8080
+//   - socks5://proxy.example.com:1080
+//   - http://username:password@proxy.example.com:8080
+//
+// Empty URLs are allowed (proxy is optional).
+func ValidateProxyURL(proxyURL string) error {
+	if proxyURL == "" {
+		return nil // Empty is allowed (proxy is optional)
+	}
+
+	// Parse URL
+	u, err := url.Parse(proxyURL)
+	if err != nil {
+		return fmt.Errorf("invalid proxy URL format: %w", err)
+	}
+
+	// Validate scheme (http, https, socks5)
+	scheme := strings.ToLower(u.Scheme)
+	if scheme == "" {
+		return fmt.Errorf("proxy URL must include scheme (http://, https://, or socks5://)")
+	}
+	if scheme != "http" && scheme != "https" && scheme != "socks5" {
+		return fmt.Errorf("unsupported proxy scheme: %s (supported: http, https, socks5)", scheme)
+	}
+
+	// Validate hostname
+	hostname := u.Hostname()
+	if hostname == "" {
+		return fmt.Errorf("proxy URL must include hostname")
+	}
+	if err := ValidateHostname(hostname); err != nil {
+		return fmt.Errorf("invalid proxy hostname: %w", err)
+	}
+
+	// Validate port (if specified)
+	if portStr := u.Port(); portStr != "" {
+		// Parse port string to int
+		var port int
+		if _, err := fmt.Sscanf(portStr, "%d", &port); err != nil {
+			return fmt.Errorf("invalid proxy port: %s", portStr)
+		}
+		if err := ValidatePort(port); err != nil {
+			return fmt.Errorf("invalid proxy port: %w", err)
+		}
+	}
+
+	// Userinfo (username:password) is optional but if present, should be valid
+	if u.User != nil {
+		username := u.User.Username()
+		if username == "" {
+			return fmt.Errorf("proxy URL contains empty username")
+		}
+		// Password is optional even if username is present
+	}
+
+	return nil
 }

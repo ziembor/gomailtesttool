@@ -10,31 +10,39 @@ import (
 	"net/textproto"
 	"strings"
 
+	"msgraphgolangtestingtool/internal/common/ratelimit"
 	"msgraphgolangtestingtool/internal/smtp/protocol"
 )
 
 // SMTPClient wraps SMTP connection with enhanced diagnostics.
 type SMTPClient struct {
-	conn       net.Conn
-	reader     *bufio.Reader
-	host       string
-	port       int
-	config     *Config
-	banner     string
+	conn         net.Conn
+	reader       *bufio.Reader
+	host         string
+	port         int
+	config       *Config
+	banner       string
 	capabilities protocol.Capabilities
+	limiter      *ratelimit.Limiter
 }
 
 // NewSMTPClient creates a new SMTP client.
 func NewSMTPClient(host string, port int, config *Config) *SMTPClient {
 	return &SMTPClient{
-		host:   host,
-		port:   port,
-		config: config,
+		host:    host,
+		port:    port,
+		config:  config,
+		limiter: ratelimit.New(config.RateLimit),
 	}
 }
 
 // Connect establishes a TCP connection and reads the banner.
 func (c *SMTPClient) Connect(ctx context.Context) error {
+	// Apply rate limiting
+	if err := c.limiter.Wait(ctx); err != nil {
+		return fmt.Errorf("rate limit wait failed: %w", err)
+	}
+
 	addr := fmt.Sprintf("%s:%d", c.host, c.port)
 
 	// Use context-aware dialer
@@ -69,6 +77,11 @@ func (c *SMTPClient) Connect(ctx context.Context) error {
 
 // EHLO sends EHLO command and parses capabilities.
 func (c *SMTPClient) EHLO(hostname string) (protocol.Capabilities, error) {
+	// Apply rate limiting
+	if err := c.limiter.Wait(context.Background()); err != nil {
+		return nil, fmt.Errorf("rate limit wait failed: %w", err)
+	}
+
 	// Send EHLO command
 	cmd := protocol.EHLO(hostname)
 	if _, err := c.conn.Write([]byte(cmd)); err != nil {
@@ -93,6 +106,11 @@ func (c *SMTPClient) EHLO(hostname string) (protocol.Capabilities, error) {
 
 // StartTLS upgrades the connection to TLS.
 func (c *SMTPClient) StartTLS(tlsConfig *tls.Config) (*tls.ConnectionState, error) {
+	// Apply rate limiting
+	if err := c.limiter.Wait(context.Background()); err != nil {
+		return nil, fmt.Errorf("rate limit wait failed: %w", err)
+	}
+
 	// Send STARTTLS command
 	cmd := protocol.STARTTLS()
 	if _, err := c.conn.Write([]byte(cmd)); err != nil {
@@ -127,6 +145,11 @@ func (c *SMTPClient) StartTLS(tlsConfig *tls.Config) (*tls.ConnectionState, erro
 
 // Auth performs SMTP authentication.
 func (c *SMTPClient) Auth(username, password string, mechanisms []string) error {
+	// Apply rate limiting
+	if err := c.limiter.Wait(context.Background()); err != nil {
+		return fmt.Errorf("rate limit wait failed: %w", err)
+	}
+
 	// Determine which mechanism to use
 	mechanism := selectAuthMechanism(mechanisms, c.capabilities.GetAuthMechanisms())
 	if mechanism == "" {
@@ -157,6 +180,11 @@ func (c *SMTPClient) Auth(username, password string, mechanisms []string) error 
 
 // SendMail sends an email message.
 func (c *SMTPClient) SendMail(from string, to []string, data []byte) error {
+	// Apply rate limiting
+	if err := c.limiter.Wait(context.Background()); err != nil {
+		return fmt.Errorf("rate limit wait failed: %w", err)
+	}
+
 	// Use stdlib smtp client for mail sending
 	smtpClient := &smtp.Client{Text: textproto.NewConn(c.conn)}
 

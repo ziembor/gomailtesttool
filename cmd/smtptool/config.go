@@ -48,6 +48,7 @@ type Config struct {
 	LogLevel     string
 	OutputFormat string
 	LogFormat    string // Log file format: csv, json
+	RateLimit    float64 // Maximum requests per second (0 = unlimited)
 }
 
 // Action constants
@@ -75,6 +76,7 @@ func NewConfig() *Config {
 		LogLevel:     "INFO",
 		OutputFormat: "text",
 		LogFormat:    "csv",
+		RateLimit:    0, // Unlimited by default
 	}
 }
 
@@ -126,6 +128,7 @@ func parseAndConfigureFlags() *Config {
 	logLevel := flag.String("loglevel", "INFO", "Logging level: DEBUG, INFO, WARN, ERROR")
 	outputFormat := flag.String("output", "text", "Output format: text, json (env: SMTPOUTPUT)")
 	logFormat := flag.String("logformat", "csv", "Log file format: csv, json (env: SMTPLOGFORMAT)")
+	rateLimit := flag.Float64("ratelimit", 0, "Maximum SMTP requests per second (0 = unlimited) (env: SMTPRATELIMIT)")
 
 	flag.Parse()
 
@@ -154,6 +157,7 @@ func parseAndConfigureFlags() *Config {
 	config.LogLevel = *logLevel
 	config.OutputFormat = *outputFormat
 	config.LogFormat = *logFormat
+	config.RateLimit = *rateLimit
 
 	// Apply environment variables (if flags not set)
 	applyEnvironmentVariables(config)
@@ -186,6 +190,11 @@ func applyEnvironmentVariables(config *Config) {
 	if toStr := os.Getenv("SMTPTO"); toStr != "" && len(config.To) == 0 {
 		config.To = strings.Split(toStr, ",")
 	}
+	if rateLimitStr := os.Getenv("SMTPRATELIMIT"); rateLimitStr != "" && config.RateLimit == 0 {
+		if rateLimit, err := strconv.ParseFloat(rateLimitStr, 64); err == nil {
+			config.RateLimit = rateLimit
+		}
+	}
 }
 
 // validateConfiguration validates the configuration.
@@ -214,6 +223,11 @@ func validateConfiguration(config *Config) error {
 	// Validate port
 	if err := validation.ValidatePort(config.Port); err != nil {
 		return fmt.Errorf("invalid port: %w", err)
+	}
+
+	// Validate proxy URL (if provided)
+	if err := validation.ValidateProxyURL(config.ProxyURL); err != nil {
+		return fmt.Errorf("invalid proxy URL: %w", err)
 	}
 
 	// Action-specific validation

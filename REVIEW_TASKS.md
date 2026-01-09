@@ -306,19 +306,45 @@ if cwd != "" && !filepath.IsAbs(path) {
 ### T301: Add Rate Limiting for SMTP Operations
 **Category:** Best Practice
 **Severity:** LOW
-**Status:** Open
+**Status:** ✅ **Completed (2026-01-09)**
 
 **Description:**
 Add optional rate limiting to prevent accidental flooding of SMTP servers during bulk testing.
 
-**Recommendation:**
+**What Was Done:**
+- ✅ Created `internal/common/ratelimit/ratelimit.go` with token bucket rate limiter
+- ✅ Added `golang.org/x/time/rate` dependency for production-ready implementation
+- ✅ Added `-ratelimit` flag to smtptool (default: 0 = unlimited)
+- ✅ Integrated rate limiting into all SMTP operations (Connect, EHLO, StartTLS, Auth, SendMail)
+- ✅ Implemented comprehensive unit tests (10 test cases, all passing)
+- ✅ Added environment variable support (SMTPRATELIMIT)
+
+**Implementation:**
 ```go
-// Add -ratelimit flag (requests per second)
--ratelimit    Maximum SMTP requests per second (default: unlimited)
+// Rate limiter using token bucket algorithm
+type Limiter struct {
+    limiter *rate.Limiter
+    enabled bool
+    rps     float64
+}
+
+// Usage in smtptool:
+// smtptool.exe -action sendmail -ratelimit 10 -host smtp.example.com ...
+// Limits to 10 requests per second
+
+// Environment variable:
+// set SMTPRATELIMIT=5
 ```
 
-**Effort:** 3-4 hours
-**Risk:** Low (optional feature)
+**Features:**
+- Token bucket algorithm for smooth rate limiting
+- Supports fractional rates (e.g., 0.5 = 1 request per 2 seconds)
+- Context-aware (respects cancellation)
+- Thread-safe for concurrent operations
+- Zero overhead when disabled (default)
+
+**Actual Effort:** 3 hours
+**Risk:** None (optional feature, backward compatible)
 
 ---
 
@@ -373,16 +399,53 @@ func NewLogger(format LogFormat, toolName, action string) (Logger, error)
 ### T303: Add Network Proxy Validation
 **Category:** Usability
 **Severity:** LOW
-**Status:** Open
+**Status:** ✅ **Completed (2026-01-09)**
 
 **Description:**
 Validate proxy URL format and test connectivity before attempting SMTP operations.
 
-**Files Affected:**
-- `cmd/smtptool/config.go`
+**What Was Done:**
+- ✅ Created `ValidateProxyURL()` function in `internal/common/validation/validation.go`
+- ✅ Added validation to `cmd/smtptool/config.go` (validateConfiguration function)
+- ✅ Implemented comprehensive unit tests (26 test cases, all passing)
+- ✅ Validates URL format, scheme (http/https/socks5), hostname, port, and authentication
 
-**Effort:** 2-3 hours
-**Risk:** Low (validation only)
+**Implementation:**
+```go
+// Validates proxy URL format
+func ValidateProxyURL(proxyURL string) error {
+    // Validates:
+    // - URL format and parsing
+    // - Scheme: http, https, socks5
+    // - Hostname (DNS name or IP)
+    // - Port (if specified)
+    // - Authentication (username/password if present)
+}
+
+// Usage in config validation:
+if err := validation.ValidateProxyURL(config.ProxyURL); err != nil {
+    return fmt.Errorf("invalid proxy URL: %w", err)
+}
+```
+
+**Supported Proxy Formats:**
+- `http://proxy.example.com:8080`
+- `https://proxy.example.com:8080`
+- `socks5://proxy.example.com:1080`
+- `http://username:password@proxy.example.com:8080`
+- `http://192.168.1.100:8080` (IPv4)
+- `http://[2001:db8::1]:8080` (IPv6)
+
+**Error Messages:**
+- "proxy URL must include scheme (http://, https://, or socks5://)"
+- "unsupported proxy scheme: ftp (supported: http, https, socks5)"
+- "proxy URL must include hostname"
+- "invalid proxy hostname: hostname contains invalid character"
+- "invalid proxy port: port must be between 1 and 65535"
+- "proxy URL contains empty username"
+
+**Actual Effort:** 2 hours
+**Risk:** None (validation only, backward compatible)
 
 ---
 
@@ -448,8 +511,8 @@ Allowing absolute paths for certificate files is the correct design. Restricting
 | P0 (Critical) | 0 | 0 | 0 hours |
 | P1 (High) | 0 | 2 | 0 hours |
 | P2 (Medium) | 0 | 4 | 0 hours |
-| P3 (Low) | 2 | 1 | 5-8 hours |
-| **Total** | **2** | **7** | **5-8 hours** |
+| P3 (Low) | 0 | 3 | 0 hours |
+| **Total** | **0** | **9** | **0 hours** |
 
 **False Positives:** 3 (all correctly categorized)
 
@@ -468,7 +531,7 @@ Allowing absolute paths for certificate files is the correct design. Restricting
 
 ### Before v2.2.0 Minor Release:
 - [x] **T204**: Enhance path validation clarity (completed in v2.1.1)
-- [ ] **T301**: Add rate limiting (optional) (3-4 hours)
+- [x] **T301**: Add rate limiting (completed 2026-01-09)
 - [x] **T302**: Add JSON log format (completed 2026-01-09)
 
 ---

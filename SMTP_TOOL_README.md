@@ -366,6 +366,8 @@ Sending message...
 | `-verbose` | Enable verbose output | `SMTPVERBOSE` | false |
 | `-loglevel` | Logging level: DEBUG, INFO, WARN, ERROR | `SMTPLOGLEVEL` | INFO |
 | `-output` | Output format: text, json | `SMTPOUTPUT` | text |
+| `-logformat` | Log file format: csv, json | `SMTPLOGFORMAT` | csv |
+| `-ratelimit` | Maximum SMTP requests per second (0 = unlimited) | `SMTPRATELIMIT` | 0 |
 | `-version` | Show version information | - | - |
 
 ## Environment Variables
@@ -495,6 +497,41 @@ Timestamp, Action, Status, Server, Port, From, To, Subject, SMTP_Response_Code, 
 - Let tool auto-upgrade (default behavior)
 - Or use `-starttls` to force STARTTLS
 
+### Proxy Configuration Issues
+
+**"Invalid proxy URL" error**
+- Proxy URL must include scheme: `http://`, `https://`, or `socks5://`
+- Correct format: `http://proxy.example.com:8080`
+- With authentication: `http://username:password@proxy.example.com:8080`
+- Supported schemes:
+  - `http://` - HTTP proxy
+  - `https://` - HTTPS proxy
+  - `socks5://` - SOCKS5 proxy
+
+**Proxy connection examples:**
+```powershell
+# HTTP proxy
+.\smtptool.exe -action testconnect -host smtp.example.com -port 25 \
+  -proxy "http://proxy.corp.com:8080"
+
+# SOCKS5 proxy with authentication
+.\smtptool.exe -action testauth -host smtp.example.com -port 587 \
+  -proxy "socks5://user:pass@socks-proxy.corp.com:1080" \
+  -username user@example.com -password secret
+
+# Proxy via environment variable
+$env:SMTPPROXY = "http://proxy.corp.com:8080"
+.\smtptool.exe -action sendmail -host smtp.example.com -port 587 ...
+```
+
+**Common proxy errors:**
+- "proxy URL must include hostname" - Missing or malformed hostname
+- "unsupported proxy scheme: ftp" - Only http, https, socks5 are supported
+- "invalid proxy port: port must be between 1 and 65535" - Invalid port number
+- "proxy URL contains empty username" - Authentication format error
+
+**Note:** Proxy configuration is validated before attempting connection. Invalid URLs will be rejected immediately with clear error messages.
+
 ## Security Best Practices
 
 ### Tool Design and Threat Model
@@ -612,6 +649,48 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "`n✗ Tests failed" -ForegroundColor Red
     exit 1
 }
+```
+
+### Rate Limiting for Bulk Operations
+
+To prevent accidental flooding of SMTP servers during bulk testing or monitoring, use the `-ratelimit` flag to control the maximum requests per second:
+
+```powershell
+# Limit to 5 requests per second
+.\smtptool.exe -action sendmail -ratelimit 5 \
+  -host smtp.example.com -port 587 \
+  -username user@example.com -password "secret" \
+  -from user@example.com -to recipient@example.com
+
+# Limit to 1 request every 2 seconds (0.5 requests per second)
+.\smtptool.exe -action testauth -ratelimit 0.5 \
+  -host smtp.example.com -port 587 \
+  -username user@example.com -password "secret"
+
+# Unlimited rate (default)
+.\smtptool.exe -action testconnect -ratelimit 0 -host smtp.example.com -port 25
+```
+
+**Rate Limiting Features:**
+- **Token Bucket Algorithm**: Smooth rate limiting with burst allowance
+- **Fractional Rates**: Support for rates like 0.5 (1 request per 2 seconds)
+- **Context-Aware**: Respects cancellation signals
+- **Zero Overhead**: When disabled (default), no performance impact
+- **Thread-Safe**: Safe for concurrent operations
+
+**Use Cases:**
+- Preventing server overload during bulk email testing
+- Compliance with SMTP rate limits
+- Monitoring and health check scripts
+- Automated testing with controlled load
+
+**Example with Environment Variable:**
+```powershell
+# Set rate limit via environment variable
+$env:SMTPRATELIMIT = "10"
+.\smtptool.exe -action sendmail -host smtp.example.com -port 587 `
+  -username user@example.com -password "secret" `
+  -from user@example.com -to recipient@example.com
 ```
 
 ## Related Documentation
