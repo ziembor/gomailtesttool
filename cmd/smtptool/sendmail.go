@@ -57,9 +57,10 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		return err
 	}
 
-	// STARTTLS if on port 25/587 and available
+	// STARTTLS if on common SMTP submission ports and available
+	// Ports: 25 (SMTP), 587 (Submission), 2525/2526 (Alternative submission), 1025 (Testing/Alt)
 	var tlsState *tls.ConnectionState
-	if (config.Port == 25 || config.Port == 587) && caps.SupportsSTARTTLS() {
+	if (config.Port == 25 || config.Port == 587 || config.Port == 2525 || config.Port == 2526 || config.Port == 1025) && caps.SupportsSTARTTLS() {
 		fmt.Println("Upgrading to TLS...")
 		tlsConfig := &tls.Config{
 			ServerName:         config.Host,
