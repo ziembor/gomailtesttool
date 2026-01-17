@@ -217,11 +217,24 @@ func (c *SMTPClient) Auth(username, password string, mechanisms []string) error 
 		return fmt.Errorf("unsupported authentication mechanism: %s", mechanism)
 	}
 
-	// Create temporary SMTP client for auth
-	// Note: The stdlib smtp.Client.Auth() handles the AUTH command exchange internally
-	// We cannot easily intercept the individual AUTH commands and responses
+	// Create textproto.Conn using our existing reader to avoid buffering conflicts
+	textConn := &textproto.Conn{
+		Reader: *textproto.NewReader(c.reader),
+		Writer: *textproto.NewWriter(bufio.NewWriter(c.conn)),
+	}
+
+	// Create SMTP client with proper initialization
+	// We need to set up the client as if EHLO was already done
 	c.debugLogMessage(fmt.Sprintf(">>> AUTH %s (credentials exchanged via SASL)", mechanism))
-	smtpClient := &smtp.Client{Text: textproto.NewConn(c.conn)}
+	smtpClient := &smtp.Client{Text: textConn}
+
+	// Call Hello to initialize the client state properly
+	// This sends EHLO again, which is required by smtp.Client.Auth()
+	if err := smtpClient.Hello(c.host); err != nil {
+		c.debugLogMessage("<<< EHLO for auth failed")
+		return fmt.Errorf("EHLO for auth failed: %w", err)
+	}
+
 	if err := smtpClient.Auth(auth); err != nil {
 		c.debugLogMessage("<<< Authentication failed")
 		return fmt.Errorf("authentication failed: %w", err)
@@ -239,8 +252,12 @@ func (c *SMTPClient) SendMail(from string, to []string, data []byte) error {
 		return fmt.Errorf("rate limit wait failed: %w", err)
 	}
 
-	// Use stdlib smtp client for mail sending
-	smtpClient := &smtp.Client{Text: textproto.NewConn(c.conn)}
+	// Create textproto.Conn using our existing reader to avoid buffering conflicts
+	textConn := &textproto.Conn{
+		Reader: *textproto.NewReader(c.reader),
+		Writer: *textproto.NewWriter(bufio.NewWriter(c.conn)),
+	}
+	smtpClient := &smtp.Client{Text: textConn}
 
 	// MAIL FROM
 	c.debugLogMessage(fmt.Sprintf(">>> MAIL FROM:<%s>", from))
