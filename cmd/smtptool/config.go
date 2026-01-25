@@ -36,7 +36,7 @@ type Config struct {
 	// TLS configuration
 	StartTLS   bool   // Force STARTTLS
 	SkipVerify bool   // Skip TLS certificate verification
-	TLSVersion string // Minimum TLS version (1.2, 1.3)
+	TLSVersion string // TLS version to use (exact match): 1.2, 1.3
 
 	// Network configuration
 	ProxyURL   string
@@ -120,7 +120,7 @@ func parseAndConfigureFlags() *Config {
 	body := flag.String("body", "This is a test message from smtptool", "Email body text (env: SMTPBODY)")
 	startTLS := flag.Bool("starttls", false, "Force STARTTLS usage (env: SMTPSTARTTLS)")
 	skipVerify := flag.Bool("skipverify", false, "Skip TLS certificate verification (insecure) (env: SMTPSKIPVERIFY)")
-	tlsVersion := flag.String("tlsversion", "1.2", "Minimum TLS version: 1.2, 1.3 (env: SMTPTLSVERSION)")
+	tlsVersion := flag.String("tlsversion", "1.2", "TLS version to use (exact): 1.2, 1.3 (env: SMTPTLSVERSION)")
 	proxyURL := flag.String("proxy", "", "HTTP/HTTPS proxy URL (env: SMTPPROXY)")
 	maxRetries := flag.Int("maxretries", 3, "Maximum retry attempts (env: SMTPMAXRETRIES)")
 	retryDelay := flag.Int("retrydelay", 2000, "Retry delay in milliseconds (env: SMTPRETRYDELAY)")

@@ -71,13 +71,19 @@ func testStartTLS(ctx context.Context, config *Config, csvLogger logger.Logger, 
 
 	// Perform STARTTLS handshake
 	fmt.Println("Performing TLS handshake...")
+	tlsVersion := smtptls.ParseTLSVersion(config.TLSVersion)
 	tlsConfig := &tls.Config{
 		ServerName:         config.Host,
 		InsecureSkipVerify: config.SkipVerify,
-		MinVersion:         smtptls.ParseTLSVersion(config.TLSVersion),
+		MinVersion:         tlsVersion,
+		MaxVersion:         tlsVersion, // Force exact TLS version
 	}
 
-	logger.LogDebug(slogLogger, "Starting TLS handshake", "skipVerify", config.SkipVerify)
+	logger.LogDebug(slogLogger, "Starting TLS handshake",
+		"skipVerify", config.SkipVerify,
+		"tlsVersion", config.TLSVersion,
+		"minVersion", tlsVersion,
+		"maxVersion", tlsVersion)
 	connState, err := client.StartTLS(tlsConfig)
 	if err != nil {
 		logger.LogError(slogLogger, "STARTTLS handshake failed", "error", err)

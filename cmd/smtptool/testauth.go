@@ -71,10 +71,12 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	var tlsState *tls.ConnectionState
 	if (config.Port == 25 || config.Port == 587) && caps.SupportsSTARTTLS() {
 		fmt.Println("Upgrading to TLS before authentication...")
+		tlsVersion := smtptls.ParseTLSVersion(config.TLSVersion)
 		tlsConfig := &tls.Config{
 			ServerName:         config.Host,
 			InsecureSkipVerify: config.SkipVerify,
-			MinVersion:         smtptls.ParseTLSVersion(config.TLSVersion),
+			MinVersion:         tlsVersion,
+			MaxVersion:         tlsVersion, // Force exact TLS version
 		}
 
 		tlsState, err = client.StartTLS(tlsConfig)
