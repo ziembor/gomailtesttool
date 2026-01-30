@@ -1,19 +1,19 @@
 # Microsoft Graph & SMTP Testing Tools
 
-**Repository:** [https://github.com/ziembor/msgraphgolangtestingtool](https://github.com/ziembor/msgraphgolangtestingtool)
+**Repository:** [https://github.com/ziembor/msgraphtool](https://github.com/ziembor/msgraphtool)
 
 ## Overview
 
 This repository contains two complementary, lightweight, portable command-line interface (CLI) tools written in **Go (Golang)** with cross-platform support for **Windows, Linux, and macOS**:
 
-- **msgraphgolangtestingtool**: Interacts with the **Microsoft Graph API** to manage emails and calendar events on Exchange Online (EXO) mailboxes.
+- **msgraphtool**: Interacts with the **Microsoft Graph API** to manage emails and calendar events on Exchange Online (EXO) mailboxes.
 - **smtptool**: Tests SMTP connectivity with comprehensive TLS diagnostics for on-premises Exchange servers and generic SMTP servers.
 
 Both tools are designed for **minimal external dependencies** — they compile into single static binaries that do not require installing runtimes or libraries on the target machine.
 
 ## Features
 
-### Microsoft Graph Tool (msgraphgolangtestingtool)
+### Microsoft Graph Tool (msgraphtool)
 
 * **Authentication Modes:**
   * **Client Secret:** Standard App Registration secret.
@@ -91,7 +91,7 @@ See **[EXAMPLES.md](EXAMPLES.md)** for detailed usage scenarios.
 ## Project Overview
 
 **Platform**: Cross-platform (Windows, Linux, macOS), but `-thumbprint` auth is Windows-only.
-**Module name**: `msgraphgolangtestingtool`
+**Module name**: `msgraphtool`
 **Go version**: 1.25+
 
 ### Project Structure
@@ -99,7 +99,7 @@ See **[EXAMPLES.md](EXAMPLES.md)** for detailed usage scenarios.
 The repository uses a modular structure with shared internal packages:
 
 ```
-msgraphgolangtestingtool/
+msgraphtool/
 ├── cmd/
 │   ├── msgraphtool/              # Microsoft Graph tool source
 │   │   ├── main.go
@@ -147,7 +147,7 @@ msgraphgolangtestingtool/
 ### CSV Logging
 
 All operations are automatically logged to action-specific CSV files in the temp directory:
-- Microsoft Graph Tool: `%TEMP%\_msgraphgolangtestingtool_{action}_{date}.csv`
+- Microsoft Graph Tool: `%TEMP%\_msgraphtool_{action}_{date}.csv`
 - SMTP Tool: `%TEMP%\_smtptool_{action}_{date}.csv`
 
 ## Build and Run Commands
@@ -157,7 +157,7 @@ All operations are automatically logged to action-specific CSV files in the temp
 .\build-all.ps1
 
 # Build Microsoft Graph tool individually
-go build -C cmd/msgraphtool -o msgraphgolangtestingtool.exe
+go build -C cmd/msgraphtool -o msgraphtool.exe
 
 # Build SMTP tool individually
 go build -C cmd/smtptool -o smtptool.exe

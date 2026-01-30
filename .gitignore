@@ -9,8 +9,8 @@
 *.dylib
 
 # Tool-specific binaries
-msgraphgolangtestingtool
-msgraphgolangtestingtool-linux
+msgraphtool
+msgraphtool-linux
 integration_test_tool
 integration_test_tool.exe
 

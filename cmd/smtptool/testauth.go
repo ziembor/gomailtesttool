@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"msgraphgolangtestingtool/internal/common/logger"
-	smtptls "msgraphgolangtestingtool/internal/smtp/tls"
+	"msgraphtool/internal/common/logger"
+	smtptls "msgraphtool/internal/smtp/tls"
 )
 
 // testAuth performs SMTP authentication testing.

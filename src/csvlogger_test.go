@@ -97,7 +97,7 @@ func TestNewCSVLogger(t *testing.T) {
 			// Verify file was created with expected name pattern
 			tempDir := os.TempDir()
 			dateStr := time.Now().Format("2006-01-02")
-			expectedFileName := filepath.Join(tempDir, "_msgraphgolangtestingtool_"+tt.action+"_"+dateStr+".csv")
+			expectedFileName := filepath.Join(tempDir, "_msgraphtool_"+tt.action+"_"+dateStr+".csv")
 
 			// Check file exists
 			fileInfo, err := os.Stat(expectedFileName)
@@ -156,7 +156,7 @@ func TestCSVLogger_WriteRow(t *testing.T) {
 		// Cleanup
 		tempDir := os.TempDir()
 		dateStr := time.Now().Format("2006-01-02")
-		testFile := filepath.Join(tempDir, "_msgraphgolangtestingtool_"+testAction+"_"+dateStr+".csv")
+		testFile := filepath.Join(tempDir, "_msgraphtool_"+testAction+"_"+dateStr+".csv")
 		os.Remove(testFile)
 	}()
 
@@ -205,7 +205,7 @@ func TestCSVLogger_WriteRow(t *testing.T) {
 	// Verify rows were written
 	tempDir := os.TempDir()
 	dateStr := time.Now().Format("2006-01-02")
-	testFile := filepath.Join(tempDir, "_msgraphgolangtestingtool_"+testAction+"_"+dateStr+".csv")
+	testFile := filepath.Join(tempDir, "_msgraphtool_"+testAction+"_"+dateStr+".csv")
 
 	file, err := os.Open(testFile)
 	if err != nil {
@@ -299,7 +299,7 @@ func TestCSVLogger_Close(t *testing.T) {
 			defer func() {
 				tempDir := os.TempDir()
 				dateStr := time.Now().Format("2006-01-02")
-				testFile := filepath.Join(tempDir, "_msgraphgolangtestingtool_"+testAction+"_"+dateStr+".csv")
+				testFile := filepath.Join(tempDir, "_msgraphtool_"+testAction+"_"+dateStr+".csv")
 				os.Remove(testFile)
 			}()
 
@@ -315,7 +315,7 @@ func TestCSVLogger_Close(t *testing.T) {
 			// Verify file is properly closed by trying to read it
 			tempDir := os.TempDir()
 			dateStr := time.Now().Format("2006-01-02")
-			testFile := filepath.Join(tempDir, "_msgraphgolangtestingtool_"+testAction+"_"+dateStr+".csv")
+			testFile := filepath.Join(tempDir, "_msgraphtool_"+testAction+"_"+dateStr+".csv")
 
 			// Should be able to open and read the file after close
 			file, err := os.Open(testFile)
@@ -352,7 +352,7 @@ func TestCSVLogger_MultipleWrites(t *testing.T) {
 		logger.Close()
 		tempDir := os.TempDir()
 		dateStr := time.Now().Format("2006-01-02")
-		testFile := filepath.Join(tempDir, "_msgraphgolangtestingtool_"+testAction+"_"+dateStr+".csv")
+		testFile := filepath.Join(tempDir, "_msgraphtool_"+testAction+"_"+dateStr+".csv")
 		os.Remove(testFile)
 	}()
 
@@ -378,7 +378,7 @@ func TestCSVLogger_MultipleWrites(t *testing.T) {
 	// Read and verify all rows were written
 	tempDir := os.TempDir()
 	dateStr := time.Now().Format("2006-01-02")
-	testFile := filepath.Join(tempDir, "_msgraphgolangtestingtool_"+testAction+"_"+dateStr+".csv")
+	testFile := filepath.Join(tempDir, "_msgraphtool_"+testAction+"_"+dateStr+".csv")
 
 	file, err := os.Open(testFile)
 	if err != nil {
@@ -419,7 +419,7 @@ func TestCSVLogger_AppendMode(t *testing.T) {
 	testAction := "test_append"
 	tempDir := os.TempDir()
 	dateStr := time.Now().Format("2006-01-02")
-	testFile := filepath.Join(tempDir, "_msgraphgolangtestingtool_"+testAction+"_"+dateStr+".csv")
+	testFile := filepath.Join(tempDir, "_msgraphtool_"+testAction+"_"+dateStr+".csv")
 
 	// Cleanup
 	defer os.Remove(testFile)

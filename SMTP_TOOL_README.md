@@ -1,6 +1,6 @@
 # SMTP Connectivity Testing Tool
 
-A comprehensive command-line tool for testing SMTP connectivity, TLS/SSL configuration, authentication, and email sending. Part of the **msgraphgolangtestingtool** suite.
+A comprehensive command-line tool for testing SMTP connectivity, TLS/SSL configuration, authentication, and email sending. Part of the **msgraphtool** suite.
 
 ## Overview
 
@@ -873,6 +873,6 @@ Write-Host "View emails at: http://localhost:8025" -ForegroundColor Cyan
 ## Support
 
 **Issues and Feedback:**
-- GitHub: [https://github.com/ziembor/msgraphgolangtestingtool/issues](https://github.com/ziembor/msgraphgolangtestingtool/issues)
+- GitHub: [https://github.com/ziembor/msgraphtool/issues](https://github.com/ziembor/msgraphtool/issues)
 
                           ..ooOO END OOoo..

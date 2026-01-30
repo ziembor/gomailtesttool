@@ -15,7 +15,7 @@
 //
 // Example usage:
 //
-//	msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action sendmail
+//	msgraphtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action sendmail
 //
 // Version information is embedded from the VERSION file at compile time using go:embed.
 package main
@@ -29,8 +29,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"msgraphgolangtestingtool/internal/common/logger"
-	"msgraphgolangtestingtool/internal/common/version"
+	"msgraphtool/internal/common/logger"
+	"msgraphtool/internal/common/version"
 )
 
 func main() {
@@ -49,8 +49,8 @@ func main() {
 				fmt.Fprintf(os.Stderr, "Error: Invalid completion shell type '%s'\n", shellType)
 				fmt.Fprintf(os.Stderr, "Valid options: bash, powershell\n\n")
 				fmt.Fprintf(os.Stderr, "Usage:\n")
-				fmt.Fprintf(os.Stderr, "  %s -completion bash > msgraphgolangtestingtool-completion.bash\n", os.Args[0])
-				fmt.Fprintf(os.Stderr, "  %s -completion powershell > msgraphgolangtestingtool-completion.ps1\n", os.Args[0])
+				fmt.Fprintf(os.Stderr, "  %s -completion bash > msgraphtool-completion.bash\n", os.Args[0])
+				fmt.Fprintf(os.Stderr, "  %s -completion powershell > msgraphtool-completion.ps1\n", os.Args[0])
 				os.Exit(1)
 			}
 		}
@@ -95,7 +95,7 @@ func initializeServices(config *Config) (logger.Logger, error) {
 	}
 
 	// Initialize file logging (CSV or JSON)
-	csvLogger, err := logger.NewLogger(logFormat, "msgraphgolangtestingtool", config.Action)
+	csvLogger, err := logger.NewLogger(logFormat, "msgraphtool", config.Action)
 	if err != nil {
 		log.Printf("Warning: Could not initialize file logging: %v", err)
 		csvLogger = nil // Continue without logging

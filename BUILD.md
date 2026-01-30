@@ -1,7 +1,7 @@
 # Build Instructions
 
 This document provides instructions for building both tools in this repository:
-- **msgraphgolangtestingtool**: Microsoft Graph API tool for Exchange Online
+- **msgraphtool**: Microsoft Graph API tool for Exchange Online
 - **smtptool**: SMTP connectivity testing tool
 
 ## Prerequisites
@@ -19,7 +19,7 @@ The easiest way to build both tools is using the build script:
 ```
 
 This creates both executables in the project root:
-- `msgraphgolangtestingtool.exe`
+- `msgraphtool.exe`
 - `smtptool.exe`
 
 ## Individual Tool Builds
@@ -28,10 +28,10 @@ This creates both executables in the project root:
 
 ```powershell
 # Standard build
-go build -C cmd/msgraphtool -o msgraphgolangtestingtool.exe
+go build -C cmd/msgraphtool -o msgraphtool.exe
 
 # Optimized build (recommended for production)
-go build -C cmd/msgraphtool -ldflags="-s -w" -o msgraphgolangtestingtool.exe
+go build -C cmd/msgraphtool -ldflags="-s -w" -o msgraphtool.exe
 ```
 
 ### SMTP Tool
@@ -53,7 +53,7 @@ Both tools support Windows, Linux, and macOS.
 ```powershell
 # Microsoft Graph Tool
 $env:GOOS="linux"; $env:GOARCH="amd64"
-go build -C cmd/msgraphtool -ldflags="-s -w" -o msgraphgolangtestingtool
+go build -C cmd/msgraphtool -ldflags="-s -w" -o msgraphtool
 Remove-Item Env:\GOOS; Remove-Item Env:\GOARCH
 
 # SMTP Tool
@@ -69,7 +69,7 @@ Remove-Item Env:\GOOS; Remove-Item Env:\GOARCH
 ```powershell
 # Microsoft Graph Tool
 $env:GOOS="darwin"; $env:GOARCH="amd64"
-go build -C cmd/msgraphtool -ldflags="-s -w" -o msgraphgolangtestingtool
+go build -C cmd/msgraphtool -ldflags="-s -w" -o msgraphtool
 Remove-Item Env:\GOOS; Remove-Item Env:\GOARCH
 
 # SMTP Tool (Apple Silicon)
@@ -83,7 +83,7 @@ Remove-Item Env:\GOOS; Remove-Item Env:\GOARCH
 The repository now uses a modular structure:
 
 ```
-msgraphgolangtestingtool/
+msgraphtool/
 ├── cmd/
 │   ├── msgraphtool/     # Microsoft Graph tool source
 │   └── smtptool/        # SMTP tool source
@@ -103,7 +103,7 @@ The old build method is deprecated but still works temporarily:
 
 ```powershell
 # DEPRECATED - Do not use for new builds
-go build -C src -o msgraphgolangtestingtool.exe
+go build -C src -o msgraphtool.exe
 ```
 
 **Migration:** Update your build scripts to use `go build -C cmd/msgraphtool` instead.
@@ -114,7 +114,7 @@ After building, verify the executables:
 
 ```powershell
 # Check versions
-.\msgraphgolangtestingtool.exe -version
+.\msgraphtool.exe -version
 .\smtptool.exe -version
 
 # Both should display the same version from src/VERSION
@@ -218,7 +218,7 @@ golangci-lint run
 ## Binary Sizes
 
 Typical optimized build sizes (Windows):
-- **msgraphgolangtestingtool.exe**: ~15-20 MB (includes Graph SDK)
+- **msgraphtool.exe**: ~15-20 MB (includes Graph SDK)
 - **smtptool.exe**: ~8-10 MB (stdlib only, no external dependencies)
 
 ## Additional Resources

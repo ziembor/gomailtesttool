@@ -123,7 +123,7 @@ Consider adding a test case for extremely large files (>10MB) to verify memory h
 ```go
 // GOOD: Clear list of required elements
 requiredStrings := []string{
-    "_msgraphgolangtestingtool_completions",
+    "_msgraphtool_completions",
     "COMPREPLY",
     "COMP_WORDS",
     "COMP_CWORD",
@@ -436,7 +436,7 @@ src/
 ├── shared.go              # Business logic (1,462 lines)
 ├── shared_test.go         # Unit tests (862 lines)
 ├── integration_test.go    # Integration tests (build tag: integration)
-└── msgraphgolangtestingtool_test.go  # Main tests
+└── msgraphtool_test.go  # Main tests
 ```
 
 **No improvements needed** - Follows Go best practices.

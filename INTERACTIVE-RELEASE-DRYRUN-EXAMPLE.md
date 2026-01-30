@@ -256,11 +256,11 @@ Pushing tag v1.16.2...
 **GitHub Actions Workflow:**
 1. Checks out code at tag v1.16.2
 2. Sets up Go 1.21
-3. Builds Windows binary: `msgraphgolangtestingtool.exe`
-4. Builds Linux binary: `msgraphgolangtestingtool`
+3. Builds Windows binary: `msgraphtool.exe`
+4. Builds Linux binary: `msgraphtool`
 5. Creates ZIP files:
-   - `msgraphgolangtestingtool-windows.zip` (exe + EXAMPLES.md + LICENSE + README.md)
-   - `msgraphgolangtestingtool-linux.zip` (binary + EXAMPLES.md + LICENSE + README.md)
+   - `msgraphtool-windows.zip` (exe + EXAMPLES.md + LICENSE + README.md)
+   - `msgraphtool-linux.zip` (binary + EXAMPLES.md + LICENSE + README.md)
 6. Creates GitHub Release titled "v1.16.2"
 7. Attaches both ZIP files to the release
 8. Generates release notes from changelog
@@ -327,7 +327,7 @@ What happened:
 
 Next steps:
   1. Monitor GitHub Actions: gh run watch
-  2. Verify release created: https://github.com/ziembor/msgraphgolangtestingtool/releases
+  2. Verify release created: https://github.com/ziembor/msgraphtool/releases
   3. Test downloaded binaries from release
 
 ✓ Release process complete!
@@ -376,10 +376,10 @@ After tag push, GitHub Actions builds:
 ├─ Windows Runner
 │  ├─ Checkout code at v1.16.2
 │  ├─ Setup Go 1.21
-│  ├─ Build: go build -C src -o msgraphgolangtestingtool.exe
+│  ├─ Build: go build -C src -o msgraphtool.exe
 │  ├─ Verify build output
-│  ├─ Create ZIP: msgraphgolangtestingtool-windows.zip
-│  │  ├─ msgraphgolangtestingtool.exe
+│  ├─ Create ZIP: msgraphtool-windows.zip
+│  │  ├─ msgraphtool.exe
 │  │  ├─ EXAMPLES.md
 │  │  ├─ LICENSE
 │  │  └─ README.md
@@ -388,10 +388,10 @@ After tag push, GitHub Actions builds:
 └─ Linux Runner
    ├─ Checkout code at v1.16.2
    ├─ Setup Go 1.21
-   ├─ Build: go build -C src -o msgraphgolangtestingtool
+   ├─ Build: go build -C src -o msgraphtool
    ├─ Verify build output
-   ├─ Create ZIP: msgraphgolangtestingtool-linux.zip
-   │  ├─ msgraphgolangtestingtool
+   ├─ Create ZIP: msgraphtool-linux.zip
+   │  ├─ msgraphtool
    │  ├─ EXAMPLES.md
    │  ├─ LICENSE
    │  └─ README.md
@@ -401,8 +401,8 @@ GitHub Release Created:
   Title: v1.16.2
   Tag: v1.16.2
   Assets:
-    - msgraphgolangtestingtool-windows.zip (~ 15-20 MB)
-    - msgraphgolangtestingtool-linux.zip (~ 15-20 MB)
+    - msgraphtool-windows.zip (~ 15-20 MB)
+    - msgraphtool-linux.zip (~ 15-20 MB)
   Body: (Auto-generated from changelog)
 ```
 
@@ -439,9 +439,9 @@ gh run list --limit 5
 gh run watch
 
 # Download and test binary
-gh release download v1.16.2 -p "msgraphgolangtestingtool-windows.zip"
-Expand-Archive msgraphgolangtestingtool-windows.zip -DestinationPath test
-.\test\msgraphgolangtestingtool.exe -version
+gh release download v1.16.2 -p "msgraphtool-windows.zip"
+Expand-Archive msgraphtool-windows.zip -DestinationPath test
+.\test\msgraphtool.exe -version
 # Output: Microsoft Graph EXO Mails/Calendar Golang Testing Tool - Version 1.16.2
 ```
 

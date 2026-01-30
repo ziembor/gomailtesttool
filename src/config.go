@@ -86,7 +86,7 @@ func parseAndConfigureFlags() *Config {
 	// Customize help output
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Microsoft Graph EXO Mails/Calendar Golang Testing Tool - Version %s\n\n", version)
-		fmt.Fprintf(flag.CommandLine.Output(), "Repository: https://github.com/ziembor/msgraphgolangtestingtool\n\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "Repository: https://github.com/ziembor/msgraphtool\n\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [options]\n\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "Options:\n")
 		flag.PrintDefaults()
@@ -755,13 +755,13 @@ const (
 
 // generateBashCompletion generates a bash completion script for the tool
 func generateBashCompletion() string {
-	return `# msgraphgolangtestingtool bash completion script
+	return `# msgraphtool bash completion script
 # Installation:
-#   Linux: Copy to /etc/bash_completion.d/msgraphgolangtestingtool
-#   macOS: Copy to /usr/local/etc/bash_completion.d/msgraphgolangtestingtool
+#   Linux: Copy to /etc/bash_completion.d/msgraphtool
+#   macOS: Copy to /usr/local/etc/bash_completion.d/msgraphtool
 #   Manual: source this file in your ~/.bashrc
 
-_msgraphgolangtestingtool_completions() {
+_msgraphtool_completions() {
     local cur prev opts
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
@@ -815,21 +815,21 @@ _msgraphgolangtestingtool_completions() {
 }
 
 # Register the completion function for the tool
-complete -F _msgraphgolangtestingtool_completions msgraphgolangtestingtool.exe
-complete -F _msgraphgolangtestingtool_completions msgraphgolangtestingtool
-complete -F _msgraphgolangtestingtool_completions ./msgraphgolangtestingtool.exe
-complete -F _msgraphgolangtestingtool_completions ./msgraphgolangtestingtool
+complete -F _msgraphtool_completions msgraphtool.exe
+complete -F _msgraphtool_completions msgraphtool
+complete -F _msgraphtool_completions ./msgraphtool.exe
+complete -F _msgraphtool_completions ./msgraphtool
 `
 }
 
 // generatePowerShellCompletion generates a PowerShell completion script for the tool
 func generatePowerShellCompletion() string {
-	return `# msgraphgolangtestingtool PowerShell completion script
+	return `# msgraphtool PowerShell completion script
 # Installation:
 #   Add to your PowerShell profile: notepad $PROFILE
-#   Or run manually: . .\msgraphgolangtestingtool-completion.ps1
+#   Or run manually: . .\msgraphtool-completion.ps1
 
-Register-ArgumentCompleter -CommandName msgraphgolangtestingtool.exe,msgraphgolangtestingtool,'.\msgraphgolangtestingtool.exe','.\msgraphgolangtestingtool' -ScriptBlock {
+Register-ArgumentCompleter -CommandName msgraphtool.exe,msgraphtool,'.\msgraphtool.exe','.\msgraphtool' -ScriptBlock {
     param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
 
     # Define valid actions
@@ -942,8 +942,8 @@ Register-ArgumentCompleter -CommandName msgraphgolangtestingtool.exe,msgraphgola
     }
 }
 
-Write-Host "PowerShell completion for msgraphgolangtestingtool loaded successfully!" -ForegroundColor Green
-Write-Host "Try typing: msgraphgolangtestingtool.exe -<TAB>" -ForegroundColor Cyan
+Write-Host "PowerShell completion for msgraphtool loaded successfully!" -ForegroundColor Green
+Write-Host "Try typing: msgraphtool.exe -<TAB>" -ForegroundColor Cyan
 `
 }
 

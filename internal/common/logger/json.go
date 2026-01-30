@@ -22,11 +22,11 @@ type JSONLogger struct {
 }
 
 // NewJSONLogger creates a new JSON logger for the specified tool and action.
-// The toolName parameter differentiates between tools (e.g., "msgraphgolangtestingtool" or "smtptool").
+// The toolName parameter differentiates between tools (e.g., "msgraphtool" or "smtptool").
 // Filename pattern: %TEMP%\_{toolName}_{action}_{date}.jsonl
 //
 // Examples:
-//   - _msgraphgolangtestingtool_sendmail_2026-01-09.jsonl
+//   - _msgraphtool_sendmail_2026-01-09.jsonl
 //   - _smtptool_teststarttls_2026-01-09.jsonl
 //
 // The output format is JSONL (JSON Lines): one JSON object per line.

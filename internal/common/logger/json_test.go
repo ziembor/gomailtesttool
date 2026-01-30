@@ -19,7 +19,7 @@ func TestNewJSONLogger(t *testing.T) {
 	}{
 		{
 			name:     "valid msgraphtool logger",
-			toolName: "msgraphgolangtestingtool",
+			toolName: "msgraphtool",
 			action:   "sendmail",
 			wantErr:  false,
 		},

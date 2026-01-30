@@ -1,4 +1,4 @@
-module msgraphgolangtestingtool
+module msgraphtool
 
 go 1.24.0
 

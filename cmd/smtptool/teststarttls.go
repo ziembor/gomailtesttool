@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"msgraphgolangtestingtool/internal/common/logger"
-	smtptls "msgraphgolangtestingtool/internal/smtp/tls"
+	"msgraphtool/internal/common/logger"
+	smtptls "msgraphtool/internal/smtp/tls"
 )
 
 // testStartTLS performs comprehensive TLS/SSL testing with detailed diagnostics.

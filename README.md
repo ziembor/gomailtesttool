@@ -2,20 +2,20 @@
 
 Portable, single-binary CLI tools for testing and managing email infrastructure - both cloud (Exchange Online via Microsoft Graph) and on-premises (SMTP servers).
 
-**Repository:** [https://github.com/ziembor/msgraphgolangtestingtool](https://github.com/ziembor/msgraphgolangtestingtool)
+**Repository:** [https://github.com/ziembor/msgraphtool](https://github.com/ziembor/msgraphtool)
 
 ## Purpose
 
 This repository contains two complementary tools for comprehensive email infrastructure testing:
 
-- **msgraphgolangtestingtool**: Microsoft Graph API client for Exchange Online mailbox operations (send mail, calendar events, inbox management).
+- **msgraphtool**: Microsoft Graph API client for Exchange Online mailbox operations (send mail, calendar events, inbox management).
 - **smtptool**: SMTP connectivity testing tool with comprehensive TLS diagnostics for on-premises Exchange servers and generic SMTP servers.
 
 Both tools are lightweight, standalone executables requiring no additional runtimes or dependencies. Cross-platform support for Windows, Linux, and macOS with automatic CSV logging.
 
 ## Key Features
 
-### Microsoft Graph Tool (msgraphgolangtestingtool)
+### Microsoft Graph Tool (msgraphtool)
 - **Authentication**: Client Secret, PFX Certificate, Windows Certificate Store (Thumbprint).
 - **Operations**: Get Events, Send Mail, Send Invite, Get Inbox, Get Schedule, Export Inbox, Search and Export.
 - **Target**: Exchange Online (cloud-based) mailboxes.
@@ -46,7 +46,7 @@ Both tools are lightweight, standalone executables requiring no additional runti
 .\build-all.ps1
 
 # Or build individually
-go build -C cmd/msgraphtool -o msgraphgolangtestingtool.exe
+go build -C cmd/msgraphtool -o msgraphtool.exe
 go build -C cmd/smtptool -o smtptool.exe
 ```
 See [BUILD.md](BUILD.md) for cross-platform builds and additional options.
@@ -56,10 +56,10 @@ See [BUILD.md](BUILD.md) for cross-platform builds and additional options.
 **Microsoft Graph Tool:**
 ```powershell
 # Get calendar events
-.\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action getevents
+.\msgraphtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action getevents
 
 # Send email
-.\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action sendmail
+.\msgraphtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action sendmail
 ```
 See [EXAMPLES.md](EXAMPLES.md) for comprehensive scenarios.
 

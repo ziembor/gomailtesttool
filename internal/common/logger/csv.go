@@ -14,7 +14,7 @@ import (
 type CSVLogger struct {
 	writer     *csv.Writer
 	file       *os.File
-	toolName   string    // Tool name for filename (e.g., "msgraphgolangtestingtool", "smtptool")
+	toolName   string    // Tool name for filename (e.g., "msgraphtool", "smtptool")
 	action     string    // Action being performed
 	rowCount   int       // Number of rows written since last flush
 	lastFlush  time.Time // Time of last flush
@@ -22,11 +22,11 @@ type CSVLogger struct {
 }
 
 // NewCSVLogger creates a new CSV logger for the specified tool and action.
-// The toolName parameter differentiates between tools (e.g., "msgraphgolangtestingtool" or "smtptool").
+// The toolName parameter differentiates between tools (e.g., "msgraphtool" or "smtptool").
 // Filename pattern: %TEMP%\_{toolName}_{action}_{date}.csv
 //
 // Examples:
-//   - _msgraphgolangtestingtool_sendmail_2026-01-09.csv
+//   - _msgraphtool_sendmail_2026-01-09.csv
 //   - _smtptool_teststarttls_2026-01-09.csv
 func NewCSVLogger(toolName, action string) (*CSVLogger, error) {
 	// Get temp directory

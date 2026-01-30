@@ -16,7 +16,7 @@ Please include as much information as possible to help us reproduce the issue. W
 
 ### Tool Design and Context
 
-These tools (**msgraphgolangtestingtool** and **smtptool**) are designed as **diagnostic CLI utilities for authorized personnel**. Understanding the threat model is critical for proper security assessment:
+These tools (**msgraphtool** and **smtptool**) are designed as **diagnostic CLI utilities for authorized personnel**. Understanding the threat model is critical for proper security assessment:
 
 **✅ Trusted Input Sources:**
 - **CLI flags** (`-host`, `-subject`, `-from`, etc.) are provided by authorized users
@@ -107,7 +107,7 @@ An OData injection vulnerability was discovered in the `searchAndExport` functio
 **Attack Scenario:**
 ```powershell
 # Malicious input that bypasses filtering
-./msgraphgolangtestingtool.exe -action searchandexport \
+./msgraphtool.exe -action searchandexport \
     -messageid "' or 1 eq 1 or internetMessageId eq '" \
     -tenantid "..." -clientid "..." -secret "..." -mailbox "victim@example.com"
 
@@ -145,7 +145,7 @@ The vulnerability was fixed with a defense-in-depth approach:
 
 **Remediation:**
 - **If using v1.21.0:** Immediately upgrade to v1.21.1 or later
-- **Security Assessment:** Review CSV logs (`_msgraphgolangtestingtool_searchandexport_*.csv`) for suspicious Message-ID patterns containing quotes or OData operators
+- **Security Assessment:** Review CSV logs (`_msgraphtool_searchandexport_*.csv`) for suspicious Message-ID patterns containing quotes or OData operators
 - **Audit Mailbox Access:** Check Microsoft 365 audit logs for unauthorized mailbox access between 2026-01-06 and upgrade date
 
 **Credit:**
@@ -167,11 +167,11 @@ This guide outlines security best practices for using the Microsoft Graph EXO Ma
 ```powershell
 # WRONG - Secret in script file committed to Git
 $secret = "very-secret-value-12345"
-.\msgraphgolangtestingtool.exe -secret $secret ...
+.\msgraphtool.exe -secret $secret ...
 
 # CORRECT - Secret in environment variable or secure vault
 $env:MSGRAPHSECRET = Get-Content "C:\SecureLocation\secret.txt"
-.\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -mailbox "..." -action getevents
+.\msgraphtool.exe -tenantid "..." -clientid "..." -mailbox "..." -action getevents
 ```
 
 **Best Practices:**
@@ -192,7 +192,7 @@ $secret = (Get-AzKeyVaultSecret -VaultName "MyVault" -Name "GraphSecret").Secret
 $env:MSGRAPHSECRET = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secret))
 
 # Run tool
-.\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -mailbox "..." -action getevents
+.\msgraphtool.exe -tenantid "..." -clientid "..." -mailbox "..." -action getevents
 
 # Clear secret from memory
 Remove-Item Env:\MSGRAPHSECRET
@@ -210,7 +210,7 @@ $plainSecret = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System
 $env:MSGRAPHSECRET = $plainSecret
 
 # Run tool
-.\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -mailbox "..." -action getevents
+.\msgraphtool.exe -tenantid "..." -clientid "..." -mailbox "..." -action getevents
 ```
 
 ---
@@ -238,7 +238,7 @@ $env:MSGRAPHSECRET = $plainSecret
 **Windows Certificate Store (Most Secure):**
 ```powershell
 # Recommended approach - certificate in Windows store, no file on disk
-.\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -thumbprint "CD817B3329802E692CF30D8DDF896FE811B048AB" -mailbox "..." -action getevents
+.\msgraphtool.exe -tenantid "..." -clientid "..." -thumbprint "CD817B3329802E692CF30D8DDF896FE811B048AB" -mailbox "..." -action getevents
 
 # Benefits:
 # - No certificate file on disk (reduced attack surface)
@@ -265,7 +265,7 @@ $plainPass = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.R
 $env:MSGRAPHPFXPASS = $plainPass
 
 # Run tool
-.\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -pfx $pfxPath -mailbox "..." -action getevents
+.\msgraphtool.exe -tenantid "..." -clientid "..." -pfx $pfxPath -mailbox "..." -action getevents
 ```
 
 **Certificate Rotation Strategy:**
@@ -277,7 +277,7 @@ $env:MSGRAPHPFXPASS = $plainPass
 # (Azure Portal → App Registrations → Certificates & secrets)
 
 # 3. Test with new certificate
-.\msgraphgolangtestingtool.exe -thumbprint "NEW_THUMBPRINT" ...
+.\msgraphtool.exe -thumbprint "NEW_THUMBPRINT" ...
 
 # 4. Update production automation with new thumbprint
 # 5. Remove old certificate from Azure AD after grace period (7-30 days)
@@ -347,7 +347,7 @@ Test-ApplicationAccessPolicy -Identity "user@example.com" -AppId "YOUR_CLIENT_ID
 ```powershell
 # Set for current PowerShell session only (not permanent)
 $env:MSGRAPHSECRET = "your-secret"
-.\msgraphgolangtestingtool.exe -action getevents
+.\msgraphtool.exe -action getevents
 Remove-Item Env:\MSGRAPHSECRET  # Clear after use
 
 # For automation, use encrypted storage
@@ -364,7 +364,7 @@ $env:MSGRAPHSECRET = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([
 [System.Environment]::SetEnvironmentVariable("MSGRAPHSECRET", "secret", "Machine")
 
 # ❌ WRONG - Visible in process list and command history
-.\msgraphgolangtestingtool.exe -secret "my-secret-value" ...
+.\msgraphtool.exe -secret "my-secret-value" ...
 ```
 
 **Best Practice:**
@@ -392,11 +392,11 @@ $env:MSGRAPHSECRET = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([
 
 **Log Location:**
 ```
-%TEMP%\_msgraphgolangtestingtool_{action}_{date}.csv
+%TEMP%\_msgraphtool_{action}_{date}.csv
 
 Examples:
-C:\Users\Admin\AppData\Local\Temp\_msgraphgolangtestingtool_sendmail_2026-01-04.csv
-C:\Users\Admin\AppData\Local\Temp\_msgraphgolangtestingtool_getevents_2026-01-04.csv
+C:\Users\Admin\AppData\Local\Temp\_msgraphtool_sendmail_2026-01-04.csv
+C:\Users\Admin\AppData\Local\Temp\_msgraphtool_getevents_2026-01-04.csv
 ```
 
 **Log File Permissions (v2.1.0+):**
@@ -416,11 +416,11 @@ To protect sensitive data that may appear in logs, CSV files are created with re
 **File Permission Verification:**
 ```powershell
 # Unix/Linux/macOS - Verify file permissions
-ls -l $TMPDIR/_msgraphgolangtestingtool_*.csv
+ls -l $TMPDIR/_msgraphtool_*.csv
 # Should show: -rw------- (600 permissions)
 
 # Windows - Verify file ACLs
-$logFile = "$env:TEMP\_msgraphgolangtestingtool_sendmail_2026-01-09.csv"
+$logFile = "$env:TEMP\_msgraphtool_sendmail_2026-01-09.csv"
 Get-Acl $logFile | Format-List
 # Verify only current user has access
 ```
@@ -434,7 +434,7 @@ If logs contain sensitive data and you're in a multi-user environment, consider:
 **Log Retention Best Practices:**
 ```powershell
 # Review logs periodically for unauthorized usage
-Get-ChildItem "$env:TEMP\_msgraphgolangtestingtool_*.csv" |
+Get-ChildItem "$env:TEMP\_msgraphtool_*.csv" |
     Sort-Object LastWriteTime -Descending |
     Import-Csv |
     Where-Object {$_.Status -ne "Success"} |
@@ -442,7 +442,7 @@ Get-ChildItem "$env:TEMP\_msgraphgolangtestingtool_*.csv" |
 
 # Archive logs to secure location (retention: 90 days recommended)
 $archivePath = "C:\SecureArchive\GraphToolLogs"
-Get-ChildItem "$env:TEMP\_msgraphgolangtestingtool_*.csv" |
+Get-ChildItem "$env:TEMP\_msgraphtool_*.csv" |
     Where-Object {$_.LastWriteTime -lt (Get-Date).AddDays(-7)} |
     Move-Item -Destination $archivePath
 
@@ -455,7 +455,7 @@ Get-ChildItem $archivePath |
 **Centralized Logging (Enterprise):**
 ```powershell
 # Send logs to central SIEM or log aggregation system
-$csvFiles = Get-ChildItem "$env:TEMP\_msgraphgolangtestingtool_*.csv"
+$csvFiles = Get-ChildItem "$env:TEMP\_msgraphtool_*.csv"
 foreach ($file in $csvFiles) {
     # Parse and send to Splunk, ELK, Azure Log Analytics, etc.
     $logs = Import-Csv $file.FullName
@@ -494,7 +494,7 @@ Token: eyJ0eXAi... (expires in 59m 59s)
 ```powershell
 # Use corporate proxy for traffic monitoring and compliance
 $env:MSGRAPHPROXY = "http://proxy.company.com:8080"
-.\msgraphgolangtestingtool.exe -action getevents
+.\msgraphtool.exe -action getevents
 
 # Proxy with authentication (if required)
 # Configure Windows proxy settings via:
@@ -534,7 +534,7 @@ $env:MSGRAPHPROXY = "http://proxy.company.com:8080"
 
 ```powershell
 # Set file permissions (Administrators and specific users only)
-$toolPath = "C:\Tools\msgraphgolangtestingtool.exe"
+$toolPath = "C:\Tools\msgraphtool.exe"
 $acl = Get-Acl $toolPath
 $acl.SetAccessRuleProtection($true, $false)  # Remove inherited permissions
 
@@ -560,7 +560,7 @@ Set-Acl $toolPath $acl
 
 # View execution audit logs
 Get-WinEvent -LogName "Microsoft-Windows-PowerShell/Operational" |
-    Where-Object {$_.Message -like "*msgraphgolangtestingtool*"} |
+    Where-Object {$_.Message -like "*msgraphtool*"} |
     Select-Object TimeCreated, Message |
     Format-List
 ```

@@ -8,7 +8,7 @@ import (
 	"log"
 	"mime"
 	"os"
-	"msgraphgolangtestingtool/internal/common/logger"
+	"msgraphtool/internal/common/logger"
 	"path/filepath"
 	"strings"
 	"time"

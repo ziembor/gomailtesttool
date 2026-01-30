@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"msgraphgolangtestingtool/internal/smtp/protocol"
+	"msgraphtool/internal/smtp/protocol"
 )
 
 // TestDebugLogCommand tests debug logging of SMTP commands

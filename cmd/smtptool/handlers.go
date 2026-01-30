@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"msgraphgolangtestingtool/internal/common/logger"
+	"msgraphtool/internal/common/logger"
 )
 
 // executeAction dispatches to the appropriate action handler.

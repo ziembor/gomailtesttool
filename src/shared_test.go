@@ -798,7 +798,7 @@ func TestGenerateBashCompletion(t *testing.T) {
 
 	// Check for essential bash completion elements
 	requiredStrings := []string{
-		"_msgraphgolangtestingtool_completions",
+		"_msgraphtool_completions",
 		"COMPREPLY",
 		"COMP_WORDS",
 		"COMP_CWORD",
@@ -846,7 +846,7 @@ func TestGeneratePowerShellCompletion(t *testing.T) {
 	// Check for essential PowerShell completion elements
 	requiredStrings := []string{
 		"Register-ArgumentCompleter",
-		"msgraphgolangtestingtool.exe",
+		"msgraphtool.exe",
 		"param(",
 		"$commandName",
 		"$wordToComplete",

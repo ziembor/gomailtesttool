@@ -3,9 +3,9 @@
 ## File Structure and Dependencies
 
 ```bash
-msgraphgolangtestingtool/
+msgraphtool/
 ├── src/
-│   ├── msgraphgolangtestingtool.go  (Main CLI entry point)
+│   ├── msgraphtool.go  (Main CLI entry point)
 │   ├── shared.go                     (Business logic & utilities)
 │   ├── shared_test.go                (Unit tests)
 │   ├── integration_test.go           (Integration tests)
@@ -21,7 +21,7 @@ msgraphgolangtestingtool/
 
 ```bash
 ┌─────────────────────────────────────────────────────────────────┐
-│                    msgraphgolangtestingtool.go                   │
+│                    msgraphtool.go                   │
 │                        (Main Entry Point)                        │
 └──────────────────────────┬──────────────────────────────────────┘
                            │
@@ -275,7 +275,7 @@ msgraphgolangtestingtool/
 
 ```bash
 User Command:
-  msgraphgolangtestingtool.exe -action sendmail -to "user@example.com"
+  msgraphtool.exe -action sendmail -to "user@example.com"
     -subject "Test" -body "Hello" -attachment "file.pdf"
                           │
                           ▼
@@ -307,7 +307,7 @@ User Command:
                       ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ 5. CSV Logging - Record operation result                        │
-│    └─► %TEMP%\_msgraphgolangtestingtool_sendmail_2026-01-05.csv│
+│    └─► %TEMP%\_msgraphtool_sendmail_2026-01-05.csv│
 │        Timestamp, Action, Status, Mailbox, To, CC, BCC, Subject │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -387,9 +387,9 @@ Build tags enable Windows-specific features while maintaining cross-platform sup
 
 **GitHub Actions Workflow** builds binaries for all three platforms:
 
-- `msgraphgolangtestingtool-windows.zip` - Windows binary (.exe)
-- `msgraphgolangtestingtool-linux.zip` - Linux binary (ELF)
-- `msgraphgolangtestingtool-macos.zip` - macOS binary (Mach-O)
+- `msgraphtool-windows.zip` - Windows binary (.exe)
+- `msgraphtool-linux.zip` - Linux binary (ELF)
+- `msgraphtool-macos.zip` - macOS binary (Mach-O)
 
 **Note:** The `-thumbprint` authentication method (Windows Certificate Store) is only available on Windows. Linux and macOS users should use `-secret` or `-pfx` authentication.
 
@@ -398,11 +398,11 @@ Build tags enable Windows-specific features while maintaining cross-platform sup
 Action-specific CSV files prevent schema conflicts:
 
 ```bash
-_msgraphgolangtestingtool_sendmail_2026-01-05.csv
-_msgraphgolangtestingtool_getevents_2026-01-05.csv
-_msgraphgolangtestingtool_getinbox_2026-01-05.csv
-_msgraphgolangtestingtool_exportinbox_2026-01-07.csv
-_msgraphgolangtestingtool_searchandexport_2026-01-07.csv
+_msgraphtool_sendmail_2026-01-05.csv
+_msgraphtool_getevents_2026-01-05.csv
+_msgraphtool_getinbox_2026-01-05.csv
+_msgraphtool_exportinbox_2026-01-07.csv
+_msgraphtool_searchandexport_2026-01-07.csv
 ```
 
 ### 6. JSON Export Pattern (v1.21.0+)

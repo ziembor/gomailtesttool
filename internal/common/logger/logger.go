@@ -49,7 +49,7 @@ func ParseLogFormat(format string) (LogFormat, error) {
 //
 // Parameters:
 //   - format: The desired log format (csv, json)
-//   - toolName: The tool name (e.g., "msgraphgolangtestingtool", "smtptool")
+//   - toolName: The tool name (e.g., "msgraphtool", "smtptool")
 //   - action: The action being logged (e.g., "sendmail", "testauth")
 //
 // Returns a Logger interface that can be used for structured logging.

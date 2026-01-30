@@ -7,7 +7,7 @@ This guide explains how to run integration tests for the Microsoft Graph EXO Mai
 The project provides two types of integration tests:
 
 1. **Interactive Test Tool** (`integration_test_tool.go`) - Manual, interactive testing with user prompts
-2. **Automated Integration Tests** (`msgraphgolangtestingtool_integration_test.go`) - Automated Go tests using `testing` package
+2. **Automated Integration Tests** (`msgraphtool_integration_test.go`) - Automated Go tests using `testing` package
 
 Both types:
 - ✅ Make real API calls to Microsoft Graph
@@ -23,9 +23,9 @@ The codebase uses **build tags** to separate integration tests from the main app
 ```
 src/
 ├── shared.go                           # NO build tag - shared by all builds
-├── msgraphgolangtestingtool.go         # //go:build !integration - main CLI app
+├── msgraphtool.go         # //go:build !integration - main CLI app
 ├── integration_test_tool.go            # //go:build integration - interactive tests
-├── msgraphgolangtestingtool_integration_test.go  # //go:build integration - automated tests
+├── msgraphtool_integration_test.go  # //go:build integration - automated tests
 ├── cert_windows.go                     # //go:build windows - Windows cert store
 └── cert_stub.go                        # //go:build !windows - stub for other platforms
 ```
@@ -221,26 +221,26 @@ go test -tags=integration -v -run TestIntegration_ListEvents ./src
 === RUN   TestIntegration_Prerequisites
 --- PASS: TestIntegration_Prerequisites (0.00s)
 === RUN   TestIntegration_GraphClientCreation
-    msgraphgolangtestingtool_integration_test.go:59: ✅ Graph client created successfully
+    msgraphtool_integration_test.go:59: ✅ Graph client created successfully
 --- PASS: TestIntegration_GraphClientCreation (1.23s)
 === RUN   TestIntegration_ListEvents
-    msgraphgolangtestingtool_integration_test.go:72: Retrieving 3 upcoming calendar events from test-user@example.com
+    msgraphtool_integration_test.go:72: Retrieving 3 upcoming calendar events from test-user@example.com
 Upcoming events for test-user@example.com:
 - Team Meeting (ID: AAMkAD...)
 
 Total events retrieved: 1
-    msgraphgolangtestingtool_integration_test.go:78: ✅ Successfully retrieved calendar events
+    msgraphtool_integration_test.go:78: ✅ Successfully retrieved calendar events
 --- PASS: TestIntegration_ListEvents (0.82s)
 === RUN   TestIntegration_ListInbox
-    msgraphgolangtestingtool_integration_test.go:89: Retrieving 3 newest inbox messages from test-user@example.com
+    msgraphtool_integration_test.go:89: Retrieving 3 newest inbox messages from test-user@example.com
 ...
 --- PASS: TestIntegration_ListInbox (0.95s)
 === RUN   TestIntegration_SendEmail
 --- SKIP: TestIntegration_SendEmail (0.00s)
-    msgraphgolangtestingtool_integration_test.go:104: Skipping write operation test - set MSGRAPH_INTEGRATION_WRITE=true to enable
+    msgraphtool_integration_test.go:104: Skipping write operation test - set MSGRAPH_INTEGRATION_WRITE=true to enable
 ...
 PASS
-ok      msgraphgolangtestingtool        3.456s
+ok      msgraphtool        3.456s
 ```
 
 ## Troubleshooting
@@ -384,7 +384,7 @@ For issues or questions:
 - See main [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common errors
 - Check [SECURITY_PRACTICES.md](SECURITY_PRACTICES.md) for security guidance
 - Review [README.md](README.md) for general usage information
-- Report issues at: https://github.com/ziembor/msgraphgolangtestingtool/issues
+- Report issues at: https://github.com/ziembor/msgraphtool/issues
 
 ---
 

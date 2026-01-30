@@ -1,6 +1,6 @@
 # Release & Versioning Guide
 
-This document is the **definitive guide** for versioning and releasing the `msgraphgolangtestingtool` project.
+This document is the **definitive guide** for versioning and releasing the `msgraphtool` project.
 
 ## 1. Versioning Policy
 
@@ -66,7 +66,7 @@ Create a new file `Changelog/2.1.0.md`:
 ### Step 3: Verify Build (Optional)
 ```powershell
 .\build-all.ps1
-.\msgraphgolangtestingtool.exe -version
+.\msgraphtool.exe -version
 # Should output: ... Version 2.1.0
 .\smtptool.exe -version
 # Should output: ... Version 2.1.0
@@ -97,9 +97,9 @@ When a tag matching `v*` is pushed (e.g., `v2.1.0`), the `.github/workflows/buil
 4. **Uploads** the ZIP files to the Release.
 
 **Artifacts Produced:**
-- `msgraphgolangtestingtool-windows.zip`
-- `msgraphgolangtestingtool-linux.zip`
-- `msgraphgolangtestingtool-macos.zip`
+- `msgraphtool-windows.zip`
+- `msgraphtool-linux.zip`
+- `msgraphtool-macos.zip`
 
 ## 5. Troubleshooting & Rollback
 

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"msgraphgolangtestingtool/internal/common/validation"
+	"msgraphtool/internal/common/validation"
 )
 
 // Config holds all smtptool configuration.
@@ -87,8 +87,8 @@ func parseAndConfigureFlags() *Config {
 	config := NewConfig()
 
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "SMTP Connectivity Testing Tool - Part of msgraphgolangtestingtool suite\n\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "Repository: https://github.com/ziembor/msgraphgolangtestingtool\n\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "SMTP Connectivity Testing Tool - Part of msgraphtool suite\n\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "Repository: https://github.com/ziembor/msgraphtool\n\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [options]\n\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "Options:\n")
 		flag.PrintDefaults()

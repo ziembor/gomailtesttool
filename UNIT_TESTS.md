@@ -8,7 +8,7 @@ This document describes the Go unit tests for the Microsoft Graph EXO Mails/Cale
 
 **Test Files:**
 - `src/shared_test.go` - Tests for shared business logic
-- `src/msgraphgolangtestingtool_test.go` - Tests for main program logic
+- `src/msgraphtool_test.go` - Tests for main program logic
 
 ## Running Tests
 
@@ -272,7 +272,7 @@ Tests bash completion script generation.
 
 **Example Output:**
 ```bash
-_msgraphgolangtestingtool_completions() {
+_msgraphtool_completions() {
     local cur prev opts
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
@@ -489,8 +489,8 @@ Tests use Go build tags to separate unit and integration tests:
 src/
 ├── shared.go                    # Business logic
 ├── shared_test.go               # Unit tests (46 tests)
-├── msgraphgolangtestingtool.go  # Main program
-├── msgraphgolangtestingtool_test.go
+├── msgraphtool.go  # Main program
+├── msgraphtool_test.go
 └── integration_test.go          # Integration tests (requires -tags=integration)
 ```
 

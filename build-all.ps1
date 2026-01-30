@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# Build script for both msgraphgolangtestingtool and smtptool
+# Build script for both msgraphtool and smtptool
 # Builds optimized binaries for both tools with version embedding
 
 param(
@@ -41,11 +41,11 @@ Write-ColorOutput "Version: $version`n" "Yellow"
 # Build Microsoft Graph Tool
 Write-ColorOutput "Building Microsoft Graph Tool..." "Cyan"
 Write-ColorOutput "  Location: cmd/msgraphtool" "Gray"
-Write-ColorOutput "  Output:   msgraphgolangtestingtool.exe`n" "Gray"
+Write-ColorOutput "  Output:   msgraphtool.exe`n" "Gray"
 
 try {
     $buildDir = Join-Path $PSScriptRoot "cmd" "msgraphtool"
-    $outputFile = Join-Path $PSScriptRoot "msgraphgolangtestingtool.exe"
+    $outputFile = Join-Path $PSScriptRoot "msgraphtool.exe"
 
     Push-Location $buildDir
     if ($Verbose) {
@@ -99,8 +99,8 @@ if (-not $SkipTests) {
     Write-ColorOutput "`nRunning tests..." "Cyan"
 
     # Test Graph tool version
-    Write-ColorOutput "  Testing msgraphgolangtestingtool version..." "Gray"
-    $graphExe = Join-Path $PSScriptRoot "msgraphgolangtestingtool.exe"
+    Write-ColorOutput "  Testing msgraphtool version..." "Gray"
+    $graphExe = Join-Path $PSScriptRoot "msgraphtool.exe"
     $graphVersion = & $graphExe -version
     if ($graphVersion -match $version) {
         Write-ColorOutput "    ✓ Version correct: $version" "Green"
@@ -125,11 +125,11 @@ Write-ColorOutput "  Build Complete!" "Green"
 Write-ColorOutput "═══════════════════════════════════════════════════════════" "Cyan"
 
 Write-ColorOutput "`nBuilt executables:" "White"
-Write-ColorOutput "  • msgraphgolangtestingtool.exe - Microsoft Graph API tool" "White"
+Write-ColorOutput "  • msgraphtool.exe - Microsoft Graph API tool" "White"
 Write-ColorOutput "  • smtptool.exe                  - SMTP connectivity testing tool" "White"
 
 Write-ColorOutput "`nUsage examples:" "Yellow"
-Write-ColorOutput "  .\msgraphgolangtestingtool.exe -version" "Gray"
+Write-ColorOutput "  .\msgraphtool.exe -version" "Gray"
 Write-ColorOutput "  .\smtptool.exe -action testconnect -host smtp.example.com -port 25" "Gray"
 Write-ColorOutput "  .\smtptool.exe -action teststarttls -host smtp.example.com -port 587`n" "Gray"
 

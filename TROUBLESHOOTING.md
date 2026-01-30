@@ -15,13 +15,13 @@ This guide helps diagnose and resolve common issues when using the Microsoft Gra
 # Provide at least one authentication method:
 
 # Option 1: Client Secret
-.\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action getevents
+.\msgraphtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action getevents
 
 # Option 2: PFX Certificate
-.\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -pfx ".\cert.pfx" -pfxpass "password" -mailbox "user@example.com" -action getevents
+.\msgraphtool.exe -tenantid "..." -clientid "..." -pfx ".\cert.pfx" -pfxpass "password" -mailbox "user@example.com" -action getevents
 
 # Option 3: Windows Certificate Store (Windows only)
-.\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -thumbprint "ABC123..." -mailbox "user@example.com" -action getevents
+.\msgraphtool.exe -tenantid "..." -clientid "..." -thumbprint "ABC123..." -mailbox "user@example.com" -action getevents
 ```
 
 ---
@@ -33,10 +33,10 @@ This guide helps diagnose and resolve common issues when using the Microsoft Gra
 **Solution:** Use only ONE authentication method per execution:
 ```powershell
 # WRONG - Multiple auth methods
-.\msgraphgolangtestingtool.exe -secret "..." -pfx "cert.pfx" -thumbprint "ABC123" ...
+.\msgraphtool.exe -secret "..." -pfx "cert.pfx" -thumbprint "ABC123" ...
 
 # CORRECT - Single auth method
-.\msgraphgolangtestingtool.exe -secret "..." -tenantid "..." -clientid "..." -mailbox "..." -action getevents
+.\msgraphtool.exe -secret "..." -tenantid "..." -clientid "..." -mailbox "..." -action getevents
 ```
 
 ---
@@ -52,7 +52,7 @@ This guide helps diagnose and resolve common issues when using the Microsoft Gra
 1. Verify the password is correct:
    ```powershell
    # Use verbose mode to see masked password
-   .\msgraphgolangtestingtool.exe -verbose -pfx "cert.pfx" -pfxpass "password" ...
+   .\msgraphtool.exe -verbose -pfx "cert.pfx" -pfxpass "password" ...
    ```
 
 2. Re-export the certificate with standard encryption:
@@ -123,7 +123,7 @@ This guide helps diagnose and resolve common issues when using the Microsoft Gra
 2. Ensure you're using the correct Tenant ID:
    ```powershell
    # Verify both Tenant ID and Client ID are GUIDs (36 characters with dashes)
-   .\msgraphgolangtestingtool.exe -verbose -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action getevents
+   .\msgraphtool.exe -verbose -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action getevents
    ```
 
 ---
@@ -142,7 +142,7 @@ This guide helps diagnose and resolve common issues when using the Microsoft Gra
 2. Update your secret:
    ```powershell
    $env:MSGRAPHSECRET = "new-secret-value"
-   .\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -mailbox "..." -action getevents
+   .\msgraphtool.exe -tenantid "..." -clientid "..." -mailbox "..." -action getevents
    ```
 
 ---
@@ -189,7 +189,7 @@ This guide helps diagnose and resolve common issues when using the Microsoft Gra
 1. Verify the mailbox address is correct:
    ```powershell
    # Check exact email address
-   .\msgraphgolangtestingtool.exe -verbose -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action getevents
+   .\msgraphtool.exe -verbose -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action getevents
    ```
 
 2. Ensure the mailbox exists and is licensed:
@@ -221,11 +221,11 @@ This guide helps diagnose and resolve common issues when using the Microsoft Gra
 3. If behind a corporate proxy, configure proxy:
    ```powershell
    # Option 1: Command-line flag
-   .\msgraphgolangtestingtool.exe -proxy "http://proxy.company.com:8080" ...
+   .\msgraphtool.exe -proxy "http://proxy.company.com:8080" ...
 
    # Option 2: Environment variable
    $env:MSGRAPHPROXY = "http://proxy.company.com:8080"
-   .\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action getevents
+   .\msgraphtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action getevents
    ```
 
 ---
@@ -298,7 +298,7 @@ This guide helps diagnose and resolve common issues when using the Microsoft Gra
 3. Check for error messages in console output
 4. Run with verbose mode to see detailed logging:
    ```powershell
-   .\msgraphgolangtestingtool.exe -verbose -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action getevents
+   .\msgraphtool.exe -verbose -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action getevents
    ```
 
 ---
@@ -372,12 +372,12 @@ This guide helps diagnose and resolve common issues when using the Microsoft Gra
 **Solution:**
 1. Use verbose mode to see event ID:
    ```powershell
-   .\msgraphgolangtestingtool.exe -verbose -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action sendinvite
+   .\msgraphtool.exe -verbose -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action sendinvite
    ```
 
 2. Verify event creation with getevents:
    ```powershell
-   .\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action getevents -count 10
+   .\msgraphtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action getevents -count 10
    ```
 
 3. Check calendar permissions in Outlook
@@ -395,7 +395,7 @@ This guide helps diagnose and resolve common issues when using the Microsoft Gra
 1. Check CSV log for confirmation:
    ```powershell
    # Open CSV file
-   $csvFile = Get-ChildItem "$env:TEMP\_msgraphgolangtestingtool_sendmail_*.csv" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+   $csvFile = Get-ChildItem "$env:TEMP\_msgraphtool_sendmail_*.csv" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
    Import-Csv $csvFile.FullName | Format-Table
    ```
 
@@ -404,7 +404,7 @@ This guide helps diagnose and resolve common issues when using the Microsoft Gra
 3. Verify recipient email address:
    ```powershell
    # Use verbose mode to see final configuration
-   .\msgraphgolangtestingtool.exe -verbose -to "recipient@example.com" ...
+   .\msgraphtool.exe -verbose -to "recipient@example.com" ...
    ```
 
 4. Review Exchange message trace in Microsoft 365 Admin Center:
@@ -419,7 +419,7 @@ This guide helps diagnose and resolve common issues when using the Microsoft Gra
 **Solution:**
 ```powershell
 # Option 1: Provide all required flags
-.\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action getevents
+.\msgraphtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action getevents
 
 # Option 2: Use environment variables
 $env:MSGRAPHTENANTID = "12345678-1234-1234-1234-123456789012"
@@ -428,7 +428,7 @@ $env:MSGRAPHSECRET = "your-secret"
 $env:MSGRAPHMAILBOX = "user@example.com"
 
 # Then run with minimal flags
-.\msgraphgolangtestingtool.exe -action getevents
+.\msgraphtool.exe -action getevents
 ```
 
 ---
@@ -500,7 +500,7 @@ If you see conflicts:
 2. **Get valid Message ID from getinbox:**
    ```powershell
    # List recent messages with verbose mode
-   .\msgraphgolangtestingtool.exe -action getinbox -count 10 -verbose
+   .\msgraphtool.exe -action getinbox -count 10 -verbose
    ```
 
 3. **Get Message ID from Outlook:**
@@ -511,7 +511,7 @@ If you see conflicts:
 
 4. **Example valid search:**
    ```powershell
-   .\msgraphgolangtestingtool.exe -action searchandexport \
+   .\msgraphtool.exe -action searchandexport \
        -tenantid "..." -clientid "..." -secret "..." \
        -mailbox "user@example.com" \
        -messageid "<CABcD123XYZ@mail.gmail.com>"
@@ -532,13 +532,13 @@ If you see conflicts:
 1. **Reduce count:**
    ```powershell
    # Export in smaller batches
-   .\msgraphgolangtestingtool.exe -action exportinbox -count 10
+   .\msgraphtool.exe -action exportinbox -count 10
    ```
 
 2. **Monitor export progress:**
    ```powershell
    # Use verbose mode to see progress
-   .\msgraphgolangtestingtool.exe -action exportinbox -count 50 -verbose
+   .\msgraphtool.exe -action exportinbox -count 50 -verbose
    ```
 
 3. **Check exported file sizes:**
@@ -554,7 +554,7 @@ If you see conflicts:
 Enable verbose mode to see detailed diagnostic information:
 
 ```powershell
-.\msgraphgolangtestingtool.exe -verbose -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action getevents
+.\msgraphtool.exe -verbose -tenantid "..." -clientid "..." -secret "..." -mailbox "..." -action getevents
 ```
 
 **Verbose output includes:**
@@ -597,17 +597,17 @@ If you continue to experience issues:
 
 2. **Run with verbose mode:**
    ```powershell
-   .\msgraphgolangtestingtool.exe -verbose -version
+   .\msgraphtool.exe -verbose -version
    ```
 
 3. **Check CSV logs:**
    ```powershell
    # View recent logs
-   Get-ChildItem "$env:TEMP\_msgraphgolangtestingtool_*.csv" | Sort-Object LastWriteTime -Descending | Select-Object -First 5
+   Get-ChildItem "$env:TEMP\_msgraphtool_*.csv" | Sort-Object LastWriteTime -Descending | Select-Object -First 5
    ```
 
 4. **Report issues:**
-   - GitHub: https://github.com/ziembor/msgraphgolangtestingtool/issues
+   - GitHub: https://github.com/ziembor/msgraphtool/issues
    - Include: Version, command used, error message, verbose output (with secrets redacted)
 
 ---

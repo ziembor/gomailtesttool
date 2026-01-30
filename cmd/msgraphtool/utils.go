@@ -12,8 +12,8 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/microsoftgraph/msgraph-sdk-go/models/odataerrors"
-	"msgraphgolangtestingtool/internal/common/logger"
-	"msgraphgolangtestingtool/internal/common/retry"
+	"msgraphtool/internal/common/logger"
+	"msgraphtool/internal/common/retry"
 )
 
 // logDebug logs a debug message if logger is not nil

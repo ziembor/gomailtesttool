@@ -16,21 +16,21 @@ jobs:
         os: [windows-latest, ubuntu-latest, macos-latest]
         include:
           - os: windows-latest
-            graph_binary: msgraphgolangtestingtool.exe
+            graph_binary: msgraphtool.exe
             smtp_binary: smtptool.exe
-            artifact_name: msgraphgolangtestingtool-windows
-            zip_name: msgraphgolangtestingtool-windows.zip
+            artifact_name: msgraphtool-windows
+            zip_name: msgraphtool-windows.zip
           - os: ubuntu-latest
-            graph_binary: msgraphgolangtestingtool
+            graph_binary: msgraphtool
             smtp_binary: smtptool
-            artifact_name: msgraphgolangtestingtool-linux-amd64
-            zip_name: msgraphgolangtestingtool-linux-amd64.zip
+            artifact_name: msgraphtool-linux-amd64
+            zip_name: msgraphtool-linux-amd64.zip
             goarch: amd64
           - os: macos-latest
-            graph_binary: msgraphgolangtestingtool
+            graph_binary: msgraphtool
             smtp_binary: smtptool
-            artifact_name: msgraphgolangtestingtool-macos-arm64
-            zip_name: msgraphgolangtestingtool-macos-arm64.zip
+            artifact_name: msgraphtool-macos-arm64
+            zip_name: msgraphtool-macos-arm64.zip
             goarch: arm64
 
     steps:
@@ -141,7 +141,7 @@ jobs:
           ### What's Included
 
           Each ZIP archive contains:
-          - **msgraphgolangtestingtool** - Microsoft Graph API tool for Exchange Online
+          - **msgraphtool** - Microsoft Graph API tool for Exchange Online
           - **smtptool** - SMTP connectivity testing tool with comprehensive TLS diagnostics
           - **README.md** - Main documentation
           - **SMTP_TOOL_README.md** - Complete SMTP tool guide
@@ -152,35 +152,35 @@ jobs:
           ### Installation
 
           **Windows:**
-          1. Download `msgraphgolangtestingtool-windows.zip`
+          1. Download `msgraphtool-windows.zip`
           2. Extract the ZIP file
-          3. Run `msgraphgolangtestingtool.exe` or `smtptool.exe` directly
+          3. Run `msgraphtool.exe` or `smtptool.exe` directly
 
           **Linux (amd64):**
-          1. Download `msgraphgolangtestingtool-linux-amd64.zip`
-          2. Extract: `unzip msgraphgolangtestingtool-linux-amd64.zip`
-          3. Make executable: `chmod +x msgraphgolangtestingtool smtptool`
-          4. Run: `./msgraphgolangtestingtool` or `./smtptool`
+          1. Download `msgraphtool-linux-amd64.zip`
+          2. Extract: `unzip msgraphtool-linux-amd64.zip`
+          3. Make executable: `chmod +x msgraphtool smtptool`
+          4. Run: `./msgraphtool` or `./smtptool`
 
           **macOS (Apple Silicon/arm64):**
-          1. Download `msgraphgolangtestingtool-macos-arm64.zip`
-          2. Extract: `unzip msgraphgolangtestingtool-macos-arm64.zip`
-          3. Make executable: `chmod +x msgraphgolangtestingtool smtptool`
-          4. Run: `./msgraphgolangtestingtool` or `./smtptool`
+          1. Download `msgraphtool-macos-arm64.zip`
+          2. Extract: `unzip msgraphtool-macos-arm64.zip`
+          3. Make executable: `chmod +x msgraphtool smtptool`
+          4. Run: `./msgraphtool` or `./smtptool`
 
           **Note for macOS:** If you see "cannot be opened because the developer cannot be verified":
           - Right-click the binary and select "Open", or
-          - Run: `xattr -d com.apple.quarantine msgraphgolangtestingtool smtptool`
+          - Run: `xattr -d com.apple.quarantine msgraphtool smtptool`
 
           ### Quick Start
 
           **Microsoft Graph Tool:**
           ```bash
           # Windows
-          .\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action getinbox
+          .\msgraphtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action getinbox
 
           # Linux/macOS
-          ./msgraphgolangtestingtool -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action getinbox
+          ./msgraphtool -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action getinbox
           ```
 
           **SMTP Tool:**
@@ -207,7 +207,7 @@ jobs:
 
           ### Tools Overview
 
-          **msgraphgolangtestingtool** - Microsoft Graph API operations:
+          **msgraphtool** - Microsoft Graph API operations:
           - Send emails, create calendar events
           - List inbox messages and calendar events
           - Check availability, export data

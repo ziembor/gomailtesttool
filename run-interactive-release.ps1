@@ -13,7 +13,7 @@
 
 <#
 .SYNOPSIS
-    Interactive release script for msgraphgolangtestingtool
+    Interactive release script for msgraphtool
 
 .DESCRIPTION
     This script helps you:
@@ -43,7 +43,7 @@
     - Version file: src/VERSION (NOT project root)
     - Requires: Git (required), GitHub CLI (optional for PR creation)
     - Pushing tag triggers: .github/workflows/build.yml
-    - Builds: Windows (msgraphgolangtestingtool.exe) and Linux (msgraphgolangtestingtool)
+    - Builds: Windows (msgraphtool.exe) and Linux (msgraphtool)
     - Documentation: See RELEASE.md for complete documentation
 #>
 

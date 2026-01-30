@@ -10,9 +10,9 @@ import (
 	"net/textproto"
 	"strings"
 
-	"msgraphgolangtestingtool/internal/common/ratelimit"
-	"msgraphgolangtestingtool/internal/smtp/protocol"
-	smtptls "msgraphgolangtestingtool/internal/smtp/tls"
+	"msgraphtool/internal/common/ratelimit"
+	"msgraphtool/internal/smtp/protocol"
+	smtptls "msgraphtool/internal/smtp/tls"
 )
 
 // SMTPClient wraps SMTP connection with enhanced diagnostics.

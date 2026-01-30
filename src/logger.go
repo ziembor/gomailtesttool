@@ -108,7 +108,7 @@ func NewCSVLogger(action string) (*CSVLogger, error) {
 
 	// Create filename with action and current date
 	dateStr := time.Now().Format("2006-01-02")
-	fileName := fmt.Sprintf("_msgraphgolangtestingtool_%s_%s.csv", action, dateStr)
+	fileName := fmt.Sprintf("_msgraphtool_%s_%s.csv", action, dateStr)
 	filePath := filepath.Join(tempDir, fileName)
 
 	// Open or create file (append mode) with restrictive permissions (0600)

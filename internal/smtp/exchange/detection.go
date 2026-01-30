@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"msgraphgolangtestingtool/internal/smtp/protocol"
+	"msgraphtool/internal/smtp/protocol"
 )
 
 // ExchangeInfo holds information about a detected Exchange server.

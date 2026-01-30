@@ -1,10 +1,10 @@
-# Code Review & Improvement Plan: msgraphgolangtestingtool
+# Code Review & Improvement Plan: msgraphtool
 **Date:** 2026-01-06
 **Version Reviewed:** 1.19.0 (Current Codebase)
 
 ## 1. Executive Summary
 
-The `msgraphgolangtestingtool` is a robust, well-structured CLI utility for interacting with Microsoft Graph API (Exchange Online). It demonstrates good Go practices, particularly in error handling, context management, and cross-platform compatibility.
+The `msgraphtool` is a robust, well-structured CLI utility for interacting with Microsoft Graph API (Exchange Online). It demonstrates good Go practices, particularly in error handling, context management, and cross-platform compatibility.
 
 **Strengths:**
 *   **Resilience:** Implements excellent retry logic with exponential backoff (`retryWithBackoff`) and detailed error enrichment (`enrichGraphAPIError`).
@@ -104,7 +104,7 @@ Currently, testing relies heavily on Integration Tests. We should add:
 
 ## 5. Actionable Next Steps
 
-1.  **Refactor `parseAndConfigureFlags`:** Move this out of `msgraphgolangtestingtool.go` into a new `config.go` (or package).
+1.  **Refactor `parseAndConfigureFlags`:** Move this out of `msgraphtool.go` into a new `config.go` (or package).
 2.  **Split `shared.go`:** Move `CSVLogger` to `logger.go`, authentication logic to `auth.go`, and API handlers to `handlers.go`.
 3.  **Add `make` or `task` file:** Standardize build commands which are currently in `README.md` / `BUILD.md` into a `Makefile` or `Taskfile.yml`.
 

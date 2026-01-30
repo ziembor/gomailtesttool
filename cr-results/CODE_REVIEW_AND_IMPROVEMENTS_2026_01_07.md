@@ -1,4 +1,4 @@
-# Code Review & Improvement Plan: msgraphgolangtestingtool
+# Code Review & Improvement Plan: msgraphtool
 **Date:** 2026-01-07
 **Version Reviewed:** 1.24.0 (Dependencies), Current Source
 **Reviewer:** Gemini CLI
@@ -52,7 +52,7 @@ The split from `shared.go` is clean:
 Now that the code is split, we can improve testing.
 
 ### 3.1 Unit Tests
-*   **Existing:** `msgraphgolangtestingtool_test.go` covers validation and helpers.
+*   **Existing:** `msgraphtool_test.go` covers validation and helpers.
 *   **Gap:** `handlers.go` is largely untested by unit tests because it depends on the concrete `msgraphsdk.GraphServiceClient`.
 *   **Recommendation:**
     *   **Config Testing:** Add tests for `parseAndConfigureFlags` (by overriding `os.Args` in tests) to verify precedence rules (Flag > Env > Default).

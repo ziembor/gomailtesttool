@@ -13,7 +13,7 @@ BeforeAll {
     . $envPath
 
     # Get the path to the executable
-    $script:exePath = Join-Path $PSScriptRoot "..\msgraphgolangtestingtool.exe"
+    $script:exePath = Join-Path $PSScriptRoot "..\msgraphtool.exe"
 
     if (-not (Test-Path $script:exePath)) {
         throw "Executable not found: $script:exePath"
@@ -80,7 +80,7 @@ Describe "Send Mail Tests" {
 
             # Check for CSV log file in temp directory
             $dateStr = Get-Date -Format "yyyy-MM-dd"
-            $csvPath = Join-Path $env:TEMP "_msgraphgolangtestingtool_sendmail_$dateStr.csv"
+            $csvPath = Join-Path $env:TEMP "_msgraphtool_sendmail_$dateStr.csv"
 
             Write-Host "Checking for CSV log: $csvPath" -ForegroundColor Cyan
             Test-Path $csvPath | Should -Be $true
@@ -92,7 +92,7 @@ Describe "Send Mail Tests" {
 
 #             # Read the CSV log
 #             $dateStr = Get-Date -Format "yyyy-MM-dd"
-#             $csvPath = Join-Path $env:TEMP "_msgraphgolangtestingtool_$dateStr.csv"
+#             $csvPath = Join-Path $env:TEMP "_msgraphtool_$dateStr.csv"
 
 #             if (Test-Path $csvPath) {
 #                 $csvContent = Get-Content $csvPath

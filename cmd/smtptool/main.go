@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"msgraphgolangtestingtool/internal/common/logger"
-	"msgraphgolangtestingtool/internal/common/version"
+	"msgraphtool/internal/common/logger"
+	"msgraphtool/internal/common/version"
 )
 
 func main() {
@@ -29,8 +29,8 @@ func run() error {
 	// Handle version flag
 	if config.ShowVersion {
 		fmt.Printf("SMTP Connectivity Testing Tool - Version %s\n", version.Get())
-		fmt.Println("Part of msgraphgolangtestingtool suite")
-		fmt.Println("Repository: https://github.com/ziembor/msgraphgolangtestingtool")
+		fmt.Println("Part of msgraphtool suite")
+		fmt.Println("Repository: https://github.com/ziembor/msgraphtool")
 		return nil
 	}
 

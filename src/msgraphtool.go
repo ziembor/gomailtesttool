@@ -15,7 +15,7 @@
 //
 // Example usage:
 //
-//	msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action sendmail
+//	msgraphtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action sendmail
 //
 // Version information is embedded from the VERSION file at compile time using go:embed.
 package main
@@ -47,8 +47,8 @@ func main() {
 				fmt.Fprintf(os.Stderr, "Error: Invalid completion shell type '%s'\n", shellType)
 				fmt.Fprintf(os.Stderr, "Valid options: bash, powershell\n\n")
 				fmt.Fprintf(os.Stderr, "Usage:\n")
-				fmt.Fprintf(os.Stderr, "  %s -completion bash > msgraphgolangtestingtool-completion.bash\n", os.Args[0])
-				fmt.Fprintf(os.Stderr, "  %s -completion powershell > msgraphgolangtestingtool-completion.ps1\n", os.Args[0])
+				fmt.Fprintf(os.Stderr, "  %s -completion bash > msgraphtool-completion.bash\n", os.Args[0])
+				fmt.Fprintf(os.Stderr, "  %s -completion powershell > msgraphtool-completion.ps1\n", os.Args[0])
 				os.Exit(1)
 			}
 		}

@@ -382,17 +382,17 @@ The retry logic is integrated into **read operations only** (to prevent duplicat
 **Usage Examples:**
 ```powershell
 # Custom retry configuration
-.\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -secret "..." \
+.\msgraphtool.exe -tenantid "..." -clientid "..." -secret "..." \
     -mailbox "user@example.com" -action getevents \
     -maxretries 5 -retrydelay 1000
 
 # Via environment variables
 $env:MSGRAPHMAXRETRIES = "5"
 $env:MSGRAPHRETRYDELAY = "3000"
-.\msgraphgolangtestingtool.exe -action getinbox ...
+.\msgraphtool.exe -action getinbox ...
 
 # Disable retries (set to 0)
-.\msgraphgolangtestingtool.exe -maxretries 0 -action getevents ...
+.\msgraphtool.exe -maxretries 0 -action getevents ...
 ```
 
 **Effort:** 2-3 hours (as estimated)
@@ -529,7 +529,7 @@ You already have `integration_test_tool.go` and `INTEGRATION_TESTS.md`. Enhance 
 
 ```go
 // Create comprehensive integration test suite
-// File: src/msgraphgolangtestingtool_integration_test.go
+// File: src/msgraphtool_integration_test.go
 
 //go:build integration
 // +build integration
@@ -660,7 +660,7 @@ Users had to remember or look up all 25+ flag names manually, which was tedious 
   - `-completion` → suggests: bash, powershell
   - `-pfx` → file path completion
   - `-attachments` → file path completion
-- Works with multiple command variations: `msgraphgolangtestingtool.exe`, `msgraphgolangtestingtool`, `./msgraphgolangtestingtool.exe`, `./msgraphgolangtestingtool`
+- Works with multiple command variations: `msgraphtool.exe`, `msgraphtool`, `./msgraphtool.exe`, `./msgraphtool`
 - Installation instructions included in generated script
 
 **PowerShell Completion Features:**
@@ -677,28 +677,28 @@ Users had to remember or look up all 25+ flag names manually, which was tedious 
 **Usage Examples:**
 ```powershell
 # Generate bash completion script
-./msgraphgolangtestingtool.exe -completion bash > msgraphgolangtestingtool-completion.bash
+./msgraphtool.exe -completion bash > msgraphtool-completion.bash
 
 # Generate PowerShell completion script
-./msgraphgolangtestingtool.exe -completion powershell > msgraphgolangtestingtool-completion.ps1
+./msgraphtool.exe -completion powershell > msgraphtool-completion.ps1
 
 # Install bash completion (Linux)
-sudo cp msgraphgolangtestingtool-completion.bash /etc/bash_completion.d/
+sudo cp msgraphtool-completion.bash /etc/bash_completion.d/
 source ~/.bashrc
 
 # Install bash completion (macOS)
-cp msgraphgolangtestingtool-completion.bash /usr/local/etc/bash_completion.d/
+cp msgraphtool-completion.bash /usr/local/etc/bash_completion.d/
 
 # Install PowerShell completion
-notepad $PROFILE  # Add: . C:\path\to\msgraphgolangtestingtool-completion.ps1
+notepad $PROFILE  # Add: . C:\path\to\msgraphtool-completion.ps1
 
 # Test completions (bash)
-./msgraphgolangtestingtool.exe -<TAB>        # Shows all flags
-./msgraphgolangtestingtool.exe -action <TAB> # Shows: getevents sendmail sendinvite getinbox
+./msgraphtool.exe -<TAB>        # Shows all flags
+./msgraphtool.exe -action <TAB> # Shows: getevents sendmail sendinvite getinbox
 
 # Test completions (PowerShell)
-./msgraphgolangtestingtool.exe -<TAB>        # Shows all flags with descriptions
-./msgraphgolangtestingtool.exe -action <TAB> # Shows actions with "Action: ..." labels
+./msgraphtool.exe -<TAB>        # Shows all flags with descriptions
+./msgraphtool.exe -action <TAB> # Shows actions with "Action: ..." labels
 ```
 
 **Benefits Achieved:**
@@ -724,20 +724,20 @@ notepad $PROFILE  # Add: . C:\path\to\msgraphgolangtestingtool-completion.ps1
 
 **Test Results:**
 ```bash
-$ ./msgraphgolangtestingtool.exe -completion bash | head -5
-# msgraphgolangtestingtool bash completion script
+$ ./msgraphtool.exe -completion bash | head -5
+# msgraphtool bash completion script
 # Installation:
-#   Linux: Copy to /etc/bash_completion.d/msgraphgolangtestingtool
-#   macOS: Copy to /usr/local/etc/bash_completion.d/msgraphgolangtestingtool
+#   Linux: Copy to /etc/bash_completion.d/msgraphtool
+#   macOS: Copy to /usr/local/etc/bash_completion.d/msgraphtool
 #   Manual: source this file in your ~/.bashrc
 
-$ ./msgraphgolangtestingtool.exe -completion powershell | head -5
-# msgraphgolangtestingtool PowerShell completion script
+$ ./msgraphtool.exe -completion powershell | head -5
+# msgraphtool PowerShell completion script
 # Installation:
 #   Add to your PowerShell profile: notepad $PROFILE
-#   Or run manually: . .\msgraphgolangtestingtool-completion.ps1
+#   Or run manually: . .\msgraphtool-completion.ps1
 
-$ ./msgraphgolangtestingtool.exe -completion zsh
+$ ./msgraphtool.exe -completion zsh
 Error: Unknown shell type 'zsh'. Supported shells: bash, powershell
 ```
 
@@ -890,7 +890,7 @@ An attacker with access to run the tool can inject malicious OData operators to 
 
 ```powershell
 # Attack 1: Export entire mailbox instead of single message
-.\msgraphgolangtestingtool.exe -action searchandexport \
+.\msgraphtool.exe -action searchandexport \
     -messageid "' or 1 eq 1 or internetMessageId eq '" \
     -tenantid "..." -clientid "..." -secret "..." -mailbox "victim@example.com"
 
@@ -898,7 +898,7 @@ An attacker with access to run the tool can inject malicious OData operators to 
 # Result: Exports ALL messages in mailbox (complete data breach)
 
 # Attack 2: Filter by sender to target specific emails
-.\msgraphgolangtestingtool.exe -action searchandexport \
+.\msgraphtool.exe -action searchandexport \
     -messageid "' or from/emailAddress/address eq 'ceo@company.com' or internetMessageId eq '"
 
 # Result: Exports all emails from CEO (targeted data exfiltration)
@@ -969,7 +969,7 @@ filter := fmt.Sprintf("internetMessageId eq '%s'", escapedMessageID)
 ```
 
 **Priority 3: Unit Tests (Verification)**
-Add test cases to `src/msgraphgolangtestingtool_test.go`:
+Add test cases to `src/msgraphtool_test.go`:
 
 ```go
 func TestValidateMessageID(t *testing.T) {
@@ -1602,19 +1602,19 @@ The codebase has excellent architecture, comprehensive documentation, and **all 
 Running `go build -tags=integration` or `go test -tags=integration` caused **compilation errors** due to:
 1. Duplicate `main()` declarations (main app + integration tool)
 2. Duplicate type definitions (`Config`, `CSVLogger`) and functions (`listEvents`, `sendEmail`)
-3. Code duplication: ~777 lines of duplicate code in `msgraphgolangtestingtool_lib.go`
+3. Code duplication: ~777 lines of duplicate code in `msgraphtool_lib.go`
 4. Integration library missing critical logic like `retryWithBackoff`
 
 **Implementation (Completed):**
 
-1. ✅ **Isolated Main App:** Added `//go:build !integration` to `src/msgraphgolangtestingtool.go`
+1. ✅ **Isolated Main App:** Added `//go:build !integration` to `src/msgraphtool.go`
 2. ✅ **Created Shared Logic:** Extracted all common code to `src/shared.go` (1,192 lines)
    - NO build tags (compiled in all build modes)
    - Contains: `Config`, `CSVLogger`, all business logic functions
    - Single source of truth for all shared code
-3. ✅ **Deleted Redundant File:** Removed `src/msgraphgolangtestingtool_lib.go` (eliminated 777 lines of duplication)
+3. ✅ **Deleted Redundant File:** Removed `src/msgraphtool_lib.go` (eliminated 777 lines of duplication)
 4. ✅ **Updated Integration Tests:**
-   - Created `src/msgraphgolangtestingtool_integration_test.go` (automated Go tests)
+   - Created `src/msgraphtool_integration_test.go` (automated Go tests)
    - Updated `src/integration_test_tool.go` (interactive test tool)
    - Both use shared.go for all business logic
 
@@ -1641,13 +1641,13 @@ src/
 │   ├── func setupGraphClient()            # Single implementation
 │   └── All business logic functions       # No duplication
 │
-├── msgraphgolangtestingtool.go            # //go:build !integration
+├── msgraphtool.go            # //go:build !integration
 │   └── func main()                        # Main CLI app entry
 │
 ├── integration_test_tool.go               # //go:build integration
 │   └── func main()                        # Integration tool entry
 │
-└── msgraphgolangtestingtool_integration_test.go  # //go:build integration
+└── msgraphtool_integration_test.go  # //go:build integration
     └── func TestIntegration_*()           # Automated tests
 ```
 

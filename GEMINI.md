@@ -1,10 +1,10 @@
-# Gemini Context: msgraphgolangtestingtool
+# Gemini Context: msgraphtool
 
-This document provides context for Gemini to effectively assist with the `msgraphgolangtestingtool` project.
+This document provides context for Gemini to effectively assist with the `msgraphtool` project.
 
 ## Project Overview
 
-**Name:** `msgraphgolangtestingtool`
+**Name:** `msgraphtool`
 **Type:** Go CLI Tool (Single Binary)
 **Purpose:** Interact with Microsoft Graph API (Exchange Online) for testing and automation.
 **Key Functionality:**
@@ -19,7 +19,7 @@ This document provides context for Gemini to effectively assist with the `msgrap
 ## Directory Structure
 
 *   `src/`: Go source code and module definition (`go.mod`).
-*   `src/msgraphgolangtestingtool.go`: Main entry point and application logic.
+*   `src/msgraphtool.go`: Main entry point and application logic.
 *   `src/cert_windows.go`: Windows-specific certificate store implementation.
 *   `src/cert_stub.go`: Stub for non-Windows builds.
 *   `src/VERSION`: Current version string (e.g., `1.12.6`).
@@ -35,12 +35,12 @@ The Go code is located in `src/`. You must run build commands from the root poin
 
 **Command:**
 ```powershell
-go build -C src -o msgraphgolangtestingtool.exe
+go build -C src -o msgraphtool.exe
 ```
 
 **Optimized Build (Smaller Binary):**
 ```powershell
-go build -C src -ldflags="-s -w" -o msgraphgolangtestingtool.exe
+go build -C src -ldflags="-s -w" -o msgraphtool.exe
 ```
 
 ### 2. Versioning
@@ -69,11 +69,11 @@ This triggers `.github/workflows/build.yml` which builds the binary and attaches
 
 *   **Get Events:**
     ```powershell
-    .\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action getevents
+    .\msgraphtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action getevents
     ```
 *   **Send Mail:**
     ```powershell
-    .\msgraphgolangtestingtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action sendmail -to "recipient@example.com"
+    .\msgraphtool.exe -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com" -action sendmail -to "recipient@example.com"
     ```
 
 ### Authentication Methods
@@ -88,7 +88,7 @@ All flags can be set via `MSGRAPH` prefix (e.g., `MSGRAPHTENANTID`, `MSGRAPHCLIE
 
 ### Logging
 
-CSV logs are written to `%TEMP%\_msgraphgolangtestingtool_{action}_{date}.csv`.
+CSV logs are written to `%TEMP%\_msgraphtool_{action}_{date}.csv`.
 
 ## Key Conventions
 
