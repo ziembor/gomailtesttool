@@ -23,13 +23,15 @@ jobs:
           - os: ubuntu-latest
             graph_binary: msgraphgolangtestingtool
             smtp_binary: smtptool
-            artifact_name: msgraphgolangtestingtool-linux
-            zip_name: msgraphgolangtestingtool-linux.zip
+            artifact_name: msgraphgolangtestingtool-linux-amd64
+            zip_name: msgraphgolangtestingtool-linux-amd64.zip
+            goarch: amd64
           - os: macos-latest
             graph_binary: msgraphgolangtestingtool
             smtp_binary: smtptool
-            artifact_name: msgraphgolangtestingtool-macos
-            zip_name: msgraphgolangtestingtool-macos.zip
+            artifact_name: msgraphgolangtestingtool-macos-arm64
+            zip_name: msgraphgolangtestingtool-macos-arm64.zip
+            goarch: arm64
 
     steps:
     - uses: actions/checkout@v4
@@ -55,6 +57,8 @@ jobs:
 
     - name: Build Microsoft Graph Tool (Linux/macOS)
       if: matrix.os != 'windows-latest'
+      env:
+        GOARCH: ${{ matrix.goarch }}
       run: |
         cd cmd/msgraphtool
         go build -ldflags="-s -w" -o ../../${{ matrix.graph_binary }}
@@ -62,6 +66,8 @@ jobs:
 
     - name: Build SMTP Tool (Linux/macOS)
       if: matrix.os != 'windows-latest'
+      env:
+        GOARCH: ${{ matrix.goarch }}
       run: |
         cd cmd/smtptool
         go build -ldflags="-s -w" -o ../../${{ matrix.smtp_binary }}
@@ -150,15 +156,15 @@ jobs:
           2. Extract the ZIP file
           3. Run `msgraphgolangtestingtool.exe` or `smtptool.exe` directly
 
-          **Linux:**
-          1. Download `msgraphgolangtestingtool-linux.zip`
-          2. Extract: `unzip msgraphgolangtestingtool-linux.zip`
+          **Linux (amd64):**
+          1. Download `msgraphgolangtestingtool-linux-amd64.zip`
+          2. Extract: `unzip msgraphgolangtestingtool-linux-amd64.zip`
           3. Make executable: `chmod +x msgraphgolangtestingtool smtptool`
           4. Run: `./msgraphgolangtestingtool` or `./smtptool`
 
-          **macOS:**
-          1. Download `msgraphgolangtestingtool-macos.zip`
-          2. Extract: `unzip msgraphgolangtestingtool-macos.zip`
+          **macOS (Apple Silicon/arm64):**
+          1. Download `msgraphgolangtestingtool-macos-arm64.zip`
+          2. Extract: `unzip msgraphgolangtestingtool-macos-arm64.zip`
           3. Make executable: `chmod +x msgraphgolangtestingtool smtptool`
           4. Run: `./msgraphgolangtestingtool` or `./smtptool`
 
