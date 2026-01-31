@@ -17,8 +17,9 @@ jobs:
         include:
           - os: windows-latest
             ext: .exe
-            artifact_name: gomailtesttool-windows
-            zip_name: gomailtesttool-windows.zip
+            artifact_name: gomailtesttool-windows-amd64
+            zip_name: gomailtesttool-windows-amd64.zip
+            goarch: amd64
           - os: ubuntu-latest
             ext: ''
             artifact_name: gomailtesttool-linux-amd64
@@ -38,17 +39,7 @@ jobs:
       with:
         go-version: '1.24'
 
-    - name: Build all tools (Windows)
-      if: matrix.os == 'windows-latest'
-      run: |
-        go build -ldflags="-s -w" -o msgraphtool${{ matrix.ext }} ./cmd/msgraphtool
-        go build -ldflags="-s -w" -o smtptool${{ matrix.ext }} ./cmd/smtptool
-        go build -ldflags="-s -w" -o imaptool${{ matrix.ext }} ./cmd/imaptool
-        go build -ldflags="-s -w" -o pop3tool${{ matrix.ext }} ./cmd/pop3tool
-        go build -ldflags="-s -w" -o jmaptool${{ matrix.ext }} ./cmd/jmaptool
-
-    - name: Build all tools (Linux/macOS)
-      if: matrix.os != 'windows-latest'
+    - name: Build all tools
       env:
         GOARCH: ${{ matrix.goarch }}
       run: |
@@ -133,8 +124,8 @@ jobs:
 
           ### Installation
 
-          **Windows:**
-          1. Download `gomailtesttool-windows.zip`
+          **Windows (amd64):**
+          1. Download `gomailtesttool-windows-amd64.zip`
           2. Extract the ZIP file
           3. Run any tool directly (e.g., `smtptool.exe -help`)
 
