@@ -131,7 +131,7 @@ jobs:
       run: |
         Compress-Archive -Path bin\msgraphtool${{ matrix.ext }},bin\smtptool${{ matrix.ext }},bin\imaptool${{ matrix.ext }},bin\pop3tool${{ matrix.ext }},bin\jmaptool${{ matrix.ext }},README.md,IMAPTOOL_README.md,JMAPTOOL_README.md,MSGRAPHTOOL_README.md,POP3TOOL_README.md,SMTP_TOOL_README.md,EXAMPLES.md,LICENSE -DestinationPath ${{ matrix.zip_name }}
         Write-Host "Created ZIP archive: ${{ matrix.zip_name }}"
-        Get-Item ${{ matrix.zip_name }} | Select-Object Name, Length 7
+        Get-Item ${{ matrix.zip_name }} | Select-Object Name, Length
 
     - name: Create ZIP archive (Linux/macOS)
       if: matrix.os != 'windows-latest'
