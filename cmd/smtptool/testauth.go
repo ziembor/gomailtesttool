@@ -22,10 +22,12 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 	// Write CSV header
 	if shouldWrite, _ := csvLogger.ShouldWriteHeader(); shouldWrite {
-		csvLogger.WriteHeader([]string{
+		if err := csvLogger.WriteHeader([]string{
 			"Action", "Status", "Server", "Port", "Username",
 			"Auth_Mechanisms_Available", "Auth_Method_Used", "Auth_Result", "Error",
-		})
+		}); err != nil {
+			logger.LogError(slogLogger, "Failed to write CSV header", "error", err)
+		}
 	}
 
 	// Create and connect client
@@ -34,10 +36,12 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 	if err := client.Connect(ctx); err != nil {
 		logger.LogError(slogLogger, "Connection failed", "error", err)
-		csvLogger.WriteRow([]string{
+		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 			config.Username, "", "", "FAILURE", err.Error(),
-		})
+		}); logErr != nil {
+			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+		}
 		return err
 	}
 	defer client.Close()
@@ -53,10 +57,12 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	caps, err := client.EHLO("smtptool.local")
 	if err != nil {
 		logger.LogError(slogLogger, "EHLO failed", "error", err)
-		csvLogger.WriteRow([]string{
+		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 			config.Username, "", "", "FAILURE", err.Error(),
-		})
+		}); logErr != nil {
+			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+		}
 		return err
 	}
 
@@ -66,10 +72,12 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		msg := "Server does not advertise AUTH capability"
 		fmt.Printf("✗ %s\n", msg)
 		logger.LogWarn(slogLogger, msg)
-		csvLogger.WriteRow([]string{
+		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 			config.Username, "none", "", "FAILURE", msg,
-		})
+		}); logErr != nil {
+			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+		}
 		return errors.New(msg)
 	}
 
@@ -97,10 +105,12 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		tlsState, err = client.StartTLS(tlsConfig)
 		if err != nil {
 			logger.LogError(slogLogger, "STARTTLS failed", "error", err)
-			csvLogger.WriteRow([]string{
+			if logErr := csvLogger.WriteRow([]string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 				config.Username, strings.Join(authMechanisms, ", "), "", "FAILURE", fmt.Sprintf("STARTTLS failed: %v", err),
-			})
+			}); logErr != nil {
+				logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+			}
 			return fmt.Errorf("STARTTLS failed: %w", err)
 		}
 
@@ -132,10 +142,12 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		msg := fmt.Sprintf("No compatible authentication mechanism found (requested: %s, available: %s)",
 			config.AuthMethod, strings.Join(authMechanisms, ", "))
 		fmt.Printf("✗ %s\n", msg)
-		csvLogger.WriteRow([]string{
+		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 			config.Username, strings.Join(authMechanisms, ", "), "", "FAILURE", msg,
-		})
+		}); logErr != nil {
+			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+		}
 		return errors.New(msg)
 	}
 
@@ -172,11 +184,13 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	}
 
 	// Log to CSV
-	csvLogger.WriteRow([]string{
+	if logErr := csvLogger.WriteRow([]string{
 		config.Action, status, config.Host, fmt.Sprintf("%d", config.Port),
 		config.Username, strings.Join(authMechanisms, ", "),
 		methodUsed, authResult, errorMsg,
-	})
+	}); logErr != nil {
+		logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+	}
 
 	if err != nil {
 		return err

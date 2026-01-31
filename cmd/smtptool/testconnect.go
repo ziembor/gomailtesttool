@@ -20,7 +20,9 @@ func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, s
 
 	// Write CSV header
 	if shouldWrite, _ := csvLogger.ShouldWriteHeader(); shouldWrite {
-		csvLogger.WriteHeader([]string{"Action", "Status", "Server", "Port", "Connected", "Banner", "Capabilities", "Exchange_Detected", "Error"})
+		if err := csvLogger.WriteHeader([]string{"Action", "Status", "Server", "Port", "Connected", "Banner", "Capabilities", "Exchange_Detected", "Error"}); err != nil {
+			logger.LogError(slogLogger, "Failed to write CSV header", "error", err)
+		}
 	}
 
 	// Create client
@@ -30,10 +32,12 @@ func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, s
 	logger.LogDebug(slogLogger, "Connecting to SMTP server", "host", config.Host, "port", config.Port)
 	if err := client.Connect(ctx); err != nil {
 		logger.LogError(slogLogger, "Connection failed", "error", err)
-		csvLogger.WriteRow([]string{
+		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host,
 			fmt.Sprintf("%d", config.Port), "false", "", "", "false", err.Error(),
-		})
+		}); logErr != nil {
+			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+		}
 		return err
 	}
 	defer client.Close()
@@ -50,10 +54,12 @@ func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, s
 	caps, err := client.EHLO("smtptool.local")
 	if err != nil {
 		logger.LogError(slogLogger, "EHLO failed", "error", err)
-		csvLogger.WriteRow([]string{
+		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host,
 			fmt.Sprintf("%d", config.Port), "true", client.GetBanner(), "", "false", err.Error(),
-		})
+		}); logErr != nil {
+			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+		}
 		return err
 	}
 
@@ -76,11 +82,13 @@ func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, s
 
 	// Log to CSV
 	capsStr := caps.String()
-	csvLogger.WriteRow([]string{
+	if logErr := csvLogger.WriteRow([]string{
 		config.Action, "SUCCESS", config.Host,
 		fmt.Sprintf("%d", config.Port), "true", client.GetBanner(),
 		capsStr, fmt.Sprintf("%t", exchangeInfo.IsExchange), "",
-	})
+	}); logErr != nil {
+		logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+	}
 
 	if config.SMTPS {
 		fmt.Println("✓ SMTPS connectivity test completed successfully")

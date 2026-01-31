@@ -23,10 +23,12 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 	// Write CSV header
 	if shouldWrite, _ := csvLogger.ShouldWriteHeader(); shouldWrite {
-		csvLogger.WriteHeader([]string{
+		if err := csvLogger.WriteHeader([]string{
 			"Action", "Status", "Server", "Port", "From", "To",
 			"Subject", "SMTP_Response_Code", "Message_ID", "Error",
-		})
+		}); err != nil {
+			logger.LogError(slogLogger, "Failed to write CSV header", "error", err)
+		}
 	}
 
 	fmt.Printf("From:    %s\n", config.From)
@@ -39,10 +41,12 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 	if err := client.Connect(ctx); err != nil {
 		logger.LogError(slogLogger, "Connection failed", "error", err)
-		csvLogger.WriteRow([]string{
+		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 			config.From, strings.Join(config.To, ", "), config.Subject, "", "", err.Error(),
-		})
+		}); logErr != nil {
+			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+		}
 		return err
 	}
 	defer client.Close()
@@ -58,10 +62,12 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	caps, err := client.EHLO("smtptool.local")
 	if err != nil {
 		logger.LogError(slogLogger, "EHLO failed", "error", err)
-		csvLogger.WriteRow([]string{
+		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 			config.From, strings.Join(config.To, ", "), config.Subject, "", "", err.Error(),
-		})
+		}); logErr != nil {
+			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+		}
 		return err
 	}
 
@@ -88,10 +94,12 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		tlsState, err = client.StartTLS(tlsConfig)
 		if err != nil {
 			logger.LogError(slogLogger, "STARTTLS failed", "error", err)
-			csvLogger.WriteRow([]string{
+			if logErr := csvLogger.WriteRow([]string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 				config.From, strings.Join(config.To, ", "), config.Subject, "", "", fmt.Sprintf("STARTTLS failed: %v", err),
-			})
+			}); logErr != nil {
+				logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+			}
 			return fmt.Errorf("STARTTLS failed: %w", err)
 		}
 
@@ -117,10 +125,12 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 		if methodToUse == "" {
 			msg := "No compatible authentication mechanism found"
-			csvLogger.WriteRow([]string{
+			if logErr := csvLogger.WriteRow([]string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 				config.From, strings.Join(config.To, ", "), config.Subject, "", "", msg,
-			})
+			}); logErr != nil {
+				logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+			}
 			return errors.New(msg)
 		}
 
@@ -138,10 +148,12 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 				displayTLSCipherInfo(tlsState)
 			}
 
-			csvLogger.WriteRow([]string{
+			if logErr := csvLogger.WriteRow([]string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 				config.From, strings.Join(config.To, ", "), config.Subject, "", "", fmt.Sprintf("Auth failed: %v", err),
-			})
+			}); logErr != nil {
+				logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+			}
 			return fmt.Errorf("authentication failed: %w", err)
 		}
 
@@ -159,10 +171,12 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	err = client.SendMail(config.From, config.To, messageData)
 	if err != nil {
 		logger.LogError(slogLogger, "Failed to send email", "error", err)
-		csvLogger.WriteRow([]string{
+		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 			config.From, strings.Join(config.To, ", "), config.Subject, "", "", err.Error(),
-		})
+		}); logErr != nil {
+			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+		}
 		return fmt.Errorf("failed to send email: %w", err)
 	}
 
@@ -170,11 +184,13 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	fmt.Printf("  Message-ID: <%s>\n", messageID)
 
 	// Log to CSV
-	csvLogger.WriteRow([]string{
+	if logErr := csvLogger.WriteRow([]string{
 		config.Action, "SUCCESS", config.Host, fmt.Sprintf("%d", config.Port),
 		config.From, strings.Join(config.To, ", "), config.Subject,
 		"250", messageID, "",
-	})
+	}); logErr != nil {
+		logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
+	}
 
 	fmt.Println("\n✓ Email sending test completed successfully")
 	logger.LogInfo(slogLogger, "sendmail completed successfully", "messageID", messageID)
