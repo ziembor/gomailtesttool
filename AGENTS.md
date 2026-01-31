@@ -132,7 +132,7 @@ msgraphtool/
 ├── run-integration-tests.ps1     # Release automation script
 ├── selfsignedcert.ps1            # Certificate generation script
 ├── Changelog/                    # Version changelogs
-├── CLAUDE.md                     # Project documentation (this file)
+├── AGENTS.md                     # Project documentation (this file)
 ├── BUILD.md                      # Build instructions
 ├── SMTP_TOOL_README.md           # SMTP tool documentation
 └── README.md                     # Public documentation

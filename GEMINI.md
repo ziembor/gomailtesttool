@@ -99,7 +99,7 @@ CSV logs are written to `%TEMP%\_msgraphtool_{action}_{date}.csv`.
 
 ## Reference Files
 
-*   `CLAUDE.md`: Detailed architecture and AI context (primary reference).
+*   `AGENTS.md`: Detailed architecture and AI context (primary reference).
 *   `BUILD.md`: Detailed build instructions.
 *   `RELEASE.md`: Release process and versioning policy.
 *   `README.md`: User-facing documentation.

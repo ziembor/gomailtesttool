@@ -582,7 +582,7 @@ Tests run automatically on:
 - `INTEGRATION_TESTS.md` - Integration test documentation
 - `IMPROVEMENTS.md` - Planned improvements and coverage goals
 - `test-results/README.md` - Test results archive
-- `CLAUDE.md` - Project documentation
+- `AGENTS.md` - Project documentation
 
 ---
 

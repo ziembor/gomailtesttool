@@ -592,7 +592,7 @@ If you continue to experience issues:
 
 1. **Check documentation:**
    - README.md - Usage examples and features
-   - CLAUDE.md - Architecture and technical details
+   - AGENTS.md - Architecture and technical details
    - SECURITY.md - Security best practices
 
 2. **Run with verbose mode:**

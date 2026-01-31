@@ -73,4 +73,4 @@ Describe "Version Consistency Tests" {
 
 ## For More Information
 
-See the main project README.md and CLAUDE.md for additional documentation.
+See the main project README.md and AGENTS.md for additional documentation.

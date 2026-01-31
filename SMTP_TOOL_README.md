@@ -867,7 +867,7 @@ Write-Host "View emails at: http://localhost:8025" -ForegroundColor Cyan
 
 - **Build Instructions**: [BUILD.md](BUILD.md)
 - **Microsoft Graph Tool**: [README.md](README.md)
-- **Project Overview**: [CLAUDE.md](CLAUDE.md)
+- **Project Overview**: [AGENTS.md](AGENTS.md)
 - **Security Policy**: [SECURITY.md](SECURITY.md)
 
 ## Support

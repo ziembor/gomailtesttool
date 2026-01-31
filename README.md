@@ -31,12 +31,21 @@ Both tools are lightweight, standalone executables requiring no additional runti
 
 ## Documentation
 
-- **[BUILD.md](BUILD.md)**: Build instructions for both tools.
-- **[SMTP_TOOL_README.md](SMTP_TOOL_README.md)**: Complete SMTP tool documentation and usage guide.
-- **[EXAMPLES.md](EXAMPLES.md)**: Microsoft Graph tool usage examples.
-- **[RELEASE.md](RELEASE.md)**: Release process and versioning policy.
-- **[SECURITY.md](SECURITY.md)**: Security policy, threat model, and best practices ⚠️ **Read this before production use**.
-- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**: Common errors and solutions.
+### Tool-Specific READMEs
+
+- **[MSGRAPHTOOL_README.md](MSGRAPHTOOL_README.md)**: Microsoft Graph tool - Exchange Online operations
+- **[SMTP_TOOL_README.md](SMTP_TOOL_README.md)**: SMTP tool - connectivity and email sending
+- **[IMAPTOOL_README.md](IMAPTOOL_README.md)**: IMAP tool - mailbox connectivity testing
+- **[POP3TOOL_README.md](POP3TOOL_README.md)**: POP3 tool - message retrieval testing
+- **[JMAPTOOL_README.md](JMAPTOOL_README.md)**: JMAP tool - modern email protocol testing
+
+### General Documentation
+
+- **[BUILD.md](BUILD.md)**: Build instructions for all tools
+- **[EXAMPLES.md](EXAMPLES.md)**: Microsoft Graph tool usage examples
+- **[RELEASE.md](RELEASE.md)**: Release process and versioning policy
+- **[SECURITY.md](SECURITY.md)**: Security policy, threat model, and best practices
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**: Common errors and solutions
 
 ## Quick Start
 

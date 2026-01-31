@@ -226,6 +226,6 @@ Typical optimized build sizes (Windows):
 - **Usage Examples**: See [EXAMPLES.md](EXAMPLES.md) for Graph tool examples
 - **SMTP Tool Guide**: See [SMTP_TOOL_README.md](SMTP_TOOL_README.md) for SMTP tool documentation
 - **Security**: See [SECURITY.md](SECURITY.md) for security best practices
-- **Project Overview**: See [CLAUDE.md](CLAUDE.md) for complete project documentation
+- **Project Overview**: See [AGENTS.md](AGENTS.md) for complete project documentation
 
                           ..ooOO END OOoo..
