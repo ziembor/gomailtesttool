@@ -25,7 +25,11 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	if shouldWrite, _ := csvLogger.ShouldWriteHeader(); shouldWrite {
 		if err := csvLogger.WriteHeader([]string{
 			"Action", "Status", "Server", "Port", "From", "To",
-			"Subject", "SMTP_Response_Code", "Message_ID", "Error",
+			"Subject", "SMTP_Response_Code", "Message_ID",
+			"TLS_Version", "Cipher_Suite", "Cipher_Strength",
+			"Cert_Subject", "Cert_Issuer", "Cert_SANs",
+			"Cert_Valid_From", "Cert_Valid_To", "Cert_Verification_Status",
+			"Error",
 		}); err != nil {
 			logger.LogError(slogLogger, "Failed to write CSV header", "error", err)
 		}
@@ -43,7 +47,9 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		logger.LogError(slogLogger, "Connection failed", "error", err)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.From, strings.Join(config.To, ", "), config.Subject, "", "", err.Error(),
+			config.From, strings.Join(config.To, ", "), config.Subject, "", "",
+			"", "", "", "", "", "", "", "", "", // No TLS info on connection failure
+			err.Error(),
 		}); logErr != nil {
 			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 		}
@@ -64,7 +70,9 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		logger.LogError(slogLogger, "EHLO failed", "error", err)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.From, strings.Join(config.To, ", "), config.Subject, "", "", err.Error(),
+			config.From, strings.Join(config.To, ", "), config.Subject, "", "",
+			"", "", "", "", "", "", "", "", "", // No TLS info on EHLO failure
+			err.Error(),
 		}); logErr != nil {
 			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 		}
@@ -77,7 +85,7 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		// For SMTPS, TLS is already established
 		tlsState = client.GetTLSState()
 		if config.VerboseMode && tlsState != nil {
-			displayTLSCipherInfo(tlsState)
+			displayComprehensiveTLSInfo(tlsState, config.Host, config.VerboseMode)
 		}
 	} else if (config.Port == 25 || config.Port == 587 || config.Port == 2525 || config.Port == 2526 || config.Port == 1025) && caps.SupportsSTARTTLS() {
 		// STARTTLS if on common SMTP submission ports and available
@@ -96,7 +104,9 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 			logger.LogError(slogLogger, "STARTTLS failed", "error", err)
 			if logErr := csvLogger.WriteRow([]string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-				config.From, strings.Join(config.To, ", "), config.Subject, "", "", fmt.Sprintf("STARTTLS failed: %v", err),
+				config.From, strings.Join(config.To, ", "), config.Subject, "", "",
+				"", "", "", "", "", "", "", "", "", // No TLS info on STARTTLS failure
+				fmt.Sprintf("STARTTLS failed: %v", err),
 			}); logErr != nil {
 				logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 			}
@@ -107,7 +117,7 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 		// Show TLS cipher information in verbose mode
 		if config.VerboseMode {
-			displayTLSCipherInfo(tlsState)
+			displayComprehensiveTLSInfo(tlsState, config.Host, config.VerboseMode)
 		}
 
 		// Re-run EHLO on encrypted connection
@@ -125,9 +135,14 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 		if methodToUse == "" {
 			msg := "No compatible authentication mechanism found"
+			tlsData := formatTLSInfoForCSV(tlsState, config.Host)
 			if logErr := csvLogger.WriteRow([]string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-				config.From, strings.Join(config.To, ", "), config.Subject, "", "", msg,
+				config.From, strings.Join(config.To, ", "), config.Subject, "", "",
+				tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
+				tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,
+				tlsData.CertValidFrom, tlsData.CertValidTo, tlsData.VerificationStatus,
+				msg,
 			}); logErr != nil {
 				logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 			}
@@ -145,12 +160,17 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 			// Show TLS cipher information on auth failure if verbose and TLS was used
 			if config.VerboseMode && tlsState != nil {
 				fmt.Println("\nAuthentication failed. TLS Connection Details:")
-				displayTLSCipherInfo(tlsState)
+				displayComprehensiveTLSInfo(tlsState, config.Host, config.VerboseMode)
 			}
 
+			tlsData := formatTLSInfoForCSV(tlsState, config.Host)
 			if logErr := csvLogger.WriteRow([]string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-				config.From, strings.Join(config.To, ", "), config.Subject, "", "", fmt.Sprintf("Auth failed: %v", err),
+				config.From, strings.Join(config.To, ", "), config.Subject, "", "",
+				tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
+				tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,
+				tlsData.CertValidFrom, tlsData.CertValidTo, tlsData.VerificationStatus,
+				fmt.Sprintf("Auth failed: %v", err),
 			}); logErr != nil {
 				logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 			}
@@ -171,9 +191,14 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	err = client.SendMail(config.From, config.To, messageData)
 	if err != nil {
 		logger.LogError(slogLogger, "Failed to send email", "error", err)
+		tlsData := formatTLSInfoForCSV(tlsState, config.Host)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.From, strings.Join(config.To, ", "), config.Subject, "", "", err.Error(),
+			config.From, strings.Join(config.To, ", "), config.Subject, "", "",
+			tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
+			tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,
+			tlsData.CertValidFrom, tlsData.CertValidTo, tlsData.VerificationStatus,
+			err.Error(),
 		}); logErr != nil {
 			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 		}
@@ -184,10 +209,15 @@ func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	fmt.Printf("  Message-ID: <%s>\n", messageID)
 
 	// Log to CSV
+	tlsData := formatTLSInfoForCSV(tlsState, config.Host)
 	if logErr := csvLogger.WriteRow([]string{
 		config.Action, "SUCCESS", config.Host, fmt.Sprintf("%d", config.Port),
 		config.From, strings.Join(config.To, ", "), config.Subject,
-		"250", messageID, "",
+		"250", messageID,
+		tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
+		tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,
+		tlsData.CertValidFrom, tlsData.CertValidTo, tlsData.VerificationStatus,
+		"",
 	}); logErr != nil {
 		logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 	}
@@ -245,47 +275,3 @@ func generateMessageID(host string) string {
 	return fmt.Sprintf("%d.smtptool@%s", timestamp, host)
 }
 
-// displayTLSCipherInfo displays negotiated TLS cipher suite information.
-// This is shown in verbose mode to help debug TLS connection issues.
-func displayTLSCipherInfo(state *tls.ConnectionState) {
-	if state == nil {
-		return
-	}
-
-	fmt.Println("\nTLS Connection Information:")
-	fmt.Printf("  TLS Version:       %s\n", getTLSVersionName(state.Version))
-	fmt.Printf("  Cipher Suite:      %s (0x%04X)\n", tls.CipherSuiteName(state.CipherSuite), state.CipherSuite)
-	fmt.Printf("  Server Name:       %s\n", state.ServerName)
-	fmt.Printf("  Negotiated Proto:  %s\n", state.NegotiatedProtocol)
-
-	// Show certificate info
-	if len(state.PeerCertificates) > 0 {
-		cert := state.PeerCertificates[0]
-		fmt.Printf("  Server Cert CN:    %s\n", cert.Subject.CommonName)
-		fmt.Printf("  Cert Valid Until:  %s\n", cert.NotAfter.Format("2006-01-02 15:04:05 MST"))
-	}
-
-	// Show supported cipher suites (from client perspective)
-	fmt.Println("\nSupported Cipher Suites (Client):")
-	// Note: We can't easily get the full list of ciphers that were offered
-	// during negotiation without instrumenting the TLS handshake, but we can
-	// show what was negotiated and document what the Go TLS library typically offers
-	fmt.Printf("  Negotiated: %s\n", tls.CipherSuiteName(state.CipherSuite))
-	fmt.Println("  (Full client cipher list depends on Go TLS implementation)")
-}
-
-// getTLSVersionName returns a human-readable name for a TLS version.
-func getTLSVersionName(version uint16) string {
-	switch version {
-	case tls.VersionTLS10:
-		return "TLS 1.0"
-	case tls.VersionTLS11:
-		return "TLS 1.1"
-	case tls.VersionTLS12:
-		return "TLS 1.2"
-	case tls.VersionTLS13:
-		return "TLS 1.3"
-	default:
-		return fmt.Sprintf("Unknown (0x%04X)", version)
-	}
-}

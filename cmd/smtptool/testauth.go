@@ -24,7 +24,11 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	if shouldWrite, _ := csvLogger.ShouldWriteHeader(); shouldWrite {
 		if err := csvLogger.WriteHeader([]string{
 			"Action", "Status", "Server", "Port", "Username",
-			"Auth_Mechanisms_Available", "Auth_Method_Used", "Auth_Result", "Error",
+			"Auth_Mechanisms_Available", "Auth_Method_Used", "Auth_Result",
+			"TLS_Version", "Cipher_Suite", "Cipher_Strength",
+			"Cert_Subject", "Cert_Issuer", "Cert_SANs",
+			"Cert_Valid_From", "Cert_Valid_To", "Cert_Verification_Status",
+			"Error",
 		}); err != nil {
 			logger.LogError(slogLogger, "Failed to write CSV header", "error", err)
 		}
@@ -38,7 +42,9 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		logger.LogError(slogLogger, "Connection failed", "error", err)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.Username, "", "", "FAILURE", err.Error(),
+			config.Username, "", "", "FAILURE",
+			"", "", "", "", "", "", "", "", "", // No TLS info on connection failure
+			err.Error(),
 		}); logErr != nil {
 			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 		}
@@ -59,7 +65,9 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		logger.LogError(slogLogger, "EHLO failed", "error", err)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.Username, "", "", "FAILURE", err.Error(),
+			config.Username, "", "", "FAILURE",
+			"", "", "", "", "", "", "", "", "", // No TLS info on EHLO failure
+			err.Error(),
 		}); logErr != nil {
 			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 		}
@@ -74,7 +82,9 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		logger.LogWarn(slogLogger, msg)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.Username, "none", "", "FAILURE", msg,
+			config.Username, "none", "", "FAILURE",
+			"", "", "", "", "", "", "", "", "", // No TLS info yet
+			msg,
 		}); logErr != nil {
 			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 		}
@@ -89,7 +99,7 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		// For SMTPS, TLS is already established
 		tlsState = client.GetTLSState()
 		if config.VerboseMode && tlsState != nil {
-			displayTLSCipherInfo(tlsState)
+			displayComprehensiveTLSInfo(tlsState, config.Host, config.VerboseMode)
 		}
 	} else if (config.Port == 25 || config.Port == 587) && caps.SupportsSTARTTLS() {
 		// STARTTLS if on port 25/587 and available
@@ -107,7 +117,9 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 			logger.LogError(slogLogger, "STARTTLS failed", "error", err)
 			if logErr := csvLogger.WriteRow([]string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-				config.Username, strings.Join(authMechanisms, ", "), "", "FAILURE", fmt.Sprintf("STARTTLS failed: %v", err),
+				config.Username, strings.Join(authMechanisms, ", "), "", "FAILURE",
+				"", "", "", "", "", "", "", "", "", // No TLS info on STARTTLS failure
+				fmt.Sprintf("STARTTLS failed: %v", err),
 			}); logErr != nil {
 				logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 			}
@@ -118,7 +130,7 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 		// Show TLS cipher information in verbose mode
 		if config.VerboseMode {
-			displayTLSCipherInfo(tlsState)
+			displayComprehensiveTLSInfo(tlsState, config.Host, config.VerboseMode)
 		}
 
 		// Re-run EHLO on encrypted connection
@@ -142,9 +154,14 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		msg := fmt.Sprintf("No compatible authentication mechanism found (requested: %s, available: %s)",
 			config.AuthMethod, strings.Join(authMechanisms, ", "))
 		fmt.Printf("✗ %s\n", msg)
+		tlsData := formatTLSInfoForCSV(tlsState, config.Host)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.Username, strings.Join(authMechanisms, ", "), "", "FAILURE", msg,
+			config.Username, strings.Join(authMechanisms, ", "), "", "FAILURE",
+			tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
+			tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,
+			tlsData.CertValidFrom, tlsData.CertValidTo, tlsData.VerificationStatus,
+			msg,
 		}); logErr != nil {
 			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 		}
@@ -176,7 +193,7 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		// Show TLS cipher information on auth failure if verbose and TLS was used
 		if config.VerboseMode && tlsState != nil {
 			fmt.Println("\nAuthentication failed. TLS Connection Details:")
-			displayTLSCipherInfo(tlsState)
+			displayComprehensiveTLSInfo(tlsState, config.Host, config.VerboseMode)
 		}
 	} else {
 		fmt.Printf("\n✓ Authentication successful\n")
@@ -184,10 +201,15 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	}
 
 	// Log to CSV
+	tlsData := formatTLSInfoForCSV(tlsState, config.Host)
 	if logErr := csvLogger.WriteRow([]string{
 		config.Action, status, config.Host, fmt.Sprintf("%d", config.Port),
 		config.Username, strings.Join(authMechanisms, ", "),
-		methodUsed, authResult, errorMsg,
+		methodUsed, authResult,
+		tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
+		tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,
+		tlsData.CertValidFrom, tlsData.CertValidTo, tlsData.VerificationStatus,
+		errorMsg,
 	}); logErr != nil {
 		logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 	}

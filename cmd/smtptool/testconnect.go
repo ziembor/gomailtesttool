@@ -20,7 +20,13 @@ func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, s
 
 	// Write CSV header
 	if shouldWrite, _ := csvLogger.ShouldWriteHeader(); shouldWrite {
-		if err := csvLogger.WriteHeader([]string{"Action", "Status", "Server", "Port", "Connected", "Banner", "Capabilities", "Exchange_Detected", "Error"}); err != nil {
+		if err := csvLogger.WriteHeader([]string{
+			"Action", "Status", "Server", "Port", "Connected", "Banner", "Capabilities", "Exchange_Detected",
+			"TLS_Version", "Cipher_Suite", "Cipher_Strength",
+			"Cert_Subject", "Cert_Issuer", "Cert_SANs",
+			"Cert_Valid_From", "Cert_Valid_To", "Cert_Verification_Status",
+			"Error",
+		}); err != nil {
 			logger.LogError(slogLogger, "Failed to write CSV header", "error", err)
 		}
 	}
@@ -34,7 +40,9 @@ func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, s
 		logger.LogError(slogLogger, "Connection failed", "error", err)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host,
-			fmt.Sprintf("%d", config.Port), "false", "", "", "false", err.Error(),
+			fmt.Sprintf("%d", config.Port), "false", "", "", "false",
+			"", "", "", "", "", "", "", "", "", // No TLS info on connection failure
+			err.Error(),
 		}); logErr != nil {
 			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 		}
@@ -49,14 +57,27 @@ func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, s
 	}
 	fmt.Printf("  Banner: %s\n\n", client.GetBanner())
 
+	// Get TLS state for SMTPS connections
+	var tlsState = client.GetTLSState()
+
+	// Display TLS information for SMTPS in verbose mode
+	if config.SMTPS && config.VerboseMode && tlsState != nil {
+		displayComprehensiveTLSInfo(tlsState, config.Host, config.VerboseMode)
+	}
+
 	// Send EHLO
 	logger.LogDebug(slogLogger, "Sending EHLO command")
 	caps, err := client.EHLO("smtptool.local")
 	if err != nil {
 		logger.LogError(slogLogger, "EHLO failed", "error", err)
+		tlsData := formatTLSInfoForCSV(tlsState, config.Host)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host,
-			fmt.Sprintf("%d", config.Port), "true", client.GetBanner(), "", "false", err.Error(),
+			fmt.Sprintf("%d", config.Port), "true", client.GetBanner(), "", "false",
+			tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
+			tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,
+			tlsData.CertValidFrom, tlsData.CertValidTo, tlsData.VerificationStatus,
+			err.Error(),
 		}); logErr != nil {
 			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 		}
@@ -82,10 +103,15 @@ func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, s
 
 	// Log to CSV
 	capsStr := caps.String()
+	tlsData := formatTLSInfoForCSV(tlsState, config.Host)
 	if logErr := csvLogger.WriteRow([]string{
 		config.Action, "SUCCESS", config.Host,
 		fmt.Sprintf("%d", config.Port), "true", client.GetBanner(),
-		capsStr, fmt.Sprintf("%t", exchangeInfo.IsExchange), "",
+		capsStr, fmt.Sprintf("%t", exchangeInfo.IsExchange),
+		tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
+		tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,
+		tlsData.CertValidFrom, tlsData.CertValidTo, tlsData.VerificationStatus,
+		"",
 	}); logErr != nil {
 		logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 	}
