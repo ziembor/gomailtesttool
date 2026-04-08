@@ -41,9 +41,10 @@ type Config struct {
 	TLSVersion string // TLS version to use (exact match): 1.2, 1.3
 
 	// Network configuration
-	ProxyURL   string
-	MaxRetries int
-	RetryDelay time.Duration
+	ConnectAddress string        // Override address for TCP connection (IP or hostname)
+	ProxyURL       string
+	MaxRetries     int
+	RetryDelay     time.Duration
 
 	// Runtime configuration
 	VerboseMode  bool
@@ -105,6 +106,9 @@ func parseAndConfigureFlags() *Config {
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s -action teststarttls -host smtp.example.com -port 587\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s -action testauth -host smtp.example.com -port 587 -username user@example.com -password secret\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s -action sendmail -host smtp.example.com -port 587 -username user@example.com -password secret -from sender@example.com -to recipient@example.com\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "\nConnection Override Examples (for load balancer testing):\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "  %s -action testconnect -host mail.example.com -port 465 -address 192.168.1.10 -smtps\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "  %s -action teststarttls -host smtp.example.com -port 587 -address 10.0.0.5\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "\nSMTPS Examples (implicit TLS on port 465):\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s -action testconnect -host smtp.gmail.com -port 465 -smtps\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "  %s -action teststarttls -host smtp.gmail.com -port 465 -smtps\n", os.Args[0])
@@ -132,6 +136,7 @@ func parseAndConfigureFlags() *Config {
 	smtps := flag.Bool("smtps", false, "Use SMTPS (implicit TLS), typically on port 465 (env: SMTPSMTPS)")
 	skipVerify := flag.Bool("skipverify", false, "Skip TLS certificate verification (insecure) (env: SMTPSKIPVERIFY)")
 	tlsVersion := flag.String("tlsversion", "1.2", "TLS version to use (exact): 1.2, 1.3 (env: SMTPTLSVERSION)")
+	connectAddress := flag.String("address", "", "Override IP address or hostname for TCP connection (uses --host for SNI and cert verification) (env: SMTPADDRESS)")
 	proxyURL := flag.String("proxy", "", "HTTP/HTTPS proxy URL (env: SMTPPROXY)")
 	maxRetries := flag.Int("maxretries", 3, "Maximum retry attempts (env: SMTPMAXRETRIES)")
 	retryDelay := flag.Int("retrydelay", 2000, "Retry delay in milliseconds (env: SMTPRETRYDELAY)")
@@ -163,6 +168,7 @@ func parseAndConfigureFlags() *Config {
 	config.SMTPS = *smtps
 	config.SkipVerify = *skipVerify
 	config.TLSVersion = *tlsVersion
+	config.ConnectAddress = *connectAddress
 	config.ProxyURL = *proxyURL
 	config.MaxRetries = *maxRetries
 	config.RetryDelay = time.Duration(*retryDelay) * time.Millisecond
@@ -232,6 +238,9 @@ func applyEnvironmentVariables(config *Config) {
 	if !config.SkipVerify {
 		config.SkipVerify = parseBoolEnv(os.Getenv("SMTPSKIPVERIFY"))
 	}
+	if config.ConnectAddress == "" {
+		config.ConnectAddress = os.Getenv("SMTPADDRESS")
+	}
 }
 
 // validateConfiguration validates the configuration.
@@ -287,6 +296,13 @@ func validateConfiguration(config *Config) error {
 	// Validate proxy URL (if provided)
 	if err := validation.ValidateProxyURL(config.ProxyURL); err != nil {
 		return fmt.Errorf("invalid proxy URL: %w", err)
+	}
+
+	// Validate connect address (if provided)
+	if config.ConnectAddress != "" {
+		if err := validation.ValidateHostname(config.ConnectAddress); err != nil {
+			return fmt.Errorf("invalid connect address: %w", err)
+		}
 	}
 
 	// Action-specific validation
