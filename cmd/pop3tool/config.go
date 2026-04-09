@@ -38,9 +38,10 @@ type Config struct {
 	TLSVersion string // TLS version to use: 1.2, 1.3
 
 	// Network configuration
-	ProxyURL   string
-	MaxRetries int
-	RetryDelay time.Duration
+	ConnectAddress string // Override address for TCP connection (IP or hostname)
+	ProxyURL       string
+	MaxRetries     int
+	RetryDelay     time.Duration
 
 	// Runtime configuration
 	VerboseMode  bool
@@ -94,7 +95,10 @@ func parseAndConfigureFlags() *Config {
 		fmt.Fprintf(flag.CommandLine.Output(), "Actions:\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "  testconnect   - Test TCP connection and capabilities\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "  testauth      - Test authentication (USER/PASS, APOP, XOAUTH2)\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "  listmail      - List messages in mailbox\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "  listmail      - List messages in mailbox\n\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "Connection Override Examples (for load balancer testing):\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "  %s -action testconnect -host pop.example.com -port 995 -address 192.168.1.10 -pop3s\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "  %s -action testconnect -host pop.example.com -port 110 -address 10.0.0.5 -starttls\n", os.Args[0])
 	}
 
 	// Core flags
@@ -122,6 +126,7 @@ func parseAndConfigureFlags() *Config {
 	tlsVersion := flag.String("tlsversion", "1.2", "TLS version: 1.2, 1.3 (env: POP3TLSVERSION)")
 
 	// Network configuration
+	connectAddress := flag.String("address", "", "Override IP address or hostname for TCP connection (uses -host for SNI and cert verification) (env: POP3ADDRESS)")
 	proxyURL := flag.String("proxy", "", "Proxy URL (env: POP3PROXY)")
 	maxRetries := flag.Int("maxretries", 3, "Maximum retry attempts (env: POP3MAXRETRIES)")
 	retryDelay := flag.Int("retrydelay", 2000, "Retry delay in milliseconds (env: POP3RETRYDELAY)")
@@ -150,6 +155,7 @@ func parseAndConfigureFlags() *Config {
 	config.StartTLS = *startTLS
 	config.SkipVerify = *skipVerify
 	config.TLSVersion = *tlsVersion
+	config.ConnectAddress = *connectAddress
 	config.ProxyURL = *proxyURL
 	config.MaxRetries = *maxRetries
 	config.RetryDelay = time.Duration(*retryDelay) * time.Millisecond
@@ -217,6 +223,9 @@ func applyEnvOverrides(config *Config) {
 	if v := os.Getenv("POP3TLSVERSION"); v != "" {
 		config.TLSVersion = v
 	}
+	if v := os.Getenv("POP3ADDRESS"); v != "" && config.ConnectAddress == "" {
+		config.ConnectAddress = v
+	}
 	if v := os.Getenv("POP3PROXY"); v != "" && config.ProxyURL == "" {
 		config.ProxyURL = v
 	}
@@ -282,6 +291,13 @@ func validateConfiguration(config *Config) error {
 	}
 	if err := validation.ValidateHostname(config.Host); err != nil {
 		return fmt.Errorf("invalid host: %w", err)
+	}
+
+	// Validate connect address (if provided)
+	if config.ConnectAddress != "" {
+		if err := validation.ValidateHostname(config.ConnectAddress); err != nil {
+			return fmt.Errorf("invalid connect address: %w", err)
+		}
 	}
 
 	// Validate port

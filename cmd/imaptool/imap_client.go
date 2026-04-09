@@ -56,7 +56,12 @@ func (c *IMAPClient) Connect(ctx context.Context) error {
 		}
 	}
 
-	address := fmt.Sprintf("%s:%d", c.host, c.port)
+	// Determine connection address (override or default to host)
+	connectHost := c.host
+	if c.config.ConnectAddress != "" {
+		connectHost = c.config.ConnectAddress
+	}
+	address := fmt.Sprintf("%s:%d", connectHost, c.port)
 
 	options := &imapclient.Options{
 		TLSConfig: &tls.Config{

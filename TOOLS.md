@@ -95,6 +95,7 @@ All tools use a consistent naming pattern: `{TOOL}{PARAMETER}` (no underscores)
 |-----------------|-------------|
 | `{PREFIX}HOST` | Server hostname |
 | `{PREFIX}PORT` | Server port |
+| `{PREFIX}ADDRESS` | Override connection address (IP or hostname for TCP connection) |
 | `{PREFIX}USERNAME` | Username for authentication |
 | `{PREFIX}PASSWORD` | Password for authentication |
 | `{PREFIX}ACCESSTOKEN` | OAuth2/Bearer access token |

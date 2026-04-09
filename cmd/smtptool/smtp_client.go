@@ -82,7 +82,13 @@ func (c *SMTPClient) Connect(ctx context.Context) error {
 		return fmt.Errorf("rate limit wait failed: %w", err)
 	}
 
-	addr := fmt.Sprintf("%s:%d", c.host, c.port)
+	// Determine connection address (override or default to host)
+	connectHost := c.host
+	if c.config.ConnectAddress != "" {
+		connectHost = c.config.ConnectAddress
+		c.debugLogMessage(fmt.Sprintf("Using override connection address: %s (SNI will use: %s)", connectHost, c.host))
+	}
+	addr := net.JoinHostPort(connectHost, fmt.Sprintf("%d", c.port))
 
 	// Use context-aware dialer
 	dialer := &net.Dialer{

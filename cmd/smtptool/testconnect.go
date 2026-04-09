@@ -13,15 +13,23 @@ import (
 // testConnect performs basic SMTP connectivity and capability testing.
 func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, slogLogger *slog.Logger) error {
 	if config.SMTPS {
-		fmt.Printf("Testing SMTPS connectivity to %s:%d...\n\n", config.Host, config.Port)
+		if config.ConnectAddress != "" {
+			fmt.Printf("Testing SMTPS connectivity to %s:%d (connecting via %s)...\n\n", config.Host, config.Port, config.ConnectAddress)
+		} else {
+			fmt.Printf("Testing SMTPS connectivity to %s:%d...\n\n", config.Host, config.Port)
+		}
 	} else {
-		fmt.Printf("Testing SMTP connectivity to %s:%d...\n\n", config.Host, config.Port)
+		if config.ConnectAddress != "" {
+			fmt.Printf("Testing SMTP connectivity to %s:%d (connecting via %s)...\n\n", config.Host, config.Port, config.ConnectAddress)
+		} else {
+			fmt.Printf("Testing SMTP connectivity to %s:%d...\n\n", config.Host, config.Port)
+		}
 	}
 
 	// Write CSV header
 	if shouldWrite, _ := csvLogger.ShouldWriteHeader(); shouldWrite {
 		if err := csvLogger.WriteHeader([]string{
-			"Action", "Status", "Server", "Port", "Connected", "Banner", "Capabilities", "Exchange_Detected",
+			"Action", "Status", "Server", "Port", "Connect_Address", "Connected", "Banner", "Capabilities", "Exchange_Detected",
 			"TLS_Version", "Cipher_Suite", "Cipher_Strength",
 			"Cert_Subject", "Cert_Issuer", "Cert_SANs",
 			"Cert_Valid_From", "Cert_Valid_To", "Cert_Verification_Status",
@@ -40,7 +48,7 @@ func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, s
 		logger.LogError(slogLogger, "Connection failed", "error", err)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host,
-			fmt.Sprintf("%d", config.Port), "false", "", "", "false",
+			fmt.Sprintf("%d", config.Port), config.ConnectAddress, "false", "", "", "false",
 			"", "", "", "", "", "", "", "", "", // No TLS info on connection failure
 			err.Error(),
 		}); logErr != nil {
@@ -51,9 +59,17 @@ func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, s
 	defer client.Close()
 
 	if config.SMTPS {
-		fmt.Printf("✓ Connected successfully with SMTPS (implicit TLS)\n")
+		if config.ConnectAddress != "" {
+			fmt.Printf("✓ Connected successfully with SMTPS (implicit TLS) via %s\n", config.ConnectAddress)
+		} else {
+			fmt.Printf("✓ Connected successfully with SMTPS (implicit TLS)\n")
+		}
 	} else {
-		fmt.Printf("✓ Connected successfully\n")
+		if config.ConnectAddress != "" {
+			fmt.Printf("✓ Connected successfully via %s\n", config.ConnectAddress)
+		} else {
+			fmt.Printf("✓ Connected successfully\n")
+		}
 	}
 	fmt.Printf("  Banner: %s\n\n", client.GetBanner())
 
@@ -73,7 +89,7 @@ func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, s
 		tlsData := formatTLSInfoForCSV(tlsState, config.Host)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host,
-			fmt.Sprintf("%d", config.Port), "true", client.GetBanner(), "", "false",
+			fmt.Sprintf("%d", config.Port), config.ConnectAddress, "true", client.GetBanner(), "", "false",
 			tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
 			tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,
 			tlsData.CertValidFrom, tlsData.CertValidTo, tlsData.VerificationStatus,
@@ -106,7 +122,7 @@ func testConnect(ctx context.Context, config *Config, csvLogger logger.Logger, s
 	tlsData := formatTLSInfoForCSV(tlsState, config.Host)
 	if logErr := csvLogger.WriteRow([]string{
 		config.Action, "SUCCESS", config.Host,
-		fmt.Sprintf("%d", config.Port), "true", client.GetBanner(),
+		fmt.Sprintf("%d", config.Port), config.ConnectAddress, "true", client.GetBanner(),
 		capsStr, fmt.Sprintf("%t", exchangeInfo.IsExchange),
 		tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
 		tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,

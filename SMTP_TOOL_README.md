@@ -359,6 +359,12 @@ Sending message...
 | `-skipverify` | Skip TLS certificate verification (insecure) | `SMTPSKIPVERIFY` | false |
 | `-tlsversion` | Minimum TLS version: 1.2, 1.3 | `SMTPTLSVERSION` | 1.2 |
 
+### Network Flags
+
+| Flag | Description | Environment Variable | Default |
+|------|-------------|---------------------|---------|
+| `-address` | Override IP/hostname for TCP connection (uses -host for SNI and cert verification) | `SMTPADDRESS` | - |
+
 ### Runtime Flags
 
 | Flag | Description | Environment Variable | Default |

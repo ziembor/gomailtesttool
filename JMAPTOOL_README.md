@@ -225,6 +225,12 @@ Mailbox listing completed successfully
 |------|-------------|---------------------|---------|
 | `-skipverify` | Skip TLS certificate verification | `JMAPSKIPVERIFY` | false |
 
+### Network Flags
+
+| Flag | Description | Environment Variable | Default |
+|------|-------------|---------------------|---------|
+| `-address` | Override IP/hostname for TCP connection (uses -host for SNI and cert verification) | `JMAPADDRESS` | - |
+
 ### Runtime Flags
 
 | Flag | Description | Environment Variable | Default |

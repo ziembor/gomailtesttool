@@ -15,15 +15,23 @@ import (
 // testAuth performs SMTP authentication testing.
 func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slogLogger *slog.Logger) error {
 	if config.SMTPS {
-		fmt.Printf("Testing SMTP authentication on %s:%d (SMTPS)...\n\n", config.Host, config.Port)
+		if config.ConnectAddress != "" {
+			fmt.Printf("Testing SMTP authentication on %s:%d (SMTPS) (connecting via %s)...\n\n", config.Host, config.Port, config.ConnectAddress)
+		} else {
+			fmt.Printf("Testing SMTP authentication on %s:%d (SMTPS)...\n\n", config.Host, config.Port)
+		}
 	} else {
-		fmt.Printf("Testing SMTP authentication on %s:%d...\n\n", config.Host, config.Port)
+		if config.ConnectAddress != "" {
+			fmt.Printf("Testing SMTP authentication on %s:%d (connecting via %s)...\n\n", config.Host, config.Port, config.ConnectAddress)
+		} else {
+			fmt.Printf("Testing SMTP authentication on %s:%d...\n\n", config.Host, config.Port)
+		}
 	}
 
 	// Write CSV header
 	if shouldWrite, _ := csvLogger.ShouldWriteHeader(); shouldWrite {
 		if err := csvLogger.WriteHeader([]string{
-			"Action", "Status", "Server", "Port", "Username",
+			"Action", "Status", "Server", "Port", "Connect_Address", "Username",
 			"Auth_Mechanisms_Available", "Auth_Method_Used", "Auth_Result",
 			"TLS_Version", "Cipher_Suite", "Cipher_Strength",
 			"Cert_Subject", "Cert_Issuer", "Cert_SANs",
@@ -42,7 +50,7 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		logger.LogError(slogLogger, "Connection failed", "error", err)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.Username, "", "", "FAILURE",
+			config.ConnectAddress, config.Username, "", "", "FAILURE",
 			"", "", "", "", "", "", "", "", "", // No TLS info on connection failure
 			err.Error(),
 		}); logErr != nil {
@@ -53,9 +61,17 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	defer client.Close()
 
 	if config.SMTPS {
-		fmt.Printf("✓ Connected with SMTPS (implicit TLS)\n")
+		if config.ConnectAddress != "" {
+			fmt.Printf("✓ Connected with SMTPS (implicit TLS) via %s\n", config.ConnectAddress)
+		} else {
+			fmt.Printf("✓ Connected with SMTPS (implicit TLS)\n")
+		}
 	} else {
-		fmt.Printf("✓ Connected\n")
+		if config.ConnectAddress != "" {
+			fmt.Printf("✓ Connected via %s\n", config.ConnectAddress)
+		} else {
+			fmt.Printf("✓ Connected\n")
+		}
 	}
 
 	// Send EHLO
@@ -65,7 +81,7 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		logger.LogError(slogLogger, "EHLO failed", "error", err)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.Username, "", "", "FAILURE",
+			config.ConnectAddress, config.Username, "", "", "FAILURE",
 			"", "", "", "", "", "", "", "", "", // No TLS info on EHLO failure
 			err.Error(),
 		}); logErr != nil {
@@ -82,7 +98,7 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		logger.LogWarn(slogLogger, msg)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.Username, "none", "", "FAILURE",
+			config.ConnectAddress, config.Username, "none", "", "FAILURE",
 			"", "", "", "", "", "", "", "", "", // No TLS info yet
 			msg,
 		}); logErr != nil {
@@ -117,7 +133,7 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 			logger.LogError(slogLogger, "STARTTLS failed", "error", err)
 			if logErr := csvLogger.WriteRow([]string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-				config.Username, strings.Join(authMechanisms, ", "), "", "FAILURE",
+				config.ConnectAddress, config.Username, strings.Join(authMechanisms, ", "), "", "FAILURE",
 				"", "", "", "", "", "", "", "", "", // No TLS info on STARTTLS failure
 				fmt.Sprintf("STARTTLS failed: %v", err),
 			}); logErr != nil {
@@ -157,7 +173,7 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		tlsData := formatTLSInfoForCSV(tlsState, config.Host)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.Username, strings.Join(authMechanisms, ", "), "", "FAILURE",
+			config.ConnectAddress, config.Username, strings.Join(authMechanisms, ", "), "", "FAILURE",
 			tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
 			tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,
 			tlsData.CertValidFrom, tlsData.CertValidTo, tlsData.VerificationStatus,
@@ -204,7 +220,7 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	tlsData := formatTLSInfoForCSV(tlsState, config.Host)
 	if logErr := csvLogger.WriteRow([]string{
 		config.Action, status, config.Host, fmt.Sprintf("%d", config.Port),
-		config.Username, strings.Join(authMechanisms, ", "),
+		config.ConnectAddress, config.Username, strings.Join(authMechanisms, ", "),
 		methodUsed, authResult,
 		tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
 		tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,

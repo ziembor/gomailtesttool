@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -25,8 +26,23 @@ type JMAPClient struct {
 func NewJMAPClient(config *Config) *JMAPClient {
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
+			ServerName:         config.Host, // Use original host for SNI
 			InsecureSkipVerify: config.SkipVerify,
 		},
+	}
+
+	// If ConnectAddress is set, use custom dialer to override the connection address
+	if config.ConnectAddress != "" {
+		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			// Replace host portion with override address, keep the port
+			_, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				// If no port in address, use original
+				return (&net.Dialer{}).DialContext(ctx, network, addr)
+			}
+			overrideAddr := net.JoinHostPort(config.ConnectAddress, port)
+			return (&net.Dialer{}).DialContext(ctx, network, overrideAddr)
+		}
 	}
 
 	return &JMAPClient{

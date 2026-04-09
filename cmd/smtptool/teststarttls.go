@@ -17,15 +17,23 @@ import (
 // For SMTPS mode, tests implicit TLS (TLS handshake happens immediately after TCP connect).
 func testStartTLS(ctx context.Context, config *Config, csvLogger logger.Logger, slogLogger *slog.Logger) error {
 	if config.SMTPS {
-		fmt.Printf("Testing SMTPS (implicit TLS) on %s:%d...\n\n", config.Host, config.Port)
+		if config.ConnectAddress != "" {
+			fmt.Printf("Testing SMTPS (implicit TLS) on %s:%d (connecting via %s)...\n\n", config.Host, config.Port, config.ConnectAddress)
+		} else {
+			fmt.Printf("Testing SMTPS (implicit TLS) on %s:%d...\n\n", config.Host, config.Port)
+		}
 	} else {
-		fmt.Printf("Testing STARTTLS on %s:%d...\n\n", config.Host, config.Port)
+		if config.ConnectAddress != "" {
+			fmt.Printf("Testing STARTTLS on %s:%d (connecting via %s)...\n\n", config.Host, config.Port, config.ConnectAddress)
+		} else {
+			fmt.Printf("Testing STARTTLS on %s:%d...\n\n", config.Host, config.Port)
+		}
 	}
 
 	// Write CSV header
 	if shouldWrite, _ := csvLogger.ShouldWriteHeader(); shouldWrite {
 		if err := csvLogger.WriteHeader([]string{
-			"Action", "Status", "Server", "Port", "STARTTLS_Available",
+			"Action", "Status", "Server", "Port", "Connect_Address", "STARTTLS_Available",
 			"TLS_Version", "Cipher_Suite", "Cert_Subject", "Cert_Issuer",
 			"Cert_Valid_From", "Cert_Valid_To", "Cert_SANs",
 			"Verification_Status", "Warnings", "Error",
@@ -42,7 +50,7 @@ func testStartTLS(ctx context.Context, config *Config, csvLogger logger.Logger, 
 		logger.LogError(slogLogger, "Connection failed", "error", err)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			"unknown", "", "", "", "", "", "", "", "", "", err.Error(),
+			config.ConnectAddress, "unknown", "", "", "", "", "", "", "", "", "", err.Error(),
 		}); logErr != nil {
 			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 		}
@@ -51,9 +59,17 @@ func testStartTLS(ctx context.Context, config *Config, csvLogger logger.Logger, 
 	defer client.Close()
 
 	if config.SMTPS {
-		fmt.Printf("✓ Connected with SMTPS (implicit TLS)\n")
+		if config.ConnectAddress != "" {
+			fmt.Printf("✓ Connected with SMTPS (implicit TLS) via %s\n", config.ConnectAddress)
+		} else {
+			fmt.Printf("✓ Connected with SMTPS (implicit TLS)\n")
+		}
 	} else {
-		fmt.Printf("✓ Connected\n")
+		if config.ConnectAddress != "" {
+			fmt.Printf("✓ Connected via %s\n", config.ConnectAddress)
+		} else {
+			fmt.Printf("✓ Connected\n")
+		}
 	}
 
 	// Send EHLO
@@ -63,7 +79,7 @@ func testStartTLS(ctx context.Context, config *Config, csvLogger logger.Logger, 
 		logger.LogError(slogLogger, "EHLO failed", "error", err)
 		if logErr := csvLogger.WriteRow([]string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			"unknown", "", "", "", "", "", "", "", "", "", err.Error(),
+			config.ConnectAddress, "unknown", "", "", "", "", "", "", "", "", "", err.Error(),
 		}); logErr != nil {
 			logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 		}
@@ -80,7 +96,7 @@ func testStartTLS(ctx context.Context, config *Config, csvLogger logger.Logger, 
 			logger.LogError(slogLogger, msg)
 			if logErr := csvLogger.WriteRow([]string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-				"N/A (SMTPS)", "", "", "", "", "", "", "", "", "", msg,
+				config.ConnectAddress, "N/A (SMTPS)", "", "", "", "", "", "", "", "", "", msg,
 			}); logErr != nil {
 				logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 			}
@@ -95,7 +111,7 @@ func testStartTLS(ctx context.Context, config *Config, csvLogger logger.Logger, 
 			logger.LogWarn(slogLogger, msg)
 			if logErr := csvLogger.WriteRow([]string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-				"false", "", "", "", "", "", "", "", "", "", msg,
+				config.ConnectAddress, "false", "", "", "", "", "", "", "", "", "", msg,
 			}); logErr != nil {
 				logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 			}
@@ -124,7 +140,7 @@ func testStartTLS(ctx context.Context, config *Config, csvLogger logger.Logger, 
 			logger.LogError(slogLogger, "STARTTLS handshake failed", "error", err)
 			if logErr := csvLogger.WriteRow([]string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-				"true", "", "", "", "", "", "", "", "", "", err.Error(),
+				config.ConnectAddress, "true", "", "", "", "", "", "", "", "", "", err.Error(),
 			}); logErr != nil {
 				logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 			}
@@ -183,6 +199,7 @@ func testStartTLS(ctx context.Context, config *Config, csvLogger logger.Logger, 
 	// Log to CSV
 	if logErr := csvLogger.WriteRow([]string{
 		config.Action, "SUCCESS", config.Host, fmt.Sprintf("%d", config.Port),
+		config.ConnectAddress,
 		starttlsAvailable,
 		tlsInfo.Version,
 		tlsInfo.CipherSuite,
