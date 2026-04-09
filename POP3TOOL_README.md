@@ -218,6 +218,7 @@ Message listing completed successfully
 
 | Flag | Description | Environment Variable | Default |
 |------|-------------|---------------------|---------|
+| `-address` | Override IP/hostname for TCP connection (uses -host for SNI and cert verification) | `POP3ADDRESS` | - |
 | `-proxy` | Proxy URL | `POP3PROXY` | - |
 | `-maxretries` | Maximum retry attempts | `POP3MAXRETRIES` | 3 |
 | `-retrydelay` | Retry delay (milliseconds) | `POP3RETRYDELAY` | 2000 |

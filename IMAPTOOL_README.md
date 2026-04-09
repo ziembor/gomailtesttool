@@ -218,6 +218,7 @@ Folder listing completed successfully
 
 | Flag | Description | Environment Variable | Default |
 |------|-------------|---------------------|---------|
+| `-address` | Override IP/hostname for TCP connection (uses -host for SNI and cert verification) | `IMAPADDRESS` | - |
 | `-proxy` | Proxy URL | `IMAPPROXY` | - |
 | `-maxretries` | Maximum retry attempts | `IMAPMAXRETRIES` | 3 |
 | `-retrydelay` | Retry delay (milliseconds) | `IMAPRETRYDELAY` | 2000 |

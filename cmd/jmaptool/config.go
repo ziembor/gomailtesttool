@@ -7,17 +7,19 @@ import (
 	"strconv"
 	"strings"
 
+	"msgraphtool/internal/common/validation"
 	"msgraphtool/internal/common/version"
 )
 
 // Config holds all configuration for jmaptool.
 type Config struct {
 	// Connection settings
-	Host        string
-	Port        int
-	Username    string
-	Password    string
-	AccessToken string
+	Host           string
+	Port           int
+	ConnectAddress string // Override address for TCP connection (IP or hostname)
+	Username       string
+	Password       string
+	AccessToken    string
 
 	// Action
 	Action string
@@ -55,6 +57,7 @@ func parseAndConfigureFlags() *Config {
 	flag.StringVar(&config.Action, "action", "", "Action to perform: testconnect, testauth, getmailboxes (env: JMAPACTION)")
 	flag.StringVar(&config.Host, "host", "", "JMAP server hostname (env: JMAPHOST)")
 	flag.IntVar(&config.Port, "port", 443, "JMAP server port (default: 443) (env: JMAPPORT)")
+	flag.StringVar(&config.ConnectAddress, "address", "", "Override IP address or hostname for TCP connection (uses -host for SNI and cert verification) (env: JMAPADDRESS)")
 	flag.StringVar(&config.Username, "username", "", "Username for authentication (env: JMAPUSERNAME)")
 	flag.StringVar(&config.Password, "password", "", "Password for authentication (env: JMAPPASSWORD)")
 	flag.StringVar(&config.AccessToken, "accesstoken", "", "Access token for Bearer authentication (env: JMAPACCESSTOKEN)")
@@ -78,6 +81,7 @@ func parseAndConfigureFlags() *Config {
 		fmt.Fprintf(os.Stderr, "\nEnvironment variables:\n")
 		fmt.Fprintf(os.Stderr, "  JMAPHOST        Server hostname\n")
 		fmt.Fprintf(os.Stderr, "  JMAPPORT        Server port\n")
+		fmt.Fprintf(os.Stderr, "  JMAPADDRESS     Override connection address\n")
 		fmt.Fprintf(os.Stderr, "  JMAPUSERNAME    Username\n")
 		fmt.Fprintf(os.Stderr, "  JMAPPASSWORD    Password\n")
 		fmt.Fprintf(os.Stderr, "  JMAPACCESSTOKEN Access token\n")
@@ -91,6 +95,9 @@ func parseAndConfigureFlags() *Config {
 		fmt.Fprintf(os.Stderr, "  jmaptool -action testconnect -host jmap.fastmail.com\n")
 		fmt.Fprintf(os.Stderr, "  jmaptool -action testauth -host jmap.fastmail.com -username user@example.com -accesstoken \"token\"\n")
 		fmt.Fprintf(os.Stderr, "  jmaptool -action getmailboxes -host jmap.fastmail.com -username user@example.com -accesstoken \"token\"\n")
+		fmt.Fprintf(os.Stderr, "\nConnection Override Examples (for load balancer testing):\n")
+		fmt.Fprintf(os.Stderr, "  jmaptool -action testconnect -host jmap.example.com -address 192.168.1.10\n")
+		fmt.Fprintf(os.Stderr, "  jmaptool -action testconnect -host jmap.example.com -port 8443 -address 10.0.0.5\n")
 	}
 
 	flag.Parse()
@@ -113,6 +120,11 @@ func parseAndConfigureFlags() *Config {
 			if port, err := strconv.Atoi(envPort); err == nil && port > 0 && port < 65536 {
 				config.Port = port
 			}
+		}
+	}
+	if !providedFlags["address"] {
+		if envAddress := os.Getenv("JMAPADDRESS"); envAddress != "" {
+			config.ConnectAddress = envAddress
 		}
 	}
 	if !providedFlags["username"] {
@@ -187,6 +199,13 @@ func validateConfiguration(config *Config) error {
 	// Validate port
 	if config.Port <= 0 || config.Port > 65535 {
 		return fmt.Errorf("invalid port: %d (must be 1-65535)", config.Port)
+	}
+
+	// Validate connect address (if provided)
+	if config.ConnectAddress != "" {
+		if err := validation.ValidateHostname(config.ConnectAddress); err != nil {
+			return fmt.Errorf("invalid connect address: %w", err)
+		}
 	}
 
 	// Validate auth method
