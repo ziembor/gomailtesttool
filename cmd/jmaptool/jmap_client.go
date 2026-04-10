@@ -33,15 +33,16 @@ func NewJMAPClient(config *Config) *JMAPClient {
 
 	// If ConnectAddress is set, use custom dialer to override the connection address
 	if config.ConnectAddress != "" {
+		dialer := &net.Dialer{}
 		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			// Replace host portion with override address, keep the port
 			_, port, err := net.SplitHostPort(addr)
 			if err != nil {
 				// If no port in address, use original
-				return (&net.Dialer{}).DialContext(ctx, network, addr)
+				return dialer.DialContext(ctx, network, addr)
 			}
 			overrideAddr := net.JoinHostPort(config.ConnectAddress, port)
-			return (&net.Dialer{}).DialContext(ctx, network, overrideAddr)
+			return dialer.DialContext(ctx, network, overrideAddr)
 		}
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/emersion/go-imap/v2"
@@ -61,7 +62,7 @@ func (c *IMAPClient) Connect(ctx context.Context) error {
 	if c.config.ConnectAddress != "" {
 		connectHost = c.config.ConnectAddress
 	}
-	address := fmt.Sprintf("%s:%d", connectHost, c.port)
+	address := net.JoinHostPort(connectHost, fmt.Sprintf("%d", c.port))
 
 	options := &imapclient.Options{
 		TLSConfig: &tls.Config{

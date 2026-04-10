@@ -56,7 +56,7 @@ func (c *POP3Client) Connect(ctx context.Context) error {
 	if c.config.ConnectAddress != "" {
 		connectHost = c.config.ConnectAddress
 	}
-	address := fmt.Sprintf("%s:%d", connectHost, c.port)
+	address := net.JoinHostPort(connectHost, fmt.Sprintf("%d", c.port))
 
 	var conn net.Conn
 	var err error
