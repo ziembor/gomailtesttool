@@ -30,7 +30,7 @@ func run() error {
 	if config.ShowVersion {
 		fmt.Printf("SMTP Connectivity Testing Tool - Version %s\n", version.Get())
 		fmt.Println("Part of msgraphtool suite")
-		fmt.Println("Repository: https://github.com/ziembor/msgraphtool")
+		fmt.Println("Repository: https://github.com/ziembor/gomailtesttool")
 		return nil
 	}
 
