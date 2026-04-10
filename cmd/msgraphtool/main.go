@@ -137,9 +137,8 @@ func run() error {
 
 	// 4. Validate configuration
 	if err := validateConfiguration(config); err != nil {
-		fmt.Printf("Error: %v\n", err)
 		flag.Usage()
-		os.Exit(1)
+		return fmt.Errorf("validation failed: %w", err)
 	}
 
 	// 5. Setup structured logger
