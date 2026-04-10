@@ -2,7 +2,7 @@
 
 Portable, single-binary CLI tools for testing and managing email infrastructure - both cloud (Exchange Online via Microsoft Graph) and on-premises (SMTP servers).
 
-**Repository:** [https://github.com/ziembor/msgraphtool](https://github.com/ziembor/msgraphtool)
+**Repository:** [https://github.com/ziembor/gomailtesttool](https://github.com/ziembor/gomailtesttool)
 
 ## Purpose
 
