@@ -87,7 +87,7 @@ func parseAndConfigureFlags() *Config {
 	// Customize help output
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Microsoft Graph EXO Mails/Calendar Golang Testing Tool - Version %s\n\n", version)
-		fmt.Fprintf(flag.CommandLine.Output(), "Repository: https://github.com/ziembor/msgraphtool\n\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "Repository: https://github.com/ziembor/gomailtesttool\n\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [options]\n\n", os.Args[0])
 		fmt.Fprintf(flag.CommandLine.Output(), "Options:\n")
 		flag.PrintDefaults()
