@@ -879,6 +879,6 @@ Write-Host "View emails at: http://localhost:8025" -ForegroundColor Cyan
 ## Support
 
 **Issues and Feedback:**
-- GitHub: [https://github.com/ziembor/msgraphtool/issues](https://github.com/ziembor/msgraphtool/issues)
+- GitHub: [https://github.com/ziembor/gomailtesttool/issues](https://github.com/ziembor/gomailtesttool/issues)
 
                           ..ooOO END OOoo..

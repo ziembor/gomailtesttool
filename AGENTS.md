@@ -1,6 +1,6 @@
 # Microsoft Graph & SMTP Testing Tools
 
-**Repository:** [https://github.com/ziembor/msgraphtool](https://github.com/ziembor/msgraphtool)
+**Repository:** [https://github.com/ziembor/gomailtesttool](https://github.com/ziembor/gomailtesttool)
 
 ## Overview
 
