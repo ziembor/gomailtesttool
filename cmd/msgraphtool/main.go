@@ -21,14 +21,12 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
 
+	"msgraphtool/internal/common/bootstrap"
 	"msgraphtool/internal/common/logger"
 	"msgraphtool/internal/common/version"
 )
@@ -62,47 +60,16 @@ func main() {
 	}
 }
 
-// setupSignalHandling configures graceful shutdown on interrupt signals
-// Returns a cancellable context for use throughout the application
-func setupSignalHandling() (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// Handle interrupt signals (Ctrl+C, SIGTERM)
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		<-sigChan
-		fmt.Println("\n\nReceived interrupt signal. Shutting down gracefully...")
-		cancel()
-	}()
-
-	return ctx, cancel
-}
-
 // initializeServices sets up file logging and proxy configuration based on
-// the provided configuration. Creates a file logger (CSV or JSON) for the specified action
-// and configures HTTP/HTTPS proxy environment variables if a proxy URL is specified.
-//
-// Returns the file logger (or nil if initialization failed) and any error encountered.
-// If file logger initialization fails, a warning is logged but execution continues.
+// the provided configuration. If file logger initialization fails, a warning
+// is logged but execution continues with a nil logger.
 func initializeServices(config *Config) (logger.Logger, error) {
-	// Parse log format
-	logFormat, err := logger.ParseLogFormat(config.LogFormat)
-	if err != nil {
-		log.Printf("Warning: Invalid log format '%s', falling back to CSV: %v", config.LogFormat, err)
-		logFormat = logger.LogFormatCSV
-	}
-
-	// Initialize file logging (CSV or JSON)
-	csvLogger, err := logger.NewLogger(logFormat, "msgraphtool", config.Action)
+	_, csvLogger, err := bootstrap.InitLoggers("msgraphtool", config.Action, config.VerboseMode, config.LogLevel, config.LogFormat)
 	if err != nil {
 		log.Printf("Warning: Could not initialize file logging: %v", err)
 		csvLogger = nil // Continue without logging
 	}
 
-	// Configure proxy if specified
-	// Go's http package automatically uses HTTP_PROXY/HTTPS_PROXY environment variables
 	if config.ProxyURL != "" {
 		os.Setenv("HTTP_PROXY", config.ProxyURL)
 		os.Setenv("HTTPS_PROXY", config.ProxyURL)
@@ -123,7 +90,7 @@ func initializeServices(config *Config) (logger.Logger, error) {
 // Returns an error if any step fails, nil on successful completion.
 func run() error {
 	// 1. Setup signal handling for graceful shutdown
-	ctx, cancel := setupSignalHandling()
+	ctx, cancel := bootstrap.SetupSignalContext()
 	defer cancel()
 
 	// 2. Parse command-line flags and apply environment variables
