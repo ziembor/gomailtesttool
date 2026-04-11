@@ -98,24 +98,9 @@ msgraphtool/
 │   ├── common/          # Shared packages (logger, retry, version, validation)
 │   ├── msgraph/         # Graph-specific code
 │   └── smtp/            # SMTP-specific code (protocol, TLS, Exchange)
-├── src/
-│   └── VERSION          # Version file (embedded at build time)
 ├── build-all.ps1        # Build script for all tools
 └── go.mod               # Root module
 ```
-
-## Legacy Build (Deprecated)
-
-The old build method is deprecated but still works temporarily:
-
-```powershell
-# DEPRECATED - Do not use for new builds
-go build -C src -o msgraphtool.exe
-```
-
-**Migration:** Update your build scripts to:
-1. Use `go build -C cmd/msgraphtool` instead of `go build -C src`
-2. Output to `bin/` directory: `-o bin/msgraphtool.exe`
 
 ## Verification
 
