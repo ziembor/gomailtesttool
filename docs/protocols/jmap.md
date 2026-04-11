@@ -2,7 +2,7 @@
 
 JMAP (JSON Meta Application Protocol) server connectivity, authentication, and mailbox listing.
 
-> **Legacy name:** `jmaptool`. The `jmaptool` binary still works as a backward-compatibility shim. It will be removed in v3.1.
+> **Legacy name:** `jmaptool`. The legacy binary was removed in v3.1. Use `gomailtest jmap <action> --flag` (see the migration table in README.md).
 
 ## What is JMAP?
 
