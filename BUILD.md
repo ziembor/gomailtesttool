@@ -1,9 +1,5 @@
 # Build Instructions
 
-This document provides instructions for building both tools in this repository:
-- **msgraphtool**: Microsoft Graph API tool for Exchange Online
-- **smtptool**: SMTP connectivity testing tool
-
 ## Prerequisites
 
 1. **Go 1.24+**: [Download Go](https://golang.org/dl/)
@@ -11,174 +7,119 @@ This document provides instructions for building both tools in this repository:
 
 ## Quick Build (All Tools)
 
-The easiest way to build all tools is using the build script:
-
 ```powershell
-# From project root
+# Build all tools at once
 .\build-all.ps1
 ```
 
-This creates all executables in the `bin/` directory:
-- `bin/msgraphtool.exe`
-- `bin/smtptool.exe`
-- `bin/imaptool.exe`
-- `bin/pop3tool.exe`
-- `bin/jmaptool.exe`
+This creates executables in the `bin/` directory:
+- `bin/gomailtest.exe` — unified CLI (primary binary)
+- `bin/smtptool.exe` — backward-compatibility shim
+- `bin/imaptool.exe` — backward-compatibility shim
+- `bin/pop3tool.exe` — backward-compatibility shim
+- `bin/jmaptool.exe` — backward-compatibility shim
+- `bin/msgraphtool.exe` — backward-compatibility shim
 
-## Individual Tool Builds
+## Primary Binary
 
-### Microsoft Graph Tool
+The main binary is `gomailtest`. All protocol commands live under it:
 
 ```powershell
-# Standard build (outputs to bin/)
-go build -C cmd/msgraphtool -o bin/msgraphtool.exe
+# Standard build
+go build -o bin/gomailtest.exe ./cmd/gomailtest
 
 # Optimized build (recommended for production)
-go build -C cmd/msgraphtool -ldflags="-s -w" -o bin/msgraphtool.exe
+go build -ldflags="-s -w" -o bin/gomailtest.exe ./cmd/gomailtest
 ```
 
-### SMTP Tool
+## Individual Shim Builds
+
+Legacy shim binaries for backward compatibility (removed in v3.1):
 
 ```powershell
-# Standard build (outputs to bin/)
-go build -C cmd/smtptool -o bin/smtptool.exe
-
-# Optimized build (recommended for production)
-go build -C cmd/smtptool -ldflags="-s -w" -o bin/smtptool.exe
+go build -ldflags="-s -w" -o bin/smtptool.exe   ./cmd/smtptool
+go build -ldflags="-s -w" -o bin/imaptool.exe   ./cmd/imaptool
+go build -ldflags="-s -w" -o bin/pop3tool.exe   ./cmd/pop3tool
+go build -ldflags="-s -w" -o bin/jmaptool.exe   ./cmd/jmaptool
+go build -ldflags="-s -w" -o bin/msgraphtool.exe ./cmd/msgraphtool
 ```
 
 ## Cross-Platform Builds
 
-Both tools support Windows, Linux, and macOS.
-
 ### Build for Linux
 
 ```powershell
-# Microsoft Graph Tool
 $env:GOOS="linux"; $env:GOARCH="amd64"
-go build -C cmd/msgraphtool -ldflags="-s -w" -o bin/msgraphtool
-Remove-Item Env:\GOOS; Remove-Item Env:\GOARCH
-
-# SMTP Tool
-$env:GOOS="linux"; $env:GOARCH="amd64"
-go build -C cmd/smtptool -ldflags="-s -w" -o bin/smtptool
+go build -ldflags="-s -w" -o bin/gomailtest ./cmd/gomailtest
 Remove-Item Env:\GOOS; Remove-Item Env:\GOARCH
 ```
 
-**Note:** Windows Certificate Store authentication (`-thumbprint` flag) is only available on Windows builds.
+**Note:** Windows Certificate Store authentication (`--thumbprint` flag) is only available on Windows builds.
 
 ### Build for macOS
 
 ```powershell
-# Microsoft Graph Tool
+# Intel
 $env:GOOS="darwin"; $env:GOARCH="amd64"
-go build -C cmd/msgraphtool -ldflags="-s -w" -o bin/msgraphtool
+go build -ldflags="-s -w" -o bin/gomailtest ./cmd/gomailtest
 Remove-Item Env:\GOOS; Remove-Item Env:\GOARCH
 
-# SMTP Tool (Apple Silicon)
+# Apple Silicon
 $env:GOOS="darwin"; $env:GOARCH="arm64"
-go build -C cmd/smtptool -ldflags="-s -w" -o bin/smtptool
+go build -ldflags="-s -w" -o bin/gomailtest ./cmd/gomailtest
 Remove-Item Env:\GOOS; Remove-Item Env:\GOARCH
 ```
 
 ## Project Structure
 
-The repository now uses a modular structure:
-
 ```
-msgraphtool/
-├── bin/                 # Build output directory (executables)
+gomailtesttool/
+├── bin/                          # Build output directory
 ├── cmd/
-│   ├── msgraphtool/     # Microsoft Graph tool source
-│   ├── smtptool/        # SMTP tool source
-│   ├── imaptool/        # IMAP tool source
-│   ├── pop3tool/        # POP3 tool source
-│   └── jmaptool/        # JMAP tool source
+│   ├── gomailtest/               # Unified CLI entry point (primary)
+│   ├── smtptool/                 # Backward-compat shim (v3.1: removed)
+│   ├── imaptool/                 # Backward-compat shim (v3.1: removed)
+│   ├── pop3tool/                 # Backward-compat shim (v3.1: removed)
+│   ├── jmaptool/                 # Backward-compat shim (v3.1: removed)
+│   └── msgraphtool/              # Backward-compat shim (v3.1: removed)
 ├── internal/
-│   ├── common/          # Shared packages (logger, retry, version, validation)
-│   ├── msgraph/         # Graph-specific code
-│   └── smtp/            # SMTP-specific code (protocol, TLS, Exchange)
-├── build-all.ps1        # Build script for all tools
-└── go.mod               # Root module
+│   ├── common/                   # Shared packages (bootstrap, logger, version, validation)
+│   ├── protocols/                # Protocol implementations (Cobra commands + logic)
+│   │   ├── imap/
+│   │   ├── jmap/
+│   │   ├── msgraph/
+│   │   ├── pop3/
+│   │   └── smtp/
+│   ├── imap/protocol/            # IMAP wire protocol
+│   ├── jmap/protocol/            # JMAP types and session parsing
+│   ├── pop3/protocol/            # POP3 wire protocol
+│   └── smtp/                     # SMTP protocol, TLS, Exchange detection
+├── docs/protocols/               # Per-protocol documentation
+├── build-all.ps1                 # Build script for all binaries
+└── go.mod
 ```
 
 ## Verification
 
-After building, verify the executables:
-
 ```powershell
-# Check versions
-.\bin\msgraphtool.exe -version
-.\bin\smtptool.exe -version
+# Check version
+.\bin\gomailtest.exe --version
 
-# All tools should display the same version from internal/common/version/version.go
+# Show available protocols
+.\bin\gomailtest.exe --help
 ```
 
-## Release Process
-
-> **Complete Guide:** See **[RELEASE.md](RELEASE.md)** for the full release and versioning policy.
-
-To create a new release:
+## Run Without Building
 
 ```powershell
-.\run-integration-tests.ps1
+# Run directly
+go run ./cmd/gomailtest smtp testconnect --host smtp.example.com --port 25
+
+go run ./cmd/gomailtest msgraph getinbox \
+    --tenantid "..." --clientid "..." --secret "..." --mailbox "user@example.com"
 ```
 
-This script:
-1. Runs integration tests
-2. Prompts for version bump
-3. Updates VERSION file and changelog
-4. Creates git tag
-5. Builds both tools
-
-## Troubleshooting
-
-### Common Issues
-
-**"go: command not found"**
-- Ensure Go is installed and in your PATH
-- Run `go version` to verify
-
-**"package X is not in GOROOT"**
-- Run `go mod download` from project root
-- Ensure you're using Go 1.24 or later
-
-**"Access Denied" on Windows**
-- Close any running instances of the tools
-- Build to a different filename temporarily
-
-**Build fails with import errors**
-- Ensure you're building from project root
-- Check that `internal/` packages exist
-- Run `go mod tidy` to clean up dependencies
-
-### Module Cache Issues
-
-If you encounter module resolution issues:
-
-```powershell
-# Clean module cache
-go clean -modcache
-
-# Re-download dependencies
-go mod download
-```
-
-## Development
-
-### Run Without Building
-
-```powershell
-# Microsoft Graph Tool
-cd cmd/msgraphtool
-go run . -action getinbox -tenantid "..." -clientid "..." -secret "..." -mailbox "user@example.com"
-
-# SMTP Tool
-cd cmd/smtptool
-go run . -action testconnect -host smtp.example.com -port 25
-```
-
-### Run Tests
+## Run Tests
 
 ```powershell
 # Run all tests
@@ -187,39 +128,51 @@ go test ./...
 # Run tests with coverage
 go test -cover ./...
 
-# Run tests in a specific package
+# Run tests for a specific protocol
+go test ./internal/protocols/smtp/
 go test ./internal/smtp/protocol/
 ```
 
-### Code Linting
+## Code Linting
 
 ```powershell
-# Install golangci-lint
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-
-# Run linter
 golangci-lint run
 ```
 
 ## Build Flags Explained
 
-- `-C <dir>`: Change to directory before building
-- `-o <file>`: Output executable name
-- `-ldflags="-s -w"`: Strip debug info and symbol table (reduces binary size by ~30%)
-- `-v`: Verbose build output
-- `-race`: Enable race detector (development only, increases binary size)
+| Flag | Description |
+|------|-------------|
+| `-o <file>` | Output executable name |
+| `-ldflags="-s -w"` | Strip debug info and symbol table (~30% smaller binary) |
+| `-v` | Verbose build output |
+| `-race` | Enable race detector (development only) |
 
-## Binary Sizes
+## Troubleshooting
 
-Typical optimized build sizes (Windows):
-- **msgraphtool.exe**: ~15-20 MB (includes Graph SDK)
-- **smtptool.exe**: ~8-10 MB (stdlib only, no external dependencies)
+**"go: command not found"**
+- Ensure Go is installed and in your PATH (`go version` to verify)
+
+**"package X is not in GOROOT"**
+- Run `go mod download` from project root
+- Ensure Go 1.24 or later
+
+**"Access Denied" on Windows**
+- Close any running instances of the tool
+- Build to a different output path temporarily
+
+**Module cache issues:**
+```powershell
+go clean -modcache
+go mod download
+```
 
 ## Additional Resources
 
-- **Usage Examples**: See [EXAMPLES.md](EXAMPLES.md) for Graph tool examples
-- **SMTP Tool Guide**: See [SMTP_TOOL_README.md](SMTP_TOOL_README.md) for SMTP tool documentation
-- **Security**: See [SECURITY.md](SECURITY.md) for security best practices
-- **Project Overview**: See [AGENTS.md](AGENTS.md) for complete project documentation
+- [README.md](README.md) — Overview and quick start
+- [docs/protocols/](docs/protocols/) — Per-protocol documentation
+- [SECURITY.md](SECURITY.md) — Security best practices
+- [RELEASE.md](RELEASE.md) — Release and versioning policy
 
                           ..ooOO END OOoo..

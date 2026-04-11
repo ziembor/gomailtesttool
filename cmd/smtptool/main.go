@@ -1,51 +1,114 @@
+// Package main is a backward-compatibility shim for smtptool.
+// It translates the old -action=X flag style to the new Cobra subcommand style
+// and delegates to the gomailtest binary.
+//
+// Old: smtptool -action=testconnect -host=smtp.example.com -port=587 ...
+// New: gomailtest smtp testconnect --host=smtp.example.com --port=587 ...
+//
+// This shim will be removed in v3.1 once users have migrated to gomailtest.
 package main
 
 import (
 	"fmt"
 	"os"
-
-	"msgraphtool/internal/common/bootstrap"
-	"msgraphtool/internal/common/logger"
-	"msgraphtool/internal/common/version"
+	"os/exec"
+	"path/filepath"
+	"strings"
 )
 
 func main() {
-	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	newArgs := translateArgs(os.Args[1:])
+
+	gomailtest, err := findGomailtest()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error: gomailtest binary not found in the same directory or PATH.")
+		fmt.Fprintln(os.Stderr, "Install gomailtest alongside smtptool, or add it to your PATH.")
+		os.Exit(1)
+	}
+
+	cmd := exec.Command(gomailtest, newArgs...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			os.Exit(exitErr.ExitCode())
+		}
 		os.Exit(1)
 	}
 }
 
-func run() error {
-	ctx, cancel := bootstrap.SetupSignalContext()
-	defer cancel()
-
-	config := parseAndConfigureFlags()
-
-	if config.ShowVersion {
-		fmt.Printf("SMTP Connectivity Testing Tool - Version %s\n", version.Get())
-		fmt.Println("Part of msgraphtool suite")
-		fmt.Println("Repository: https://github.com/ziembor/gomailtesttool")
-		return nil
+// findGomailtest locates the gomailtest binary.
+// It checks the same directory as this binary first, then falls back to PATH.
+func findGomailtest() (string, error) {
+	exePath, err := os.Executable()
+	if err == nil {
+		candidate := filepath.Join(filepath.Dir(exePath), "gomailtest")
+		if _, statErr := os.Stat(candidate); statErr == nil {
+			return candidate, nil
+		}
+		// On Windows the binary has .exe extension
+		candidateExe := candidate + ".exe"
+		if _, statErr := os.Stat(candidateExe); statErr == nil {
+			return candidateExe, nil
+		}
 	}
 
-	if err := validateConfiguration(config); err != nil {
-		return fmt.Errorf("configuration error: %w", err)
+	return exec.LookPath("gomailtest")
+}
+
+// translateArgs converts old smtptool flag-style arguments to the new Cobra
+// subcommand style expected by gomailtest.
+//
+// Transformation:
+//   - Extracts the action from -action=X or -action X (default: testconnect)
+//   - Prepends ["smtp", actionName] to the remaining flags
+//   - Converts single-dash long flags to double-dash (e.g. -host → --host)
+//   - Drops -version flag (handled by gomailtest natively)
+func translateArgs(args []string) []string {
+	action := "testconnect" // default
+	var rest []string
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+
+		// Extract action
+		if strings.HasPrefix(arg, "-action=") {
+			action = strings.TrimPrefix(arg, "-action=")
+			continue
+		}
+		if arg == "-action" && i+1 < len(args) {
+			action = args[i+1]
+			i++
+			continue
+		}
+
+		// Drop -version flag (gomailtest has --version natively)
+		if arg == "-version" || arg == "--version" {
+			rest = append(rest, "--version")
+			continue
+		}
+
+		// Convert single-dash long flags to double-dash
+		// Single-char short flags (-v) stay as-is; multi-char long flags get double-dash
+		if strings.HasPrefix(arg, "-") && !strings.HasPrefix(arg, "--") {
+			// Split on = to handle -flag=value style
+			eqIdx := strings.Index(arg, "=")
+			flagPart := arg
+			valuePart := ""
+			if eqIdx > 0 {
+				flagPart = arg[:eqIdx]
+				valuePart = arg[eqIdx:] // includes the "="
+			}
+
+			// Multi-character flag name gets double-dash
+			flagName := strings.TrimPrefix(flagPart, "-")
+			if len(flagName) > 1 {
+				arg = "--" + flagName + valuePart
+			}
+		}
+
+		rest = append(rest, arg)
 	}
-
-	slogLogger, csvLogger, err := bootstrap.InitLoggers("smtptool", config.Action, config.VerboseMode, config.LogLevel, config.LogFormat)
-	if err != nil {
-		return err
-	}
-	defer csvLogger.Close()
-
-	logger.LogInfo(slogLogger, "SMTP Connectivity Testing Tool started", "action", config.Action, "host", config.Host, "port", config.Port)
-
-	if err := executeAction(ctx, config, csvLogger, slogLogger); err != nil {
-		logger.LogError(slogLogger, "Action failed", "error", err)
-		return err
-	}
-
-	logger.LogInfo(slogLogger, "Action completed successfully")
-	return nil
+	return append([]string{"smtp", action}, rest...)
 }

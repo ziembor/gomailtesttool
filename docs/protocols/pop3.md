@@ -1,0 +1,137 @@
+# POP3 Protocol — gomailtest
+
+POP3 server connectivity, TLS configuration, authentication, and message listing.
+
+> **Legacy name:** `pop3tool`. The `pop3tool` binary still works as a backward-compatibility shim. It will be removed in v3.1.
+
+## Quick Start
+
+```powershell
+# Test basic connectivity
+gomailtest pop3 testconnect --host pop.example.com --port 995 --pop3s
+
+# Test authentication
+gomailtest pop3 testauth --host pop.example.com --port 995 --pop3s \
+    --username user@example.com --password "yourpassword"
+
+# List messages
+gomailtest pop3 listmail --host pop.example.com --port 995 --pop3s \
+    --username user@example.com --password "yourpassword"
+```
+
+## Actions
+
+### testconnect — Basic Connectivity
+
+Tests TCP connection, reads server greeting, and retrieves POP3 capabilities via CAPA.
+
+```powershell
+# POP3S (port 995, implicit TLS)
+gomailtest pop3 testconnect --host pop.gmail.com --port 995 --pop3s
+
+# POP3 with STLS (port 110, explicit TLS)
+gomailtest pop3 testconnect --host pop.example.com --port 110 --starttls
+```
+
+### testauth — Authentication Testing
+
+Connects, establishes TLS, and authenticates. Supports USER/PASS, APOP, XOAUTH2.
+
+```powershell
+# Password authentication (USER/PASS)
+gomailtest pop3 testauth --host pop.example.com --port 995 --pop3s \
+    --username user@example.com --password "yourpassword"
+
+# OAuth2 token
+gomailtest pop3 testauth --host pop.gmail.com --port 995 --pop3s \
+    --username user@gmail.com --accesstoken "ya29.xxx..."
+
+# Specify auth method
+gomailtest pop3 testauth --host pop.example.com --port 995 --pop3s \
+    --username user@example.com --password "secret" --authmethod USER
+```
+
+### listmail — List Messages
+
+Authenticates and lists messages using STAT, LIST, and UIDL commands.
+
+```powershell
+# List messages (default max 100)
+gomailtest pop3 listmail --host pop.example.com --port 995 --pop3s \
+    --username user@example.com --password "yourpassword"
+
+# Limit to 50 messages
+gomailtest pop3 listmail --host pop.example.com --port 995 --pop3s \
+    --username user@example.com --password "yourpassword" --maxmessages 50
+```
+
+## Flags
+
+### Persistent (all subcommands)
+
+| Flag | Description | Environment Variable | Default |
+|------|-------------|---------------------|---------|
+| `--host` | POP3 server hostname | `POP3HOST` | — |
+| `--port` | POP3 server port | `POP3PORT` | 110 |
+| `--timeout` | Connection timeout (seconds) | `POP3TIMEOUT` | 30 |
+| `--username` | Username for authentication | `POP3USERNAME` | — |
+| `--password` | Password for authentication | `POP3PASSWORD` | — |
+| `--accesstoken` | OAuth2 access token for XOAUTH2 | `POP3ACCESSTOKEN` | — |
+| `--authmethod` | Auth method: auto, USER, APOP, XOAUTH2 | `POP3AUTHMETHOD` | auto |
+| `--pop3s` | Use POP3S (implicit TLS on port 995) | `POP3POP3S` | false |
+| `--starttls` | Force STLS upgrade | `POP3STARTTLS` | false |
+| `--skipverify` | Skip TLS certificate verification | `POP3SKIPVERIFY` | false |
+| `--tlsversion` | TLS version: 1.2, 1.3 | `POP3TLSVERSION` | 1.2 |
+| `--address` | Override connection address (uses --host for SNI) | `POP3ADDRESS` | — |
+| `--proxy` | HTTP/HTTPS proxy URL | `POP3PROXY` | — |
+| `--maxretries` | Maximum retry attempts | `POP3MAXRETRIES` | 3 |
+| `--retrydelay` | Retry delay (milliseconds) | `POP3RETRYDELAY` | 2000 |
+| `--ratelimit` | Max requests per second (0 = unlimited) | `POP3RATELIMIT` | 0 |
+| `--verbose` | Enable verbose output | — | false |
+| `--loglevel` | Log level: DEBUG, INFO, WARN, ERROR | — | INFO |
+| `--logformat` | Log file format: csv, json | `POP3LOGFORMAT` | csv |
+
+### listmail-only flags
+
+| Flag | Description | Environment Variable | Default |
+|------|-------------|---------------------|---------|
+| `--maxmessages` | Maximum messages to list | `POP3MAXMESSAGES` | 100 |
+
+## Environment Variables
+
+```powershell
+$env:POP3HOST = "pop.example.com"
+$env:POP3PORT = "995"
+$env:POP3POP3S = "true"
+$env:POP3USERNAME = "user@example.com"
+$env:POP3PASSWORD = "yourpassword"
+
+gomailtest pop3 testauth
+```
+
+## Common Ports
+
+| Port | Usage | TLS |
+|------|-------|-----|
+| 110 | POP3 (standard) | Optional STLS |
+| 995 | POP3S (implicit TLS) | Implicit TLS |
+
+## POP3S vs STLS
+
+| Method | Port | Flag | Description |
+|--------|------|------|-------------|
+| POP3S | 995 | `--pop3s` | Implicit TLS — encryption starts immediately |
+| STLS | 110 | `--starttls` | Explicit TLS — plain connection upgrades after STLS command |
+
+## CSV Logging
+
+Operations are logged to `%TEMP%\_pop3tool_{action}_{date}.csv`.
+
+## Related Documentation
+
+- [BUILD.md](../../BUILD.md) — Build instructions
+- [docs/protocols/imap.md](imap.md) — IMAP tool
+- [docs/protocols/smtp.md](smtp.md) — SMTP tool
+- [SECURITY.md](../../SECURITY.md) — Security policy
+
+                          ..ooOO END OOoo..
