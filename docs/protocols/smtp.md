@@ -2,7 +2,7 @@
 
 SMTP connectivity, TLS diagnostics, authentication, and email sending.
 
-> **Legacy name:** `smtptool`. The `smtptool` binary still works as a backward-compatibility shim — it translates the old flag style to the new command style and delegates to `gomailtest`. The shim will be removed in v3.1.
+> **Legacy name:** `smtptool`. The legacy binary was removed in v3.1. Use `gomailtest smtp <action> --flag` (see the migration table in README.md).
 
 ## Quick Start
 
