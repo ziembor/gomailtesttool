@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
-# Build script for all gomailtesttool binaries
-# Builds optimized binaries for all 5 tools with version embedding
+# Build script for gomailtesttool
+# Builds the unified gomailtest binary (optimized)
 
 param(
     [switch]$Verbose,
@@ -9,7 +9,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Colors for output
 function Write-ColorOutput {
     param(
         [string]$Message,
@@ -45,58 +44,37 @@ if ($versionContent -match 'const Version = "([^"]+)"') {
 }
 Write-ColorOutput "Version: $version`n" "Yellow"
 
-# Define tools to build
-$tools = @(
-    @{ Name = "msgraphtool"; Desc = "Microsoft Graph API tool" },
-    @{ Name = "smtptool"; Desc = "SMTP connectivity testing" },
-    @{ Name = "imaptool"; Desc = "IMAP server testing" },
-    @{ Name = "pop3tool"; Desc = "POP3 server testing" },
-    @{ Name = "jmaptool"; Desc = "JMAP protocol testing" }
-)
+# Build gomailtest
+Write-ColorOutput "Building gomailtest..." "Cyan"
 
-# Build each tool
-foreach ($tool in $tools) {
-    Write-ColorOutput "Building $($tool.Name)..." "Cyan"
-    Write-ColorOutput "  Location: cmd/$($tool.Name)" "Gray"
-    Write-ColorOutput "  Output:   $($tool.Name).exe`n" "Gray"
+$outputFile = Join-Path $binDir "gomailtest.exe"
 
-    try {
-        $buildDir = Join-Path $PSScriptRoot "cmd" $tool.Name
-        $outputFile = Join-Path $binDir "$($tool.Name).exe"
-
-        Push-Location $buildDir
-        if ($Verbose) {
-            go build -v -ldflags="-s -w" -o $outputFile
-        } else {
-            go build -ldflags="-s -w" -o $outputFile
-        }
-        Pop-Location
-
-        if ($LASTEXITCODE -eq 0) {
-            $size = (Get-Item $outputFile).Length / 1MB
-            Write-ColorOutput "  ✓ Build successful (Size: $($size.ToString('N2')) MB)" "Green"
-        } else {
-            throw "Build failed with exit code $LASTEXITCODE"
-        }
-    } catch {
-        Write-ColorOutput "  ✗ Build failed: $_" "Red"
-        exit 1
+try {
+    if ($Verbose) {
+        go build -v -ldflags="-s -w" -o $outputFile ./cmd/gomailtest
+    } else {
+        go build -ldflags="-s -w" -o $outputFile ./cmd/gomailtest
     }
+
+    if ($LASTEXITCODE -eq 0) {
+        $size = (Get-Item $outputFile).Length / 1MB
+        Write-ColorOutput "  ✓ Build successful (Size: $($size.ToString('N2')) MB)" "Green"
+    } else {
+        throw "Build failed with exit code $LASTEXITCODE"
+    }
+} catch {
+    Write-ColorOutput "  ✗ Build failed: $_" "Red"
+    exit 1
 }
 
-# Run tests (optional)
+# Run version check (optional)
 if (-not $SkipTests) {
-    Write-ColorOutput "`nRunning version tests..." "Cyan"
-
-    foreach ($tool in $tools) {
-        Write-ColorOutput "  Testing $($tool.Name) version..." "Gray"
-        $exe = Join-Path $binDir "$($tool.Name).exe"
-        $toolVersion = & $exe -version 2>&1
-        if ($toolVersion -match $version) {
-            Write-ColorOutput "    ✓ Version correct: $version" "Green"
-        } else {
-            Write-ColorOutput "    ⚠ Version mismatch (expected: $version)" "Yellow"
-        }
+    Write-ColorOutput "`nVerifying version..." "Cyan"
+    $toolVersion = & $outputFile --version 2>&1
+    if ($toolVersion -match $version) {
+        Write-ColorOutput "  ✓ Version correct: $version" "Green"
+    } else {
+        Write-ColorOutput "  ⚠ Version mismatch (expected: $version, got: $toolVersion)" "Yellow"
     }
 }
 
@@ -105,16 +83,14 @@ Write-ColorOutput "`n═══════════════════�
 Write-ColorOutput "  Build Complete!" "Green"
 Write-ColorOutput "═══════════════════════════════════════════════════════════" "Cyan"
 
-Write-ColorOutput "`nBuilt executables in bin/:" "White"
-foreach ($tool in $tools) {
-    Write-ColorOutput "  • bin\$($tool.Name).exe - $($tool.Desc)" "White"
-}
+Write-ColorOutput "`nBuilt executable: bin\gomailtest.exe" "White"
 
 Write-ColorOutput "`nUsage examples:" "Yellow"
-Write-ColorOutput "  .\bin\msgraphtool.exe -version" "Gray"
-Write-ColorOutput "  .\bin\smtptool.exe -action testconnect -host smtp.example.com -port 25" "Gray"
-Write-ColorOutput "  .\bin\imaptool.exe -action testconnect -host imap.gmail.com -imaps" "Gray"
-Write-ColorOutput "  .\bin\pop3tool.exe -action testconnect -host pop.gmail.com -pop3s" "Gray"
-Write-ColorOutput "  .\bin\jmaptool.exe -action testconnect -host jmap.fastmail.com`n" "Gray"
+Write-ColorOutput "  .\bin\gomailtest.exe --version" "Gray"
+Write-ColorOutput "  .\bin\gomailtest.exe smtp testconnect --host smtp.example.com --port 25" "Gray"
+Write-ColorOutput "  .\bin\gomailtest.exe imap testconnect --host imap.gmail.com --imaps" "Gray"
+Write-ColorOutput "  .\bin\gomailtest.exe pop3 testconnect --host pop.gmail.com --pop3s" "Gray"
+Write-ColorOutput "  .\bin\gomailtest.exe jmap testconnect --host jmap.fastmail.com" "Gray"
+Write-ColorOutput "  .\bin\gomailtest.exe msgraph getevents`n" "Gray"
 
-Write-ColorOutput "For more information, see BUILD.md and tool-specific READMEs`n" "Cyan"
+Write-ColorOutput "For more information, see README.md and docs/protocols/`n" "Cyan"

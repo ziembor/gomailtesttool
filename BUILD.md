@@ -12,13 +12,7 @@
 .\build-all.ps1
 ```
 
-This creates executables in the `bin/` directory:
-- `bin/gomailtest.exe` — unified CLI (primary binary)
-- `bin/smtptool.exe` — backward-compatibility shim
-- `bin/imaptool.exe` — backward-compatibility shim
-- `bin/pop3tool.exe` — backward-compatibility shim
-- `bin/jmaptool.exe` — backward-compatibility shim
-- `bin/msgraphtool.exe` — backward-compatibility shim
+This creates `bin/gomailtest.exe`.
 
 ## Primary Binary
 
@@ -32,17 +26,9 @@ go build -o bin/gomailtest.exe ./cmd/gomailtest
 go build -ldflags="-s -w" -o bin/gomailtest.exe ./cmd/gomailtest
 ```
 
-## Individual Shim Builds
+## Note on Legacy Binaries
 
-Legacy shim binaries for backward compatibility (removed in v3.1):
-
-```powershell
-go build -ldflags="-s -w" -o bin/smtptool.exe   ./cmd/smtptool
-go build -ldflags="-s -w" -o bin/imaptool.exe   ./cmd/imaptool
-go build -ldflags="-s -w" -o bin/pop3tool.exe   ./cmd/pop3tool
-go build -ldflags="-s -w" -o bin/jmaptool.exe   ./cmd/jmaptool
-go build -ldflags="-s -w" -o bin/msgraphtool.exe ./cmd/msgraphtool
-```
+The individual shim binaries (`smtptool`, `imaptool`, `pop3tool`, `jmaptool`, `msgraphtool`) that existed in v3.0.x have been removed in v3.1.0. Use `gomailtest <protocol> <action>` instead.
 
 ## Cross-Platform Builds
 
@@ -76,12 +62,7 @@ Remove-Item Env:\GOOS; Remove-Item Env:\GOARCH
 gomailtesttool/
 ├── bin/                          # Build output directory
 ├── cmd/
-│   ├── gomailtest/               # Unified CLI entry point (primary)
-│   ├── smtptool/                 # Backward-compat shim (v3.1: removed)
-│   ├── imaptool/                 # Backward-compat shim (v3.1: removed)
-│   ├── pop3tool/                 # Backward-compat shim (v3.1: removed)
-│   ├── jmaptool/                 # Backward-compat shim (v3.1: removed)
-│   └── msgraphtool/              # Backward-compat shim (v3.1: removed)
+│   └── gomailtest/               # Unified CLI entry point
 ├── internal/
 │   ├── common/                   # Shared packages (bootstrap, logger, version, validation)
 │   ├── protocols/                # Protocol implementations (Cobra commands + logic)

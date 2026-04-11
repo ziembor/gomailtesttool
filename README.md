@@ -127,9 +127,17 @@ Each protocol uses a dedicated prefix:
 | JMAP | `JMAP` | `JMAPHOST`, `JMAPPORT`, `JMAPACCESSTOKEN` |
 | msgraph | `MSGRAPH` | `MSGRAPHTENANTID`, `MSGRAPHSECRET` |
 
-## Legacy Binary Names
+## Migrating from Legacy Binary Names
 
-The individual tool binaries (`smtptool`, `imaptool`, `pop3tool`, `jmaptool`, `msgraphtool`) still work as backward-compatibility shims — they translate the old flag style (`-action X -host Y`) to the new Cobra style and delegate to `gomailtest`. They will be removed in v3.1.
+The individual tool binaries (`smtptool`, `imaptool`, `pop3tool`, `jmaptool`, `msgraphtool`) were removed in v3.1.0. Replace them with `gomailtest <protocol> <action> --flag`:
+
+| Old | New |
+|-----|-----|
+| `smtptool -action testconnect -host X` | `gomailtest smtp testconnect --host X` |
+| `imaptool -action testauth -host X -imaps` | `gomailtest imap testauth --host X --imaps` |
+| `pop3tool -action listmail -host X -pop3s` | `gomailtest pop3 listmail --host X --pop3s` |
+| `jmaptool -action getmailboxes -host X` | `gomailtest jmap getmailboxes --host X` |
+| `msgraphtool -action getevents` | `gomailtest msgraph getevents` |
 
 ## Documentation
 
