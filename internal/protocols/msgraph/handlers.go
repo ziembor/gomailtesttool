@@ -1,4 +1,4 @@
-package main
+package msgraph
 
 import (
 	"context"
@@ -17,60 +17,11 @@ import (
 	"msgraphtool/internal/common/logger"
 )
 
-// executeAction dispatches to the appropriate action handler based on config.Action.
-// Supported actions are: getevents, sendmail, sendinvite, and getinbox.
-//
-// For sendmail action, if no recipients are specified, the email is sent to the
-// mailbox owner (self). All actions log their operations to the provided CSV logger.
-//
-// Returns an error if the action fails or if the action name is unknown.
-func executeAction(ctx context.Context, client *msgraphsdk.GraphServiceClient, config *Config, logger logger.Logger) error {
-	switch config.Action {
-	case ActionGetEvents:
-		if err := listEvents(ctx, client, config.Mailbox, config.Count, config, logger); err != nil {
-			return fmt.Errorf("failed to list events: %w", err)
-		}
-	case ActionSendMail:
-		// If no recipients specified at all, default 'to' to the sender mailbox
-		if len(config.To) == 0 && len(config.Cc) == 0 && len(config.Bcc) == 0 {
-			config.To = []string{config.Mailbox}
-		}
-
-		sendEmail(ctx, client, config.Mailbox, config.To, config.Cc, config.Bcc, config.Subject, config.Body, config.BodyHTML, config.AttachmentFiles, config, logger)
-	case ActionSendInvite:
-		// Use Subject for calendar invite
-		// For backward compatibility, if InviteSubject is set, use it instead
-		inviteSubject := config.Subject
-		if config.InviteSubject != "" {
-			inviteSubject = config.InviteSubject
-		}
-		// If using default email subject, change to default calendar invite subject
-		if inviteSubject == "Automated Tool Notification" {
-			inviteSubject = "It's testing event"
-		}
-		createInvite(ctx, client, config.Mailbox, inviteSubject, config.StartTime, config.EndTime, config, logger)
-	case ActionGetInbox:
-		if err := listInbox(ctx, client, config.Mailbox, config.Count, config, logger); err != nil {
-			return fmt.Errorf("failed to list inbox: %w", err)
-		}
-	case ActionGetSchedule:
-		if err := checkAvailability(ctx, client, config.Mailbox, config.To[0], config, logger); err != nil {
-			return fmt.Errorf("failed to check availability: %w", err)
-		}
-	case ActionExportInbox:
-		if err := exportInbox(ctx, client, config.Mailbox, config.Count, config, logger); err != nil {
-			return fmt.Errorf("failed to export inbox: %w", err)
-		}
-	case ActionSearchAndExport:
-		if err := searchAndExport(ctx, client, config.Mailbox, config.MessageID, config, logger); err != nil {
-			return fmt.Errorf("failed to search and export: %w", err)
-		}
-	default:
-		return fmt.Errorf("unknown action: %s", config.Action)
-	}
-
-	return nil
-}
+// Status constants
+const (
+	StatusSuccess = "Success"
+	StatusError   = "Error"
+)
 
 func listEvents(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox string, count int, config *Config, logger logger.Logger) error {
 	// Configure request to get top N events
@@ -586,7 +537,7 @@ func exportInbox(ctx context.Context, client *msgraphsdk.GraphServiceClient, mai
 	messageCount := len(messages)
 
 	logVerbose(config.VerboseMode, "API response received: %d messages", messageCount)
-	
+
 	if config.OutputFormat != "json" {
 		fmt.Printf("Exporting %d messages from inbox for %s...\n", messageCount, mailbox)
 	}
@@ -613,7 +564,7 @@ func exportInbox(ctx context.Context, client *msgraphsdk.GraphServiceClient, mai
 	if err != nil {
 		return err
 	}
-	
+
 	if config.OutputFormat != "json" {
 		fmt.Printf("Export directory: %s\n", exportDir)
 	}
@@ -696,7 +647,7 @@ func searchAndExport(ctx context.Context, client *msgraphsdk.GraphServiceClient,
 	if err != nil {
 		return err
 	}
-	
+
 	if config.OutputFormat != "json" {
 		fmt.Printf("Export directory: %s\n", exportDir)
 	}
@@ -726,15 +677,21 @@ func exportMessageToJSON(message models.Messageable, dir string, config *Config)
 	}
 
 	// Create a simplified structure for export to ensure clean JSON
-	// We could use the model directly but it might be verbose or have circular refs depending on serialization
-	// Extracting fields explicitly gives us control.
 	exportData := make(map[string]interface{})
-	
-	if message.GetId() != nil { exportData["id"] = *message.GetId() }
-	if message.GetInternetMessageId() != nil { exportData["internetMessageId"] = *message.GetInternetMessageId() }
-	if message.GetSubject() != nil { exportData["subject"] = *message.GetSubject() }
-	if message.GetReceivedDateTime() != nil { exportData["receivedDateTime"] = message.GetReceivedDateTime().Format(time.RFC3339) }
-	
+
+	if message.GetId() != nil {
+		exportData["id"] = *message.GetId()
+	}
+	if message.GetInternetMessageId() != nil {
+		exportData["internetMessageId"] = *message.GetInternetMessageId()
+	}
+	if message.GetSubject() != nil {
+		exportData["subject"] = *message.GetSubject()
+	}
+	if message.GetReceivedDateTime() != nil {
+		exportData["receivedDateTime"] = message.GetReceivedDateTime().Format(time.RFC3339)
+	}
+
 	// From
 	if message.GetFrom() != nil && message.GetFrom().GetEmailAddress() != nil {
 		exportData["from"] = extractEmailAddress(message.GetFrom().GetEmailAddress())
@@ -796,8 +753,12 @@ func createExportDir() (string, error) {
 // extractEmailAddress helper
 func extractEmailAddress(addr models.EmailAddressable) map[string]string {
 	res := make(map[string]string)
-	if addr.GetName() != nil { res["name"] = *addr.GetName() }
-	if addr.GetAddress() != nil { res["address"] = *addr.GetAddress() }
+	if addr.GetName() != nil {
+		res["name"] = *addr.GetName()
+	}
+	if addr.GetAddress() != nil {
+		res["address"] = *addr.GetAddress()
+	}
 	return res
 }
 
@@ -946,12 +907,6 @@ func addWorkingDays(t time.Time, days int) time.Time {
 
 	return result
 }
-
-// Status constants
-const (
-	StatusSuccess = "Success"
-	StatusError   = "Error"
-)
 
 // Output helper functions
 

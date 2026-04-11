@@ -1,6 +1,6 @@
 //go:build windows
 
-package main
+package msgraph
 
 import (
 	"crypto/rand"
@@ -25,16 +25,16 @@ var (
 const (
 	X509_ASN_ENCODING   = 0x00000001
 	PKCS_7_ASN_ENCODING = 0x00010000
-	
+
 	CERT_FIND_SHA1_HASH = 1 << 16 // 65536
-	
+
 	CERT_STORE_PROV_MEMORY = 2
-	
+
 	CERT_STORE_ADD_ALWAYS = 4
-	
-	EXPORT_PRIVATE_KEYS                     = 0x0004
-	REPORT_NO_PRIVATE_KEY                   = 0x0008
-	REPORT_NOT_ABLE_TO_EXPORT_PRIVATE_KEY   = 0x0010
+
+	EXPORT_PRIVATE_KEYS                   = 0x0004
+	REPORT_NO_PRIVATE_KEY                 = 0x0008
+	REPORT_NOT_ABLE_TO_EXPORT_PRIVATE_KEY = 0x0010
 )
 
 type CryptoApiBlob struct {
