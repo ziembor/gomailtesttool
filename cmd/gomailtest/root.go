@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"msgraphtool/internal/common/bootstrap"
+	"msgraphtool/internal/common/version"
 	"msgraphtool/internal/protocols/imap"
 	"msgraphtool/internal/protocols/jmap"
 	"msgraphtool/internal/protocols/msgraph"
@@ -11,11 +12,12 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "gomailtest",
-	Short: "Email and calendar protocol testing tool",
+	Use:     "gomailtest",
+	Version: version.Get(),
+	Short:   "Email and calendar protocol testing tool",
 	Long: `gomailtest is a unified CLI for testing email and calendar protocols.
 
-It supports Microsoft Graph API (Exchange Online) and SMTP with more protocols coming in 3.0.
+Supports SMTP, IMAP, POP3, JMAP, and Microsoft Graph (Exchange Online).
 
 Run 'gomailtest <protocol> --help' for protocol-specific usage.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
