@@ -223,18 +223,6 @@ func ConfigFromViper(v *viper.Viper) *Config {
 	}
 }
 
-// parseBoolEnv parses a boolean environment variable value.
-// Accepts truthy values: "true", "1", "yes", "on" (case-insensitive).
-// Returns false for empty string or any other value.
-func parseBoolEnv(value string) bool {
-	switch strings.ToLower(value) {
-	case "true", "1", "yes", "on":
-		return true
-	default:
-		return false
-	}
-}
-
 // validateConfiguration validates the configuration.
 func validateConfiguration(config *Config) error {
 	// Validate action
