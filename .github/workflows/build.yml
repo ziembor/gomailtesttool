@@ -58,6 +58,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         include:
@@ -120,7 +121,7 @@ jobs:
     - name: Create ZIP archive (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        Compress-Archive -Path bin\gomailtest${{ matrix.ext }},README.md,IMAPTOOL_README.md,JMAPTOOL_README.md,MSGRAPHTOOL_README.md,POP3TOOL_README.md,SMTP_TOOL_README.md,EXAMPLES.md,LICENSE -DestinationPath ${{ matrix.zip_name }}
+        Compress-Archive -Path bin\gomailtest${{ matrix.ext }},README.md,TOOLS.md,EXAMPLES.md,LICENSE -DestinationPath ${{ matrix.zip_name }}
         Write-Host "Created ZIP archive: ${{ matrix.zip_name }}"
         Get-Item ${{ matrix.zip_name }} | Select-Object Name, Length
 
@@ -128,7 +129,7 @@ jobs:
       if: matrix.os != 'windows-latest'
       run: |
         cd bin && zip ../${{ matrix.zip_name }} gomailtest${{ matrix.ext }} && cd ..
-        zip -u ${{ matrix.zip_name }} README.md IMAPTOOL_README.md JMAPTOOL_README.md MSGRAPHTOOL_README.md POP3TOOL_README.md SMTP_TOOL_README.md EXAMPLES.md LICENSE
+        zip -u ${{ matrix.zip_name }} README.md TOOLS.md EXAMPLES.md LICENSE
         echo "Created ZIP archive: ${{ matrix.zip_name }}"
         ls -lh ${{ matrix.zip_name }}
 
@@ -154,7 +155,7 @@ jobs:
 
           Plus documentation:
           - **README.md** - Main documentation
-          - ** *_TOOL_README.md** - specific protocols tool guide
+          - **TOOLS.md** - Protocol-specific tool guides
           - **EXAMPLES.md** - Usage examples
           - **LICENSE** - MIT License
 
