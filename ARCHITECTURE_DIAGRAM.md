@@ -2,751 +2,449 @@
 
 ## Overview
 
-**gomailtesttool** is a comprehensive email infrastructure testing suite with 5 specialized CLI tools:
-- **msgraphtool** - Microsoft Graph API (Exchange Online)
-- **smtptool** - SMTP connectivity and TLS diagnostics
-- **imaptool** - IMAP server testing with OAuth2
-- **pop3tool** - POP3 server testing with OAuth2
-- **jmaptool** - JMAP protocol testing
+**gomailtesttool** is a unified CLI (`gomailtest`) for email infrastructure testing, with 5 protocol subcommands plus developer tooling:
+- **smtp** - SMTP connectivity and TLS diagnostics
+- **imap** - IMAP server testing with OAuth2
+- **pop3** - POP3 server testing with OAuth2
+- **jmap** - JMAP protocol testing
+- **msgraph** - Microsoft Graph API (Exchange Online)
+- **devtools** - Release automation and environment management
 
 ## File Structure and Dependencies
 
-```bash
+```
 gomailtesttool/
-├── cmd/                              # Command-line tools (each builds to binary)
-│   ├── msgraphtool/                  # Microsoft Graph tool
-│   │   ├── main.go                   # Entry point
-│   │   ├── config.go                 # Configuration
-│   │   ├── auth.go                   # Authentication
-│   │   ├── handlers.go               # Action handlers
-│   │   ├── utils.go                  # Utilities
-│   │   ├── cert_windows.go           # Windows cert store (build: windows)
-│   │   └── cert_stub.go              # Cross-platform stub (build: !windows)
-│   │
-│   ├── smtptool/                     # SMTP testing tool
-│   │   ├── main.go
-│   │   ├── config.go
-│   │   ├── handlers.go
-│   │   ├── smtp_client.go            # SMTP client logic
-│   │   ├── testconnect.go            # Connectivity tests
-│   │   ├── teststarttls.go           # TLS diagnostics
-│   │   ├── testauth.go               # Auth mechanism tests
-│   │   ├── sendmail.go               # Email sending
-│   │   └── *_test.go                 # Unit tests
-│   │
-│   ├── imaptool/                     # IMAP testing tool
-│   │   ├── main.go
-│   │   ├── config.go
-│   │   ├── handlers.go
-│   │   ├── imap_client.go            # IMAP client logic
-│   │   ├── listfolders.go            # Folder operations
-│   │   ├── testconnect.go            # Connectivity tests
-│   │   ├── testauth.go               # Auth tests
-│   │   └── *_test.go
-│   │
-│   ├── pop3tool/                     # POP3 testing tool
-│   │   ├── main.go
-│   │   ├── config.go
-│   │   ├── handlers.go
-│   │   ├── pop3_client.go            # POP3 client logic
-│   │   ├── listmail.go               # Message retrieval
-│   │   ├── testconnect.go
-│   │   └── testauth.go
-│   │
-│   └── jmaptool/                     # JMAP testing tool
-│       ├── main.go
-│       ├── config.go
-│       ├── handlers.go
-│       ├── jmap_client.go            # JMAP client logic
-│       ├── getmailboxes.go           # Mailbox operations
-│       ├── testconnect.go
-│       ├── testauth.go
-│       └── *_test.go
+├── cmd/
+│   └── gomailtest/                   # Single binary entry point
+│       ├── main.go                   # main() → Execute()
+│       └── root.go                   # Cobra root command, registers subcommands
 │
-├── internal/                         # Shared internal packages
-│   ├── common/                       # Cross-tool utilities
-│   │   ├── logger/                   # CSV/JSON logging
+├── internal/
+│   ├── common/                       # Cross-protocol utilities
+│   │   ├── bootstrap/
+│   │   │   └── bootstrap.go          # Signal context setup
+│   │   ├── logger/                   # Structured logging
 │   │   │   ├── csv.go
-│   │   │   └── json_test.go
-│   │   ├── ratelimit/                # Rate limiting
+│   │   │   ├── json.go
+│   │   │   ├── json_test.go
+│   │   │   ├── logger.go
+│   │   │   └── slog.go               # slog-based structured logger
+│   │   ├── ratelimit/
+│   │   │   ├── ratelimit.go
 │   │   │   └── ratelimit_test.go
-│   │   ├── retry/                    # Retry logic
-│   │   ├── security/                 # Security utilities
+│   │   ├── retry/
+│   │   │   └── retry.go              # Exponential backoff
+│   │   ├── security/
+│   │   │   ├── masking.go
 │   │   │   └── masking_test.go
-│   │   ├── validation/               # Input validation
-│   │   │   ├── proxy_test.go
-│   │   │   └── validation_test.go
-│   │   └── version/                  # Version management
+│   │   ├── validation/
+│   │   │   ├── validation.go
+│   │   │   ├── validation_test.go
+│   │   │   └── proxy_test.go
+│   │   └── version/
+│   │       └── version.go            # Single source of truth for version
 │   │
-│   ├── smtp/                         # SMTP-specific packages
-│   │   ├── protocol/                 # SMTP protocol logic
-│   │   │   ├── commands_test.go
-│   │   │   └── responses_test.go
-│   │   ├── exchange/                 # Exchange detection
-│   │   └── tls/                      # TLS diagnostics
+│   ├── devtools/                     # Developer-facing subcommand
+│   │   ├── cmd.go                    # 'gomailtest devtools' root
+│   │   ├── env/
+│   │   │   ├── env.go                # MSGRAPH* env var management
+│   │   │   └── env_cmd.go
+│   │   └── release/
+│   │       ├── release.go            # Release orchestration
+│   │       ├── release_cmd.go
+│   │       ├── version.go            # Version bump logic
+│   │       ├── changelog.go          # ChangeLog/{version}.md creation
+│   │       ├── git.go                # git commit/tag/push
+│   │       ├── gh.go                 # GitHub PR/release via gh CLI
+│   │       ├── security_scan.go      # Pre-release secret scanning
+│   │       ├── editor.go             # Interactive editor prompts
+│   │       └── prompt.go             # User prompts
 │   │
-│   ├── imap/                         # IMAP-specific packages
+│   ├── protocols/                    # Protocol implementations
+│   │   ├── smtp/
+│   │   │   ├── cmd.go                # Cobra subcommand wiring
+│   │   │   ├── config.go
+│   │   │   ├── config_test.go
+│   │   │   ├── smtp_client.go
+│   │   │   ├── smtp_client_test.go
+│   │   │   ├── testconnect.go
+│   │   │   ├── teststarttls.go
+│   │   │   ├── testauth.go
+│   │   │   ├── sendmail.go
+│   │   │   ├── sendmail_test.go
+│   │   │   ├── tls_display.go
+│   │   │   ├── utils.go
+│   │   │   └── utils_test.go
+│   │   │
+│   │   ├── imap/
+│   │   │   ├── cmd.go
+│   │   │   ├── config.go
+│   │   │   ├── imap_client.go
+│   │   │   ├── listfolders.go
+│   │   │   ├── testconnect.go
+│   │   │   ├── testauth.go
+│   │   │   └── utils.go
+│   │   │
+│   │   ├── pop3/
+│   │   │   ├── cmd.go
+│   │   │   ├── config.go
+│   │   │   ├── pop3_client.go
+│   │   │   ├── listmail.go
+│   │   │   ├── testconnect.go
+│   │   │   ├── testauth.go
+│   │   │   └── utils.go
+│   │   │
+│   │   ├── jmap/
+│   │   │   ├── cmd.go
+│   │   │   ├── config.go
+│   │   │   ├── config_test.go
+│   │   │   ├── jmap_client.go
+│   │   │   ├── getmailboxes.go
+│   │   │   ├── testconnect.go
+│   │   │   ├── testauth.go
+│   │   │   ├── utils.go
+│   │   │   └── utils_test.go
+│   │   │
+│   │   └── msgraph/
+│   │       ├── cmd.go
+│   │       ├── config.go
+│   │       ├── auth.go
+│   │       ├── handlers.go
+│   │       ├── utils.go
+│   │       ├── utils_test.go
+│   │       ├── cert_windows.go       # Windows cert store (build: windows)
+│   │       └── cert_stub.go          # Cross-platform stub (build: !windows)
+│   │
+│   ├── smtp/                         # SMTP protocol primitives
+│   │   ├── exchange/
+│   │   │   └── detection.go
 │   │   └── protocol/
-│   │       └── capabilities_test.go
+│   │       ├── capabilities.go
+│   │       ├── commands.go
+│   │       ├── commands_test.go
+│   │       ├── responses.go
+│   │       └── responses_test.go
 │   │
-│   ├── pop3/                         # POP3-specific packages
-│   │   └── protocol/
-│   │       ├── capabilities_test.go
-│   │       └── commands_test.go
+│   ├── imap/protocol/
+│   │   ├── capabilities.go
+│   │   └── capabilities_test.go
 │   │
-│   └── jmap/                         # JMAP-specific packages
-│       └── protocol/
-│           ├── methods_test.go
-│           ├── session_test.go
-│           └── types_test.go
+│   ├── pop3/protocol/
+│   │   ├── capabilities.go
+│   │   ├── capabilities_test.go
+│   │   ├── commands.go
+│   │   ├── commands_test.go
+│   │   └── responses.go
+│   │
+│   └── jmap/protocol/
+│       ├── methods.go
+│       ├── methods_test.go
+│       ├── session.go
+│       ├── session_test.go
+│       ├── types.go
+│       └── types_test.go
 │
-├── src/                              # Legacy msgraphtool source (being migrated to cmd/)
-│   ├── msgraphtool.go                # Main entry point
-│   ├── config.go                     # Configuration
-│   ├── auth.go                       # Authentication
-│   ├── handlers.go                   # Action dispatcher
-│   ├── handler_mail.go               # Email operations
-│   ├── handler_calendar.go           # Calendar operations
-│   ├── handler_search.go             # Search/export operations
-│   ├── logger.go                     # Logging setup
-│   ├── utils.go                      # Utilities
-│   ├── version.go                    # Version info
-│   ├── cert_windows.go               # Windows cert store
-│   ├── cert_stub.go                  # Cross-platform stub
-│   │
-│   ├── *_test.go                     # Unit tests
-│   ├── integration_test_tool.go      # Interactive integration tests (build: integration)
-│   └── msgraphtool_integration_test.go  # Automated integration tests (build: integration)
-│
-├── tests/                            # Test scripts and fixtures
+├── tests/
 │   ├── README.md
-│   └── Test-SendMail.ps1             # Pester test example
+│   └── integration/
+│       └── sendmail_test.go          # MS Graph integration tests (build: integration)
 │
-├── build-all.ps1                     # Build all tools
+├── scripts/
+│   └── check-integration-env.sh     # Validates MSGRAPH* env vars before integration tests
+│
+├── ChangeLog/                        # Per-version changelogs
+├── Makefile                          # Primary build system
+├── build-all.ps1                     # Windows build script
 ├── run-integration-tests.ps1         # Integration test runner
-├── run-interactive-release.ps1       # Release automation
-├── go.mod                            # Go module definition
-└── go.sum                            # Dependency checksums
+├── run-interactive-release.ps1       # Legacy release script (superseded by devtools)
+├── go.mod
+└── go.sum
 ```
 
-## Tool Architecture Overview
+## Command Structure
 
-### Multi-Tool Build System
-
-```bash
-┌────────────────────────────────────────────────────────────────┐
-│                    Build System (build-all.ps1)                 │
-└─────────────────────────┬──────────────────────────────────────┘
-                          │
-                          ├─► go build ./cmd/msgraphtool  → bin/msgraphtool.exe
-                          ├─► go build ./cmd/smtptool     → bin/smtptool.exe
-                          ├─► go build ./cmd/imaptool     → bin/imaptool.exe
-                          ├─► go build ./cmd/pop3tool     → bin/pop3tool.exe
-                          └─► go build ./cmd/jmaptool     → bin/jmaptool.exe
+```
+gomailtest
+├── smtp
+│   ├── testconnect
+│   ├── teststarttls
+│   ├── testauth
+│   └── sendmail
+├── imap
+│   ├── testconnect
+│   ├── testauth
+│   └── listfolders
+├── pop3
+│   ├── testconnect
+│   ├── testauth
+│   └── listmail
+├── jmap
+│   ├── testconnect
+│   ├── testauth
+│   └── getmailboxes
+├── msgraph
+│   ├── getevents
+│   ├── sendinvite
+│   ├── getschedule
+│   ├── sendmail
+│   ├── getinbox
+│   ├── exportinbox
+│   └── searchandexport
+└── devtools
+    ├── env       (get/set/clear MSGRAPH* environment variables)
+    └── release   (interactive: version bump → changelog → git tag → GitHub release)
 ```
 
-### msgraphtool Application Flow (Microsoft Graph)
+## Build System
 
-```bash
-┌─────────────────────────────────────────────────────────────────┐
-│                  cmd/msgraphtool/main.go                        │
-│                     (Microsoft Graph Tool Entry)                 │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-                           ├─► main()
-                           │   ├─► Parse flags & environment variables (config.go)
-                           │   ├─► validateConfiguration() (config.go)
-                           │   ├─► setupLogger() (logger.go)
-                           │   └─► Route to action handlers (handlers.go)
-                           │
-                           ├─► Action Handlers (dispatch based on -action flag)
-                           │   │
-                           │   ├─► Calendar Operations (handler_calendar.go)
-                           │   │   ├─► handleGetEvents()      (-action getevents)
-                           │   │   ├─► handleSendInvite()     (-action sendinvite)
-                           │   │   └─► handleGetSchedule()    (-action getschedule)
-                           │   │
-                           │   ├─► Mail Operations (handler_mail.go)
-                           │   │   ├─► handleSendMail()       (-action sendmail)
-                           │   │   └─► handleGetInbox()       (-action getinbox)
-                           │   │
-                           │   └─► Search/Export Operations (handler_search.go)
-                           │       ├─► handleExportInbox()    (-action exportinbox)
-                           │       └─► handleSearchAndExport()(-action searchandexport)
-                           │
-                           └─► Utility Functions (utils.go)
-                               ├─► showVersion()
-                               ├─► generateBashCompletion()
-                               └─► generatePowerShellCompletion()
+### Makefile (primary)
+
+```
+make build          → go build -ldflags="-s -w" -o bin/gomailtest ./cmd/gomailtest
+make build-verbose  → same with -v flag
+make test           → go test ./...
+make integration-test → build + check env + go test -tags integration ./tests/integration/
+make clean          → rm -f bin/gomailtest[.exe]
+make help           → list targets
 ```
 
-### smtptool Application Flow
+### build-all.ps1 (Windows convenience)
 
-```bash
-┌─────────────────────────────────────────────────────────────────┐
-│                   cmd/smtptool/main.go                          │
-│                      (SMTP Testing Tool Entry)                   │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-                           ├─► main()
-                           │   ├─► Parse flags (config.go)
-                           │   ├─► validateConfiguration()
-                           │   └─► Route to action handlers
-                           │
-                           └─► Action Handlers (handlers.go)
-                               ├─► handleTestConnect()    (testconnect.go)
-                               ├─► handleTestSTARTTLS()   (teststarttls.go)
-                               ├─► handleTestAuth()       (testauth.go)
-                               └─► handleSendMail()       (sendmail.go)
+```
+.\build-all.ps1           → build bin/gomailtest.exe
+.\build-all.ps1 -Verbose  → build with verbose Go output
 ```
 
-### imaptool Application Flow
+## Application Flow
 
-```bash
-┌─────────────────────────────────────────────────────────────────┐
-│                   cmd/imaptool/main.go                          │
-│                      (IMAP Testing Tool Entry)                   │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │
-                           └─► Action Handlers (handlers.go)
-                               ├─► handleTestConnect()    (testconnect.go)
-                               ├─► handleTestAuth()       (testauth.go)
-                               └─► handleListFolders()    (listfolders.go)
+```
+gomailtest <subcommand> [flags]
+          │
+          ▼
+cmd/gomailtest/root.go
+  rootCmd.AddCommand(smtp.NewCmd())
+  rootCmd.AddCommand(imap.NewCmd())
+  rootCmd.AddCommand(pop3.NewCmd())
+  rootCmd.AddCommand(jmap.NewCmd())
+  rootCmd.AddCommand(msgraph.NewCmd())
+  rootCmd.AddCommand(devtools.NewCmd())
+          │
+          ▼
+internal/protocols/<protocol>/cmd.go   ← flags, validation, dispatch
+          │
+          ▼
+internal/protocols/<protocol>/<action>.go  ← operation logic
+          │
+          ├─► internal/common/logger/    ← CSV/JSON/slog output
+          ├─► internal/common/retry/     ← exponential backoff
+          ├─► internal/common/ratelimit/ ← token bucket
+          └─► internal/<protocol>/protocol/ ← protocol primitives
 ```
 
-### pop3tool & jmaptool Application Flow
+## Protocol Implementations
 
-Similar patterns with protocol-specific handlers:
-- **pop3tool**: testconnect, testauth, listmail
-- **jmaptool**: testconnect, testauth, getmailboxes
+### smtp (internal/protocols/smtp/)
 
-## Shared Business Logic
-
-### Internal Packages (Shared Across All Tools)
-
-```bash
-┌────────────────────────────────────────────────────────────────┐
-│                    internal/ Package Structure                  │
-└─────────────────────────┬──────────────────────────────────────┘
-                          │
-                          ├─► internal/common/              # Cross-tool utilities
-                          │   ├─► logger/                   # CSV/JSON logging
-                          │   │   └─► Structured logging for all tools
-                          │   │
-                          │   ├─► validation/               # Input validation
-                          │   │   ├─► Email validation
-                          │   │   ├─► GUID validation
-                          │   │   ├─► Proxy URL validation
-                          │   │   └─► Security checks
-                          │   │
-                          │   ├─► security/                 # Security utilities
-                          │   │   └─► Credential masking
-                          │   │
-                          │   ├─► retry/                    # Retry logic
-                          │   │   ├─► Exponential backoff
-                          │   │   └─► Retryable error detection
-                          │   │
-                          │   ├─► ratelimit/               # Rate limiting
-                          │   │   └─► Token bucket algorithm
-                          │   │
-                          │   └─► version/                  # Version management
-                          │
-                          ├─► internal/smtp/               # SMTP-specific
-                          │   ├─► protocol/                # Protocol commands
-                          │   ├─► exchange/                # Exchange detection
-                          │   └─► tls/                     # TLS diagnostics
-                          │
-                          ├─► internal/imap/protocol/      # IMAP capabilities
-                          ├─► internal/pop3/protocol/      # POP3 commands
-                          └─► internal/jmap/protocol/      # JMAP session/methods
+```
+cmd.go
+  └─► testconnect.go     — TCP connectivity test
+  └─► teststarttls.go    — TLS handshake, cert validation, cipher strength, Exchange detection
+  └─► testauth.go        — PLAIN, LOGIN, CRAM-MD5, XOAUTH2
+  └─► sendmail.go        — send test email
+  └─► smtp_client.go     — SMTP client logic
+  └─► tls_display.go     — TLS diagnostic output
 ```
 
-### msgraphtool Authentication & Client Setup (src/)
+### imap (internal/protocols/imap/)
 
-```bash
-┌────────────────────────────────────────────────────────────────┐
-│              msgraphtool Authentication Layer                   │
-│                       (src/auth.go)                             │
-└─────────────────────────┬──────────────────────────────────────┘
-                          │
-                          ├─► setupGraphClient()
-                          │   └─► getCredential()
-                          │       ├─► azidentity.NewClientSecretCredential()
-                          │       │   (uses -secret flag or MSGRAPHSECRET env)
-                          │       │
-                          │       ├─► azidentity.NewClientCertificateCredential()
-                          │       │   ├─► From PFX file (-pfx + -pfxpass)
-                          │       │   │   └─► pkcs12.DecodeChain()
-                          │       │   │
-                          │       │   └─► From Windows Cert Store (-thumbprint)
-                          │       │       └─► getCertFromStore() (cert_windows.go)
-                          │       │           └─► Windows CryptoAPI (crypt32.dll)
-                          │       │
-                          │       ├─► azidentity.NewBearerTokenCredential()
-                          │       │   (uses -accesstoken flag)
-                          │       │
-                          │       └─► Returns: azcore.TokenCredential
-                          │
-                          └─► Uses internal/common/retry package
-                              ├─► Exponential backoff (50ms → 10s cap)
-                              └─► Retryable error detection (429, 503, 504)
+```
+cmd.go
+  └─► testconnect.go     — TCP/TLS connectivity
+  └─► testauth.go        — PLAIN, LOGIN, XOAUTH2
+  └─► listfolders.go     — list IMAP folders
+  └─► imap_client.go     — IMAP client logic
 ```
 
-### msgraphtool Core Graph API Operations
+### pop3 (internal/protocols/pop3/)
 
-```bash
-┌────────────────────────────────────────────────────────────────┐
-│              Microsoft Graph API Layer (src/)                   │
-└─────────────────────────┬──────────────────────────────────────┘
-                          │
-                          ├─► Calendar Operations (handler_calendar.go)
-                          │   │
-                          │   ├─► handleGetEvents()
-                          │   │   └─► client.Users().ByUserId().Events().Get()
-                          │   │       └─► Returns: []models.Event
-                          │   │
-                          │   ├─► handleSendInvite()
-                          │   │   ├─► parseFlexibleTime()
-                          │   │   ├─► createRecipients()
-                          │   │   └─► client.Users().ByUserId().Events().Post()
-                          │   │
-                          │   └─► handleGetSchedule()
-                          │       └─► client.Users().GetSchedule().Post()
-                          │           └─► Returns availability information
-                          │
-                          ├─► Mail Operations (handler_mail.go)
-                          │   │
-                          │   ├─► handleSendMail()
-                          │   │   ├─► createRecipients()
-                          │   │   ├─► createFileAttachments()
-                          │   │   │   └─► getAttachmentContentBase64()
-                          │   │   └─► client.Users().ByUserId().SendMail().Post()
-                          │   │
-                          │   └─► handleGetInbox()
-                          │       └─► client.Users().ByUserId().Messages().Get()
-                          │           └─► Returns: []models.Message
-                          │
-                          └─► Search/Export Operations (handler_search.go)
-                              │
-                              ├─► handleExportInbox()
-                              │   ├─► client.Users().ByUserId().Messages().Get()
-                              │   ├─► Create date-stamped dir (%TEMP%\export\{date})
-                              │   └─► Export each message to individual JSON file
-                              │
-                              └─► handleSearchAndExport()
-                                  ├─► client.Users().ByUserId().Messages().Get()
-                                  │   └─► Filter by InternetMessageId
-                                  │   └─► Security: Validates Message-ID format
-                                  └─► Export matching message to JSON file
+```
+cmd.go
+  └─► testconnect.go     — TCP/TLS connectivity
+  └─► testauth.go        — USER/PASS, APOP, XOAUTH2
+  └─► listmail.go        — retrieve message list
+  └─► pop3_client.go     — POP3 client logic
 ```
 
-### SMTP Tool Operations
+### jmap (internal/protocols/jmap/)
 
-```bash
-┌────────────────────────────────────────────────────────────────┐
-│                  SMTP Operations (cmd/smtptool/)                │
-└─────────────────────────┬──────────────────────────────────────┘
-                          │
-                          ├─► handleTestConnect() (testconnect.go)
-                          │   └─► Tests basic TCP connectivity
-                          │
-                          ├─► handleTestSTARTTLS() (teststarttls.go)
-                          │   ├─► TLS handshake analysis
-                          │   ├─► Certificate validation
-                          │   ├─► Cipher strength assessment
-                          │   └─► Exchange server detection
-                          │
-                          ├─► handleTestAuth() (testauth.go)
-                          │   └─► Tests auth mechanisms (PLAIN, LOGIN, CRAM-MD5, XOAUTH2)
-                          │
-                          └─► handleSendMail() (sendmail.go)
-                              └─► Sends test email via SMTP
+```
+cmd.go
+  └─► testconnect.go     — JMAP session discovery
+  └─► testauth.go        — Basic, Bearer
+  └─► getmailboxes.go    — list JMAP mailboxes
+  └─► jmap_client.go     — HTTP-based JMAP client
 ```
 
-### IMAP/POP3/JMAP Tool Operations
+### msgraph (internal/protocols/msgraph/)
 
-Each tool follows similar patterns with protocol-specific operations:
+```
+cmd.go → handlers.go
+  ├─► Calendar
+  │   ├─► handleGetEvents()     (getevents)
+  │   ├─► handleSendInvite()    (sendinvite)
+  │   └─► handleGetSchedule()   (getschedule)
+  ├─► Mail
+  │   ├─► handleSendMail()      (sendmail)
+  │   └─► handleGetInbox()      (getinbox)
+  └─► Export
+      ├─► handleExportInbox()        (exportinbox)
+      └─► handleSearchAndExport()    (searchandexport)
 
-- **imaptool**: testconnect, testauth, listfolders (with XOAUTH2 support)
-- **pop3tool**: testconnect, testauth, listmail (with APOP and XOAUTH2)
-- **jmaptool**: testconnect, testauth, getmailboxes (HTTP-based JMAP)
-
-### Validation & Helper Functions
-
-```bash
-┌────────────────────────────────────────────────────────────────┐
-│                 Validation & Utilities (msgraphtool)            │
-│                         (src/utils.go)                          │
-└─────────────────────────┬──────────────────────────────────────┘
-                          │
-                          ├─► Data Transformation
-                          │   ├─► createRecipients()         [100% coverage]
-                          │   ├─► createFileAttachments()    [95.2% coverage]
-                          │   └─► getAttachmentContentBase64()[100% coverage]
-                          │
-                          ├─► Security & Masking
-                          │   ├─► maskSecret()               [100% coverage]
-                          │   └─► maskGUID()                 [100% coverage]
-                          │
-                          ├─► Helper Functions
-                          │   ├─► Int32Ptr()                 [100% coverage]
-                          │   ├─► enrichGraphAPIError()
-                          │   ├─► parseFlexibleTime()        [100% coverage]
-                          │   └─► Shell completion generators
-                          │
-                          └─► Configuration & Logging (config.go, logger.go)
-                              ├─► validateConfiguration()
-                              ├─► setupLogger()
-                              └─► parseLogLevel()
+auth.go → getCredential()
+  ├─► azidentity.NewClientSecretCredential()   (-secret / MSGRAPHSECRET)
+  ├─► azidentity.NewClientCertificateCredential()
+  │   ├─► From PFX file (-pfx + -pfxpass)
+  │   └─► From Windows Cert Store (-thumbprint) → cert_windows.go
+  └─► azidentity.NewBearerTokenCredential()    (-accesstoken)
 ```
 
-```bash
-┌────────────────────────────────────────────────────────────────┐
-│            Shared Validation (internal/common/validation/)      │
-└─────────────────────────┬──────────────────────────────────────┘
-                          │
-                          ├─► Email Validation
-                          │   ├─► validateEmail()            [100% coverage]
-                          │   └─► validateEmails()           [100% coverage]
-                          │
-                          ├─► Identifier Validation
-                          │   ├─► validateGUID()             [100% coverage]
-                          │   └─► validateFilePath()         [Tested]
-                          │
-                          ├─► Time Validation
-                          │   └─► validateRFC3339Time()      [100% coverage]
-                          │
-                          ├─► Proxy Validation
-                          │   └─► validateProxyURL()         [Tested]
-                          │
-                          └─► Security Validation
-                              ├─► Message-ID format validation
-                              ├─► OData injection prevention
-                              └─► Path traversal prevention
+## Shared Internal Packages
+
+```
+internal/common/
+  ├── bootstrap/     — signal context (SIGINT/SIGTERM) wired via cobra PersistentPreRunE
+  ├── logger/        — CSV action logs, JSON export, slog structured logger
+  ├── ratelimit/     — token bucket algorithm
+  ├── retry/         — exponential backoff (50ms → 10s cap), retryable error detection
+  ├── security/      — credential masking (maskSecret, maskGUID)
+  ├── validation/    — email, GUID, RFC3339, proxy URL, path, OData injection prevention
+  └── version/       — single const Version = "3.1.6"
 ```
 
-## Test Suite Architecture
+## devtools Subcommand
 
-```bash
-┌────────────────────────────────────────────────────────────────┐
-│                        Test Structure                           │
-└─────────────────────────┬──────────────────────────────────────┘
-                          │
-                          ├─► msgraphtool Unit Tests (src/*_test.go)
-                          │   ├─► auth_test.go               # Authentication tests
-                          │   ├─► config_test.go             # Configuration tests
-                          │   ├─► handlers_test.go           # Handler tests
-                          │   ├─► logger_test.go             # Logger tests
-                          │   ├─► utils_test.go              # Utility tests
-                          │   ├─► csvlogger_test.go          # CSV logging tests
-                          │   └─► validation_security_test.go# Security validation
-                          │       ├─► Message-ID injection tests
-                          │       ├─► OData injection prevention
-                          │       └─► Path traversal prevention
-                          │
-                          ├─► msgraphtool Integration Tests (src/)
-                          │   │   ├─► //go:build integration
-                          │   │   │
-                          │   │   ├─► integration_test_tool.go
-                          │   │   │   ├─► Interactive test tool with prompts
-                          │   │   │   ├─► 5 test scenarios (events, mail, invite, inbox, schedule)
-                          │   │   │   ├─► Auto-confirm mode (MSGRAPH_AUTO_CONFIRM env)
-                          │   │   │   └─► Pretty formatted output
-                          │   │   │
-                          │   │   └─► msgraphtool_integration_test.go
-                          │   │       ├─► Automated Go test suite
-                          │   │       ├─► 11 integration tests total:
-                          │   │       │   ├─► TestIntegration_Prerequisites
-                          │   │       │   ├─► TestIntegration_GraphClientCreation
-                          │   │       │   ├─► TestIntegration_ListEvents
-                          │   │       │   ├─► TestIntegration_ListInbox
-                          │   │       │   ├─► TestIntegration_CheckAvailability
-                          │   │       │   ├─► TestIntegration_SendEmail (write)
-                          │   │       │   ├─► TestIntegration_CreateCalendarEvent (write)
-                          │   │       │   ├─► TestIntegration_ExportInbox
-                          │   │       │   ├─► TestIntegration_SearchAndExport
-                          │   │       │   ├─► TestIntegration_SearchAndExport_InvalidMessageID
-                          │   │       │   └─► TestIntegration_ValidateConfiguration
-                          │   │       └─► Requires: MSGRAPH_INTEGRATION_WRITE=true for writes
-                          │
-                          ├─► smtptool Unit Tests (cmd/smtptool/*_test.go)
-                          │   ├─► config_test.go             # Config validation
-                          │   ├─► smtp_client_test.go        # SMTP client logic
-                          │   ├─► sendmail_test.go           # Email sending
-                          │   └─► utils_test.go              # Utilities
-                          │
-                          ├─► imaptool Unit Tests (cmd/imaptool/*_test.go)
-                          │   ├─► config_test.go
-                          │   └─► utils_test.go
-                          │
-                          ├─► jmaptool Unit Tests (cmd/jmaptool/*_test.go)
-                          │   ├─► config_test.go
-                          │   └─► utils_test.go
-                          │
-                          ├─► msgraphtool Unit Tests (cmd/msgraphtool/*_test.go)
-                          │   └─► utils_test.go
-                          │
-                          └─► Internal Package Tests (internal/*/*_test.go)
-                              ├─► common/logger/json_test.go
-                              ├─► common/ratelimit/ratelimit_test.go
-                              ├─► common/security/masking_test.go
-                              ├─► common/validation/proxy_test.go
-                              ├─► common/validation/validation_test.go
-                              ├─► smtp/protocol/commands_test.go
-                              ├─► smtp/protocol/responses_test.go
-                              ├─► imap/protocol/capabilities_test.go
-                              ├─► pop3/protocol/capabilities_test.go
-                              ├─► pop3/protocol/commands_test.go
-                              ├─► jmap/protocol/methods_test.go
-                              ├─► jmap/protocol/session_test.go
-                              └─► jmap/protocol/types_test.go
 ```
+gomailtest devtools env
+  ├── get      — print current MSGRAPH* env vars (secrets masked)
+  ├── set      — persist MSGRAPH* vars to shell profile / user env
+  └── clear    — remove MSGRAPH* vars
 
-### Integration Test Execution
-
-```bash
-┌────────────────────────────────────────────────────────────────┐
-│            Integration Test Execution Methods                   │
-└─────────────────────────┬──────────────────────────────────────┘
-                          │
-                          ├─► Method 1: PowerShell Runner
-                          │   └─► .\run-integration-tests.ps1
-                          │       ├─► Validates environment variables
-                          │       ├─► Builds integration_test_tool.exe
-                          │       ├─► Runs interactive tests
-                          │       └─► Supports: -SetEnv, -ShowEnv, -ClearEnv, -AutoConfirm
-                          │
-                          ├─► Method 2: Interactive Tool
-                          │   └─► go run -tags=integration ./src/integration_test_tool.go
-                          │       ├─► User prompts before write operations
-                          │       ├─► Pretty formatted output
-                          │       └─► Pass/fail summary
-                          │
-                          └─► Method 3: Automated Tests
-                              └─► go test -tags=integration -v ./src
-                                  ├─► Standard Go test output
-                                  ├─► CI/CD friendly
-                                  └─► Requires MSGRAPH_INTEGRATION_WRITE=true for writes
+gomailtest devtools release
+  ├── Step 1: Git status check (working tree must be clean)
+  ├── Step 2: Security scan (Azure secrets, GUIDs, emails in source files)
+  ├── Step 3: Version bump (update internal/common/version/version.go)
+  ├── Step 4: Changelog creation (ChangeLog/{version}.md)
+  ├── Step 5: git commit + push
+  ├── Step 6: git tag v{version} + push tags
+  └── Step 7: GitHub PR + Release via gh CLI
 ```
 
 ## Certificate Authentication Flow (Windows)
 
-```bash
-┌────────────────────────────────────────────────────────────────┐
-│              Windows Certificate Store Integration              │
-└─────────────────────────┬──────────────────────────────────────┘
-                          │
-                          └─► cert_windows.go (Windows only)
-                              │
-                              ├─► getCertFromStore()
-                              │   ├─► syscall.LoadDLL("crypt32.dll")
-                              │   ├─► CertOpenStore(CERT_SYSTEM_STORE_CURRENT_USER)
-                              │   ├─► CertFindCertificateInStore(by thumbprint)
-                              │   ├─► PFXExportCertStoreEx() → memory buffer
-                              │   ├─► pkcs12.DecodeChain()
-                              │   └─► Returns: crypto.PrivateKey + x509.Certificate
-                              │
-                              └─► Uses Windows CryptoAPI
-                                  ├─► No temporary files created
-                                  ├─► Certificate extracted to memory only
-                                  └─► Automatic cleanup via defer
+```
+cert_windows.go (build: windows)
+  └─► getCertFromStore(thumbprint)
+      ├─► syscall.LoadDLL("crypt32.dll")
+      ├─► CertOpenStore(CERT_SYSTEM_STORE_CURRENT_USER)
+      ├─► CertFindCertificateInStore(by thumbprint)
+      ├─► PFXExportCertStoreEx() → in-memory buffer only
+      ├─► pkcs12.DecodeChain()
+      └─► returns: crypto.PrivateKey + x509.Certificate
+          (no temp files, automatic cleanup via defer)
+
+cert_stub.go (build: !windows)
+  └─► getCertFromStore() → always returns unsupported error
 ```
 
-## Release Automation
+## Test Suite Architecture
 
-### Interactive Release Process (run-interactive-release.ps1)
+```
+Unit tests (go test ./...):
+  ├── internal/protocols/smtp/          config_test.go, smtp_client_test.go,
+  │                                     sendmail_test.go, utils_test.go
+  ├── internal/protocols/jmap/          config_test.go, utils_test.go
+  ├── internal/protocols/msgraph/       utils_test.go
+  ├── internal/common/logger/           json_test.go
+  ├── internal/common/ratelimit/        ratelimit_test.go
+  ├── internal/common/security/         masking_test.go
+  ├── internal/common/validation/       validation_test.go, proxy_test.go
+  ├── internal/smtp/protocol/           commands_test.go, responses_test.go
+  ├── internal/imap/protocol/           capabilities_test.go
+  ├── internal/pop3/protocol/           capabilities_test.go, commands_test.go
+  └── internal/jmap/protocol/           methods_test.go, session_test.go, types_test.go
 
-```bash
-┌────────────────────────────────────────────────────────────────┐
-│              Interactive Release Script Workflow                │
-└─────────────────────────┬──────────────────────────────────────┘
-                          │
-                          ├─► Step 1: Git Status Check
-                          │   └─► Ensures working tree is clean
-                          │
-                          ├─► Step 2: Security Scan for Secrets
-                          │   ├─► Scan patterns:
-                          │   │   ├─► Azure AD Client Secrets ([a-zA-Z0-9~_-]{34,})
-                          │   │   ├─► GUIDs/UUIDs (standard format)
-                          │   │   ├─► Email addresses (non-example domains)
-                          │   │   └─► API Keys (access_token, secret_key, etc.)
-                          │   │
-                          │   ├─► Scanned files:
-                          │   │   ├─► ChangeLog/*.md
-                          │   │   ├─► *.md (root level)
-                          │   │   ├─► src/*.go
-                          │   │   └─► cmd/*/*.go
-                          │   │
-                          │   ├─► Smart filtering:
-                          │   │   ├─► Skip EXAMPLES, README, CLAUDE
-                          │   │   ├─► Skip placeholders (xxx, yyy, example.com)
-                          │   │   └─► Skip known safe patterns
-                          │   │
-                          │   └─► Blocks release if secrets detected
-                          │
-                          ├─► Step 3: Version Management
-                          │   ├─► Validate version format (2.x.y - major locked at 2)
-                          │   ├─► Prompt for new version
-                          │   └─► Update version across codebase
-                          │
-                          ├─► Step 4: Changelog Creation
-                          │   ├─► Interactive prompts for:
-                          │   │   ├─► Added features
-                          │   │   ├─► Changed features
-                          │   │   ├─► Fixed bugs
-                          │   │   └─► Security updates
-                          │   └─► Create ChangeLog/{version}.md
-                          │
-                          ├─► Steps 5-7: Git Operations
-                          │   ├─► git commit (formatted message with Claude credit)
-                          │   ├─► git push origin {branch}
-                          │   └─► git tag v{version} && git push origin --tags
-                          │
-                          └─► Steps 8-12: Optional GitHub Integration
-                              ├─► Create Pull Request (via gh CLI)
-                              ├─► Monitor GitHub Actions workflow
-                              └─► Open releases page
+Integration tests (go test -tags integration ./tests/integration/):
+  └── tests/integration/sendmail_test.go
+      └── Requires MSGRAPH* env vars (validated by scripts/check-integration-env.sh)
+          └── make integration-test  (or: .\run-integration-tests.ps1)
 ```
 
-### Build Process (build-all.ps1)
+## GitHub Actions CI/CD (.github/workflows/build.yml)
 
-```bash
-┌────────────────────────────────────────────────────────────────┐
-│                   Multi-Tool Build Process                      │
-└─────────────────────────┬──────────────────────────────────────┘
-                          │
-                          ├─► Clean previous builds
-                          │   └─► Remove bin/ directory
-                          │
-                          ├─► Create bin/ directory
-                          │
-                          ├─► Build all tools in parallel
-                          │   ├─► go build -ldflags="-s -w" ./cmd/msgraphtool
-                          │   ├─► go build -ldflags="-s -w" ./cmd/smtptool
-                          │   ├─► go build -ldflags="-s -w" ./cmd/imaptool
-                          │   ├─► go build -ldflags="-s -w" ./cmd/pop3tool
-                          │   └─► go build -ldflags="-s -w" ./cmd/jmaptool
-                          │       └─► Output: bin/*.exe (Windows)
-                          │
-                          └─► Verify builds
-                              └─► Display file sizes and checksums
+```
+On: push tags (v*) | pull_request → main
+
+test job (ubuntu / windows / macos):
+  └── go test -v -race ./...
+  └── coverage report (ubuntu only)
+
+lint job (ubuntu, continue-on-error):
+  └── golangci-lint
+
+build job (on tag push, needs: test):
+  Matrix: windows-latest (amd64), ubuntu-latest (amd64), macos-latest (arm64)
+  ├── go build -ldflags="-s -w" -o bin/gomailtest[.exe] ./cmd/gomailtest
+  ├── Verify binary exists
+  ├── Create ZIP: bin/gomailtest[.exe] + README.md + TOOLS.md + EXAMPLES.md + LICENSE
+  │   → gomailtesttool-{os}-{arch}.zip
+  ├── Upload artifacts
+  └── Create GitHub Release (softprops/action-gh-release)
 ```
 
-### GitHub Actions CI/CD (.github/workflows/build.yml)
+## Data Flow Example: Send Email via msgraph
 
-```bash
-┌────────────────────────────────────────────────────────────────┐
-│                   CI/CD Pipeline (GitHub Actions)               │
-└─────────────────────────┬──────────────────────────────────────┘
-                          │
-                          ├─► Test Job (All Platforms)
-                          │   ├─► Matrix: ubuntu-latest, windows-latest, macos-latest
-                          │   ├─► go test -v -race ./...
-                          │   └─► Coverage report (Ubuntu only)
-                          │
-                          ├─► Lint Job (Ubuntu)
-                          │   └─► golangci-lint (continue-on-error)
-                          │
-                          └─► Build Job (On Tag Push)
-                              ├─► Matrix: Windows (amd64), Linux (amd64), macOS (arm64)
-                              ├─► Build all 5 tools per platform
-                              ├─► Create ZIP archives:
-                              │   ├─► gomailtesttool-windows-amd64.zip
-                              │   ├─► gomailtesttool-linux-amd64.zip
-                              │   └─► gomailtesttool-macos-arm64.zip
-                              ├─► Upload artifacts
-                              └─► Create GitHub Release
-                                  └─► Attach ZIP files with full documentation
 ```
-
-## Data Flow Example: Send Email with Attachments
-
-```bash
-User Command:
-  msgraphtool.exe -action sendmail -to "user@example.com"
-    -subject "Test" -body "Hello" -attachment "file.pdf"
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 1. main() - Parse flags & validate configuration                │
-│    └─► validateConfiguration() checks all required fields       │
-└─────────────────────┬───────────────────────────────────────────┘
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 2. setupGraphClient() - Authenticate                            │
-│    ├─► getCredential() → azcore.TokenCredential                 │
-│    └─► msgraphsdk.NewGraphServiceClientWithCredentials()        │
-└─────────────────────┬───────────────────────────────────────────┘
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 3. sendEmail() - Build and send message                         │
-│    ├─► createRecipients(["user@example.com"]) → []Recipient    │
-│    ├─► createFileAttachments(["file.pdf"])                      │
-│    │   └─► getAttachmentContentBase64() → base64 string         │
-│    ├─► Build models.Message object                              │
-│    └─► client.Users().ByUserId().SendMail().Post()              │
-└─────────────────────┬───────────────────────────────────────────┘
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 4. retryWithBackoff() - Handle transient failures               │
-│    ├─► isRetryableError() checks status codes (429, 503, 504)  │
-│    └─► Exponential backoff: 50ms → 100ms → 200ms → ... → 10s   │
-└─────────────────────┬───────────────────────────────────────────┘
-                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 5. CSV Logging - Record operation result                        │
-│    └─► %TEMP%\_msgraphtool_sendmail_2026-01-31.csv              │
-│        Timestamp, Action, Status, Mailbox, To, CC, BCC, Subject │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Test Coverage Overview
-
-```bash
-┌──────────────────────────────────────────────────────────────────┐
-│                    Test Coverage by Component                    │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  msgraphtool (src/):                                             │
-│    ✅ Unit Tests: Comprehensive coverage of utilities            │
-│       • Data transformation (createRecipients, attachments)      │
-│       • Validation (email, GUID, time, configuration)            │
-│       • Security (masking, injection prevention)                 │
-│       • Helpers (Int32Ptr, parseFlexibleTime, etc.)              │
-│    ✅ Integration Tests: 11 automated tests + interactive tool   │
-│       • Real Graph API operations                                │
-│       • Authentication testing                                   │
-│       • Write protection (MSGRAPH_INTEGRATION_WRITE flag)        │
-│                                                                  │
-│  smtptool (cmd/smtptool/):                                       │
-│    ✅ Unit Tests: Config, SMTP client, send mail logic           │
-│    ✅ Protocol Tests: internal/smtp/protocol/*_test.go           │
-│                                                                  │
-│  imaptool (cmd/imaptool/):                                       │
-│    ✅ Unit Tests: Config, utilities                              │
-│    ✅ Protocol Tests: internal/imap/protocol/*_test.go           │
-│                                                                  │
-│  pop3tool (cmd/pop3tool/):                                       │
-│    ✅ Protocol Tests: internal/pop3/protocol/*_test.go           │
-│                                                                  │
-│  jmaptool (cmd/jmaptool/):                                       │
-│    ✅ Unit Tests: Config, utilities                              │
-│    ✅ Protocol Tests: internal/jmap/protocol/*_test.go           │
-│                                                                  │
-│  Shared (internal/common/):                                      │
-│    ✅ Logger tests (CSV/JSON)                                    │
-│    ✅ Validation tests (email, GUID, proxy)                      │
-│    ✅ Security tests (masking)                                   │
-│    ✅ Rate limiting tests                                        │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
+gomailtest msgraph sendmail -mailbox user@example.com -to dest@example.com -subject "Test"
+          │
+          ▼
+internal/protocols/msgraph/cmd.go    — parse flags, validate config
+          │
+          ▼
+internal/protocols/msgraph/auth.go   — getCredential() → azcore.TokenCredential
+          │                             msgraphsdk.NewGraphServiceClientWithCredentials()
+          ▼
+internal/protocols/msgraph/handlers.go — handleSendMail()
+  ├── createRecipients(["dest@example.com"])
+  ├── createFileAttachments([]) → getAttachmentContentBase64()
+  ├── build models.Message
+  └── client.Users().ByUserId().SendMail().Post()
+          │
+          ▼
+internal/common/retry/retry.go       — retryWithBackoff()
+  ├── isRetryableError() → 429, 503, 504
+  └── exponential backoff: 50ms → 100ms → 200ms → ... → 10s cap
+          │
+          ▼
+internal/common/logger/csv.go        — append to %TEMP%\_msgraphtool_sendmail_{date}.csv
 ```
 
 ## Key Design Patterns
 
-### 1. Table-Driven Tests
+### 1. Cobra Subcommand Pattern
 
-All unit tests use the table-driven pattern for maintainability:
+Each protocol registers a `NewCmd()` that returns a `*cobra.Command` with its own subcommands:
+
+```go
+func NewCmd() *cobra.Command {
+    cmd := &cobra.Command{Use: "smtp", Short: "SMTP testing"}
+    cmd.AddCommand(newTestConnectCmd())
+    cmd.AddCommand(newTestStartTLSCmd())
+    // ...
+    return cmd
+}
+```
+
+### 2. Table-Driven Tests
 
 ```go
 tests := []struct {
@@ -754,22 +452,10 @@ tests := []struct {
     input    string
     expected string
     wantErr  bool
-}{ /* test cases */ }
-```
-
-### 2. Config Struct Pattern
-
-Centralized configuration simplifies function signatures:
-
-```go
-type Config struct { /* all configuration */ }
-func sendEmail(ctx context.Context, client *msgraphsdk.GraphServiceClient,
-               cfg *Config) error
+}{ /* cases */ }
 ```
 
 ### 3. Retry with Exponential Backoff
-
-Handles transient failures gracefully:
 
 ```go
 retryWithBackoff(ctx, maxRetries, baseDelay, operation func() error)
@@ -777,98 +463,51 @@ retryWithBackoff(ctx, maxRetries, baseDelay, operation func() error)
 
 ### 4. Platform-Specific Builds
 
-Build tags enable Windows-specific features while maintaining cross-platform support for **Windows, Linux, and macOS**:
-
 ```go
-// msgraphtool only:
-// cert_windows.go - //go:build windows (Windows Certificate Store access)
-// cert_stub.go    - //go:build !windows (Linux/macOS stub)
-
-// Integration tests:
-// integration_test_tool.go        - //go:build integration
-// msgraphtool_integration_test.go - //go:build integration
+// cert_windows.go — //go:build windows  (Windows Certificate Store access)
+// cert_stub.go    — //go:build !windows (returns unsupported error)
 ```
-
-**GitHub Actions Workflow** builds all 5 tools for all three platforms:
-
-- `gomailtesttool-windows-amd64.zip` - All tools for Windows (.exe)
-- `gomailtesttool-linux-amd64.zip` - All tools for Linux (ELF)
-- `gomailtesttool-macos-arm64.zip` - All tools for macOS (Mach-O, Apple Silicon)
-
-**Each ZIP contains:**
-- msgraphtool.exe (or msgraphtool on Linux/macOS)
-- smtptool.exe
-- imaptool.exe
-- pop3tool.exe
-- jmaptool.exe
-- Complete documentation (README.md, tool-specific READMEs, EXAMPLES.md, LICENSE)
-
-**Note:** The `-thumbprint` authentication method (Windows Certificate Store) is only available in msgraphtool on Windows. Linux and macOS users should use `-secret` or `-pfx` authentication.
 
 ### 5. CSV Logging Pattern
 
-Action-specific CSV files prevent schema conflicts (all tools use `internal/common/logger`):
+Action-specific files prevent schema conflicts:
 
-```bash
-# msgraphtool logs
-_msgraphtool_sendmail_2026-01-31.csv
-_msgraphtool_getevents_2026-01-31.csv
-_msgraphtool_getinbox_2026-01-31.csv
-_msgraphtool_exportinbox_2026-01-31.csv
-_msgraphtool_searchandexport_2026-01-31.csv
-
-# smtptool logs
-_smtptool_testconnect_2026-01-31.csv
-_smtptool_teststarttls_2026-01-31.csv
-_smtptool_sendmail_2026-01-31.csv
-
-# imaptool, pop3tool, jmaptool logs
-_imaptool_listfolders_2026-01-31.csv
-_pop3tool_listmail_2026-01-31.csv
-_jmaptool_getmailboxes_2026-01-31.csv
+```
+%TEMP%\_msgraphtool_sendmail_{date}.csv
+%TEMP%\_msgraphtool_getevents_{date}.csv
+%TEMP%\_smtptool_testconnect_{date}.csv
+%TEMP%\_imaptool_listfolders_{date}.csv
+%TEMP%\_pop3tool_listmail_{date}.csv
+%TEMP%\_jmaptool_getmailboxes_{date}.csv
 ```
 
-### 6. JSON Export Pattern (msgraphtool v1.21.0+)
+### 6. JSON Export Pattern
 
-msgraphtool export actions create date-stamped directories with individual JSON files:
+Export actions create date-stamped directories:
 
-```bash
-%TEMP%\export\2026-01-31\
-├── message_1_2026-01-31T10-30-45.json
-├── message_2_2026-01-31T10-25-12.json
-├── message_3_2026-01-31T09-58-03.json
-└── message_search_2026-01-31T11-15-30.json (from searchandexport)
 ```
-
-Each JSON file contains the complete message structure including:
-- Headers (from, to, cc, bcc, subject, date)
-- Body (HTML and text versions)
-- Metadata (message ID, conversation ID, importance)
-- Flags (isRead, isDraft, hasAttachments)
+%TEMP%\export\{date}\
+  message_1_{timestamp}.json
+  message_2_{timestamp}.json
+  message_search_{timestamp}.json
+```
 
 ---
 
 ## Project Statistics
 
-**Version:** 2.6.11 (Latest)
-**Last Updated:** 2026-01-31
+**Version:** 3.1.6 (Latest)
+**Last Updated:** 2026-04-12
 
 ### Codebase Metrics
-- **Total Lines of Go Code:** ~24,920
-- **Test Code:** ~10,182 lines (41% of codebase)
-- **Tools:** 5 (msgraphtool, smtptool, imaptool, pop3tool, jmaptool)
-- **Integration Tests:** 11 (msgraphtool only)
-- **Supported Platforms:** Windows, Linux, macOS
-
-### Test Coverage
-- **msgraphtool (src/):** Unit tests + Integration tests
-- **Unit Tests:** Data transformation, validation, security, helpers
-- **Integration Tests:** Real API calls to Microsoft Graph
-- **Protocol Tests:** SMTP, IMAP, POP3, JMAP protocol logic
+- **Binary:** 1 unified `gomailtest` (cobra CLI)
+- **Protocol subcommands:** 5 (smtp, imap, pop3, jmap, msgraph)
+- **Supported Platforms:** Windows (amd64), Linux (amd64), macOS (arm64)
+- **Integration Tests:** MS Graph sendmail (tests/integration/)
 
 ### Architecture Evolution
 - **v1.x:** Single msgraphtool binary
-- **v2.0+:** Multi-tool suite with shared internal packages
-- **v2.6+:** Organized build output (bin/), comprehensive CI/CD
+- **v2.0+:** Multi-tool suite (5 separate binaries) with shared internal packages
+- **v3.0+:** Unified `gomailtest` binary with cobra subcommands; protocol logic in `internal/protocols/`; `devtools` subcommand replaces PS1 release scripts
 
                           ..ooOO END OOoo..
