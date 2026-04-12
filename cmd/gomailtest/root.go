@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	"msgraphtool/internal/common/bootstrap"
 	"msgraphtool/internal/common/version"
+	"msgraphtool/internal/devtools"
 	"msgraphtool/internal/protocols/imap"
 	"msgraphtool/internal/protocols/jmap"
 	"msgraphtool/internal/protocols/msgraph"
@@ -34,6 +35,7 @@ func init() {
 	rootCmd.AddCommand(pop3.NewCmd())
 	rootCmd.AddCommand(imap.NewCmd())
 	rootCmd.AddCommand(jmap.NewCmd())
+	rootCmd.AddCommand(devtools.NewCmd())
 }
 
 // Execute runs the root command and returns any error.
