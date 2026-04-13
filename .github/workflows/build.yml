@@ -65,17 +65,14 @@ jobs:
           - os: windows-latest
             ext: .exe
             artifact_name: gomailtesttool-windows-amd64
-            zip_name: gomailtesttool-windows-amd64.zip
             goarch: amd64
           - os: ubuntu-latest
             ext: ''
             artifact_name: gomailtesttool-linux-amd64
-            zip_name: gomailtesttool-linux-amd64.zip
             goarch: amd64
           - os: macos-latest
             ext: ''
             artifact_name: gomailtesttool-macos-arm64
-            zip_name: gomailtesttool-macos-arm64.zip
             goarch: arm64
 
     steps:
@@ -94,6 +91,10 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
       run: |
         go build -ldflags="-s -w" -o bin/gomailtest${{ matrix.ext }} ./cmd/gomailtest
+
+    - name: Set ZIP name
+      shell: bash
+      run: echo "ZIP_NAME=${{ matrix.artifact_name }}-${{ github.ref_name }}.zip" >> "$GITHUB_ENV"
 
     - name: Verify build output (Windows)
       if: matrix.os == 'windows-latest'
@@ -121,28 +122,28 @@ jobs:
     - name: Create ZIP archive (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        Compress-Archive -Path bin\gomailtest${{ matrix.ext }},README.md,TOOLS.md,EXAMPLES.md,LICENSE -DestinationPath ${{ matrix.zip_name }}
-        Write-Host "Created ZIP archive: ${{ matrix.zip_name }}"
-        Get-Item ${{ matrix.zip_name }} | Select-Object Name, Length
+        Compress-Archive -Path bin\gomailtest${{ matrix.ext }},README.md,TOOLS.md,EXAMPLES.md,LICENSE -DestinationPath $env:ZIP_NAME
+        Write-Host "Created ZIP archive: $env:ZIP_NAME"
+        Get-Item $env:ZIP_NAME | Select-Object Name, Length
 
     - name: Create ZIP archive (Linux/macOS)
       if: matrix.os != 'windows-latest'
       run: |
-        cd bin && zip ../${{ matrix.zip_name }} gomailtest${{ matrix.ext }} && cd ..
-        zip -u ${{ matrix.zip_name }} README.md TOOLS.md EXAMPLES.md LICENSE
-        echo "Created ZIP archive: ${{ matrix.zip_name }}"
-        ls -lh ${{ matrix.zip_name }}
+        cd bin && zip ../$ZIP_NAME gomailtest${{ matrix.ext }} && cd ..
+        zip -u $ZIP_NAME README.md TOOLS.md EXAMPLES.md LICENSE
+        echo "Created ZIP archive: $ZIP_NAME"
+        ls -lh $ZIP_NAME
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.artifact_name }}
-        path: ${{ matrix.zip_name }}
+        path: ${{ env.ZIP_NAME }}
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        files: ${{ matrix.zip_name }}
+        files: ${{ env.ZIP_NAME }}
         body: |
           ## gomailtesttool Suite - Email Infrastructure Testing Tools
 
@@ -162,19 +163,19 @@ jobs:
           ### Installation
 
           **Windows (amd64):**
-          1. Download `gomailtesttool-windows-amd64.zip`
+          1. Download `gomailtesttool-windows-amd64-${{ github.ref_name }}.zip`
           2. Extract the ZIP file
           3. Run: `gomailtest.exe --help`
 
           **Linux (amd64):**
-          1. Download `gomailtesttool-linux-amd64.zip`
-          2. Extract: `unzip gomailtesttool-linux-amd64.zip`
+          1. Download `gomailtesttool-linux-amd64-${{ github.ref_name }}.zip`
+          2. Extract: `unzip gomailtesttool-linux-amd64-${{ github.ref_name }}.zip`
           3. Make executable: `chmod +x gomailtest`
           4. Run: `./gomailtest --help`
 
           **macOS (Apple Silicon/arm64):**
-          1. Download `gomailtesttool-macos-arm64.zip`
-          2. Extract: `unzip gomailtesttool-macos-arm64.zip`
+          1. Download `gomailtesttool-macos-arm64-${{ github.ref_name }}.zip`
+          2. Extract: `unzip gomailtesttool-macos-arm64-${{ github.ref_name }}.zip`
           3. Make executable: `chmod +x gomailtest`
           4. Run: `./gomailtest --help`
 
