@@ -3,6 +3,7 @@ package ews
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -55,7 +56,7 @@ func getFolder(ctx context.Context, config *Config, csvLogger logger.Logger, slo
 		errMsg := fmt.Sprintf("EWS error: %s — %s", msg.ResponseCode, msg.MessageText)
 		fmt.Printf("✗ %s\n", errMsg)
 		writeFolderCSV(csvLogger, slogLogger, config, "", 0, 0, "", elapsed, errMsg)
-		return fmt.Errorf("%s", errMsg)
+		return errors.New(errMsg)
 	}
 
 	folder := msg.Folders.Folder

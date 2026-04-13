@@ -16,11 +16,11 @@ type Config struct {
 	Action string
 
 	// EWS server configuration
-	Host            string
-	Port            int
-	EWSPath         string // default /EWS/Exchange.asmx
+	Host             string
+	Port             int
+	EWSPath          string // default /EWS/Exchange.asmx
 	AutodiscoverPath string // default /autodiscover/autodiscover.svc
-	Timeout         time.Duration
+	Timeout          time.Duration
 
 	// Authentication
 	Username    string
@@ -35,15 +35,12 @@ type Config struct {
 	TLSVersion string // 1.2, 1.3
 
 	// Network configuration
-	ProxyURL   string
-	MaxRetries int
-	RetryDelay time.Duration
+	ProxyURL string
 
 	// Runtime configuration
-	VerboseMode  bool
-	LogLevel     string
-	OutputFormat string
-	LogFormat    string  // csv, json
+	VerboseMode bool
+	LogLevel    string
+	LogFormat   string // csv, json
 }
 
 // Action constants
@@ -57,19 +54,16 @@ const (
 // NewConfig creates a new Config with default values.
 func NewConfig() *Config {
 	return &Config{
-		Port:            443,
-		EWSPath:         "/EWS/Exchange.asmx",
+		Port:             443,
+		EWSPath:          "/EWS/Exchange.asmx",
 		AutodiscoverPath: "/autodiscover/autodiscover.svc",
-		Timeout:         30 * time.Second,
-		AuthMethod:      "auto",
-		SkipVerify:      false,
-		TLSVersion:      "1.2",
-		MaxRetries:      3,
-		RetryDelay:      2000 * time.Millisecond,
-		VerboseMode:     false,
-		LogLevel:        "INFO",
-		OutputFormat:    "text",
-		LogFormat:       "csv",
+		Timeout:          30 * time.Second,
+		AuthMethod:       "auto",
+		SkipVerify:       false,
+		TLSVersion:       "1.2",
+		VerboseMode:      false,
+		LogLevel:         "INFO",
+		LogFormat:        "csv",
 	}
 }
 
@@ -98,13 +92,10 @@ func RegisterPersistentFlags(cmd *cobra.Command) {
 
 	// Network
 	f.String("proxy", "", "HTTP/HTTPS proxy URL (env: EWSPROXY)")
-	f.Int("maxretries", 3, "Maximum retry attempts (env: EWSMAXRETRIES)")
-	f.Int("retrydelay", 2000, "Retry delay in milliseconds (env: EWSRETRYDELAY)")
 
 	// Output
 	f.Bool("verbose", false, "Enable verbose output")
 	f.String("loglevel", "INFO", "Logging level: DEBUG, INFO, WARN, ERROR")
-	f.String("output", "text", "Output format: text, json (env: EWSOUTPUT)")
 	f.String("logformat", "csv", "Log file format: csv, json (env: EWSLOGFORMAT)")
 }
 
@@ -125,9 +116,6 @@ func BindEnvs(v *viper.Viper) {
 		"skipverify":       "EWSSKIPVERIFY",
 		"tlsversion":       "EWSTLSVERSION",
 		"proxy":            "EWSPROXY",
-		"maxretries":       "EWSMAXRETRIES",
-		"retrydelay":       "EWSRETRYDELAY",
-		"output":           "EWSOUTPUT",
 		"logformat":        "EWSLOGFORMAT",
 	}
 	for key, env := range bindings {
@@ -147,16 +135,6 @@ func ConfigFromViper(v *viper.Viper) *Config {
 	timeoutSec := v.GetInt("timeout")
 	if timeoutSec <= 0 {
 		timeoutSec = 30
-	}
-
-	retryDelayMs := v.GetInt("retrydelay")
-	if retryDelayMs <= 0 {
-		retryDelayMs = 2000
-	}
-
-	maxRetries := v.GetInt("maxretries")
-	if maxRetries < 0 {
-		maxRetries = defaults.MaxRetries
 	}
 
 	authMethod := v.GetString("authmethod")
@@ -184,37 +162,29 @@ func ConfigFromViper(v *viper.Viper) *Config {
 		logLevel = defaults.LogLevel
 	}
 
-	outputFormat := strings.ToLower(v.GetString("output"))
-	if outputFormat == "" {
-		outputFormat = defaults.OutputFormat
-	}
-
 	logFormat := strings.ToLower(v.GetString("logformat"))
 	if logFormat == "" {
 		logFormat = defaults.LogFormat
 	}
 
 	return &Config{
-		Host:            v.GetString("host"),
-		Port:            port,
-		EWSPath:         ewsPath,
+		Host:             v.GetString("host"),
+		Port:             port,
+		EWSPath:          ewsPath,
 		AutodiscoverPath: autodiscoverPath,
-		Timeout:         time.Duration(timeoutSec) * time.Second,
-		Username:        v.GetString("username"),
-		Password:        v.GetString("password"),
-		AccessToken:     v.GetString("accesstoken"),
-		AuthMethod:      authMethod,
-		Domain:          v.GetString("domain"),
-		Mailbox:         v.GetString("mailbox"),
-		SkipVerify:      v.GetBool("skipverify"),
-		TLSVersion:      tlsVersion,
-		ProxyURL:        v.GetString("proxy"),
-		MaxRetries:      maxRetries,
-		RetryDelay:      time.Duration(retryDelayMs) * time.Millisecond,
-		VerboseMode:     v.GetBool("verbose"),
-		LogLevel:        logLevel,
-		OutputFormat:    outputFormat,
-		LogFormat:       logFormat,
+		Timeout:          time.Duration(timeoutSec) * time.Second,
+		Username:         v.GetString("username"),
+		Password:         v.GetString("password"),
+		AccessToken:      v.GetString("accesstoken"),
+		AuthMethod:       authMethod,
+		Domain:           v.GetString("domain"),
+		Mailbox:          v.GetString("mailbox"),
+		SkipVerify:       v.GetBool("skipverify"),
+		TLSVersion:       tlsVersion,
+		ProxyURL:         v.GetString("proxy"),
+		VerboseMode:      v.GetBool("verbose"),
+		LogLevel:         logLevel,
+		LogFormat:        logFormat,
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +15,8 @@ import (
 )
 
 const (
+	maxResponseBodyBytes = 4 << 20 // 4 MiB
+
 	soapEnvelope = `<?xml version="1.0" encoding="utf-8" ?>
 <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xmlns:m="http://schemas.microsoft.com/exchange/services/2006/messages"
@@ -128,8 +131,8 @@ func (c *EWSClient) Probe(ctx context.Context) (*http.Response, error) {
 }
 
 // SendSOAP wraps body in an EWS SOAP envelope, applies auth, and POSTs to the EWS URL.
-func (c *EWSClient) SendSOAP(ctx context.Context, body string) ([]byte, error) {
-	payload := fmt.Sprintf(soapEnvelope, body)
+func (c *EWSClient) SendSOAP(ctx context.Context, soapBody string) ([]byte, error) {
+	payload := fmt.Sprintf(soapEnvelope, soapBody)
 	req, err := http.NewRequestWithContext(ctx, "POST", c.ewsURL, bytes.NewBufferString(payload))
 	if err != nil {
 		return nil, err
@@ -156,7 +159,7 @@ func (c *EWSClient) SendSOAP(ctx context.Context, body string) ([]byte, error) {
 		fmt.Printf("<<< HTTP %s\n", resp.Status)
 	}
 
-	body2, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
@@ -165,12 +168,16 @@ func (c *EWSClient) SendSOAP(ctx context.Context, body string) ([]byte, error) {
 		return nil, fmt.Errorf("HTTP %s", resp.Status)
 	}
 
-	return body2, nil
+	return respBody, nil
 }
 
 // SendAutodiscover POSTs a GetUserSettings SOAP request to the Autodiscover endpoint.
 func (c *EWSClient) SendAutodiscover(ctx context.Context, email string) ([]byte, error) {
-	payload := fmt.Sprintf(autodiscoverEnvelope, email)
+	var escapedEmail strings.Builder
+	if err := xml.EscapeText(&escapedEmail, []byte(email)); err != nil {
+		return nil, fmt.Errorf("escaping email: %w", err)
+	}
+	payload := fmt.Sprintf(autodiscoverEnvelope, escapedEmail.String())
 	req, err := http.NewRequestWithContext(ctx, "POST", c.autodiscoverURL, bytes.NewBufferString(payload))
 	if err != nil {
 		return nil, err
@@ -193,7 +200,7 @@ func (c *EWSClient) SendAutodiscover(ctx context.Context, email string) ([]byte,
 		fmt.Printf("<<< HTTP %s\n", resp.Status)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("reading response: %w", err)
 	}
@@ -202,7 +209,7 @@ func (c *EWSClient) SendAutodiscover(ctx context.Context, email string) ([]byte,
 		return nil, fmt.Errorf("HTTP %s", resp.Status)
 	}
 
-	return body, nil
+	return respBody, nil
 }
 
 // EWSUrl returns the configured EWS endpoint URL.

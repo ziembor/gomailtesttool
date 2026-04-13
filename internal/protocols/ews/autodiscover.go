@@ -3,6 +3,7 @@ package ews
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -12,8 +13,8 @@ import (
 
 // Autodiscover SOAP response structures
 type autodiscoverResponseEnvelope struct {
-	XMLName struct{}                      `xml:"Envelope"`
-	Body    autodiscoverResponseBody      `xml:"Body"`
+	XMLName struct{}                 `xml:"Envelope"`
+	Body    autodiscoverResponseBody `xml:"Body"`
 }
 
 type autodiscoverResponseBody struct {
@@ -35,10 +36,10 @@ type userSettingList struct {
 }
 
 type userSettingResponse struct {
-	Mailbox      string            `xml:"Mailbox"`
-	ErrorCode    string            `xml:"ErrorCode"`
-	ErrorMessage string            `xml:"ErrorMessage"`
-	UserSettings []userSetting     `xml:"UserSettings>UserSetting"`
+	Mailbox      string        `xml:"Mailbox"`
+	ErrorCode    string        `xml:"ErrorCode"`
+	ErrorMessage string        `xml:"ErrorMessage"`
+	UserSettings []userSetting `xml:"UserSettings>UserSetting"`
 }
 
 type userSetting struct {
@@ -92,7 +93,7 @@ func autodiscover(ctx context.Context, config *Config, csvLogger logger.Logger, 
 		errMsg := fmt.Sprintf("Autodiscover error: %s — %s", inner.ErrorCode, inner.ErrorMessage)
 		fmt.Printf("✗ %s\n", errMsg)
 		writeAutodiscoverCSV(csvLogger, slogLogger, config, nil, elapsed, errMsg)
-		return fmt.Errorf("%s", errMsg)
+		return errors.New(errMsg)
 	}
 
 	userResp := inner.UserSettings.UserResponse
@@ -100,7 +101,7 @@ func autodiscover(ctx context.Context, config *Config, csvLogger logger.Logger, 
 		errMsg := fmt.Sprintf("User settings error: %s — %s", userResp.ErrorCode, userResp.ErrorMessage)
 		fmt.Printf("✗ %s\n", errMsg)
 		writeAutodiscoverCSV(csvLogger, slogLogger, config, nil, elapsed, errMsg)
-		return fmt.Errorf("%s", errMsg)
+		return errors.New(errMsg)
 	}
 
 	// Collect settings into a map for display

@@ -3,6 +3,7 @@ package ews
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -11,19 +12,10 @@ import (
 	"msgraphtool/internal/common/logger"
 )
 
-const getFolderSOAPBody = `    <m:GetFolder>
-      <m:FolderShape>
-        <t:BaseShape>Default</t:BaseShape>
-      </m:FolderShape>
-      <m:FolderIds>
-        <t:DistinguishedFolderId Id="inbox"/>
-      </m:FolderIds>
-    </m:GetFolder>`
-
 // getFolderResponseEnvelope is used to parse the EWS GetFolder SOAP response.
 type getFolderResponseEnvelope struct {
-	XMLName struct{}                `xml:"Envelope"`
-	Body    getFolderResponseBody   `xml:"Body"`
+	XMLName struct{}              `xml:"Envelope"`
+	Body    getFolderResponseBody `xml:"Body"`
 }
 
 type getFolderResponseBody struct {
@@ -39,10 +31,10 @@ type getFolderResponseMessages struct {
 }
 
 type getFolderResponseMessage struct {
-	ResponseClass string         `xml:"ResponseClass,attr"`
-	ResponseCode  string         `xml:"ResponseCode"`
-	MessageText   string         `xml:"MessageText"`
-	Folders       getFolderList  `xml:"Folders"`
+	ResponseClass string        `xml:"ResponseClass,attr"`
+	ResponseCode  string        `xml:"ResponseCode"`
+	MessageText   string        `xml:"MessageText"`
+	Folders       getFolderList `xml:"Folders"`
 }
 
 type getFolderList struct {
@@ -50,10 +42,10 @@ type getFolderList struct {
 }
 
 type ewsFolder struct {
-	FolderID     ewsFolderID `xml:"FolderId"`
-	DisplayName  string      `xml:"DisplayName"`
-	TotalCount   int         `xml:"TotalCount"`
-	UnreadCount  int         `xml:"UnreadCount"`
+	FolderID    ewsFolderID `xml:"FolderId"`
+	DisplayName string      `xml:"DisplayName"`
+	TotalCount  int         `xml:"TotalCount"`
+	UnreadCount int         `xml:"UnreadCount"`
 }
 
 type ewsFolderID struct {
@@ -108,12 +100,16 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		errMsg := fmt.Sprintf("EWS error: %s — %s", msg.ResponseCode, msg.MessageText)
 		fmt.Printf("✗ %s\n", errMsg)
 		writeAuthCSV(csvLogger, slogLogger, config, elapsed, errMsg)
-		return fmt.Errorf("%s", errMsg)
+		return errors.New(errMsg)
 	}
 
 	fmt.Printf("✓ Authentication successful (%s)\n", strings.ToUpper(config.AuthMethod))
 	fmt.Printf("  Response time: %d ms\n", elapsed)
-	fmt.Printf("  Inbox folder ID: %s\n\n", msg.Folders.Folder.FolderID.ID[:min(16, len(msg.Folders.Folder.FolderID.ID))]+"...")
+	folderID := msg.Folders.Folder.FolderID.ID
+	if len(folderID) > 16 {
+		folderID = folderID[:16] + "..."
+	}
+	fmt.Printf("  Inbox folder ID: %s\n\n", folderID)
 
 	logger.LogInfo(slogLogger, "testauth completed successfully",
 		"auth_method", config.AuthMethod, "elapsed_ms", elapsed)
@@ -135,11 +131,4 @@ func writeAuthCSV(csvLogger logger.Logger, slogLogger *slog.Logger, config *Conf
 	}); logErr != nil {
 		logger.LogError(slogLogger, "Failed to write CSV row", "error", logErr)
 	}
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
