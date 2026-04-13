@@ -5,6 +5,7 @@ go 1.24.0
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.20.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
+	github.com/Azure/go-ntlmssp v0.0.0-20191115210519-2b2be6cc8ed4
 	github.com/emersion/go-imap/v2 v2.0.0-beta.7
 	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6
 	github.com/golang-jwt/jwt/v5 v5.3.0
