@@ -16,6 +16,7 @@ gomailtest <protocol> <action> [flags]
 | `imap` | `testconnect`, `testauth`, `listfolders` | IMAP mailbox access |
 | `pop3` | `testconnect`, `testauth`, `listmail` | POP3 mailbox access |
 | `jmap` | `testconnect`, `testauth`, `getmailboxes` | JMAP (RFC 8620) servers |
+| `ews` | `testconnect`, `testauth`, `getfolder`, `autodiscover` | On-premises Exchange via EWS (Exchange 2007–2019) |
 | `msgraph` | `getevents`, `sendmail`, `sendinvite`, `getinbox`, `getschedule`, `exportinbox`, `searchandexport` | Exchange Online via Microsoft Graph API |
 
 Run `gomailtest <protocol> --help` for flags and environment variables.
@@ -87,6 +88,20 @@ gomailtest jmap getmailboxes --host jmap.fastmail.com \
 
 See [docs/protocols/jmap.md](docs/protocols/jmap.md) for full documentation.
 
+### EWS (Exchange Web Services)
+
+```powershell
+gomailtest ews testconnect --host mail.example.com
+gomailtest ews testauth --host mail.example.com \
+  --username "DOMAIN\user" --password "..."
+gomailtest ews getfolder --host mail.example.com \
+  --username "DOMAIN\user" --password "..."
+gomailtest ews autodiscover --host mail.example.com \
+  --username user@example.com
+```
+
+See [docs/protocols/ews.md](docs/protocols/ews.md) for full documentation.
+
 ### Microsoft Graph (Exchange Online)
 
 ```powershell
@@ -125,6 +140,7 @@ Each protocol uses a dedicated prefix:
 | IMAP | `IMAP` | `IMAPHOST`, `IMAPPORT`, `IMAPPASSWORD` |
 | POP3 | `POP3` | `POP3HOST`, `POP3PORT`, `POP3PASSWORD` |
 | JMAP | `JMAP` | `JMAPHOST`, `JMAPPORT`, `JMAPACCESSTOKEN` |
+| EWS | `EWS` | `EWSHOST`, `EWSUSERNAME`, `EWSPASSWORD` |
 | msgraph | `MSGRAPH` | `MSGRAPHTENANTID`, `MSGRAPHSECRET` |
 
 ## Migrating from Legacy Binary Names
@@ -146,6 +162,7 @@ The individual tool binaries (`smtptool`, `imaptool`, `pop3tool`, `jmaptool`, `m
 - [docs/protocols/imap.md](docs/protocols/imap.md) — IMAP tool
 - [docs/protocols/pop3.md](docs/protocols/pop3.md) — POP3 tool
 - [docs/protocols/jmap.md](docs/protocols/jmap.md) — JMAP tool
+- [docs/protocols/ews.md](docs/protocols/ews.md) — EWS tool (on-premises Exchange)
 - [docs/protocols/msgraph.md](docs/protocols/msgraph.md) — Microsoft Graph tool
 
 ### General Docs

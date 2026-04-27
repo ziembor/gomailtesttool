@@ -12,6 +12,7 @@ Integration tests make real network connections to email servers and APIs. They 
 | IMAP | Connect to real IMAP servers | Network, credentials |
 | POP3 | Connect to real POP3 servers | Network, credentials |
 | JMAP | Connect to real JMAP servers | Network, credentials / access token |
+| EWS | Connect to on-premises Exchange EWS endpoints | Network, credentials / access token |
 | Microsoft Graph | Exchange Online API operations | Azure AD app registration |
 
 ## Local SMTP Testing with Mailpit
@@ -83,6 +84,49 @@ gomailtest jmap getmailboxes --host jmap.fastmail.com `
     --username user@fastmail.com --accesstoken "fmu1-xxx..."
 ```
 
+## EWS Integration Testing
+
+**Prerequisites:** Access to an on-premises Exchange Server with EWS enabled.
+
+```powershell
+# Test basic EWS connectivity (no credentials required)
+gomailtest ews testconnect --host mail.example.com
+
+# Test NTLM authentication
+gomailtest ews testauth --host mail.example.com `
+    --username "CORP\user" --password "secret"
+
+# Test Basic authentication
+gomailtest ews testauth --host mail.example.com `
+    --username user@example.com --password "secret" --authmethod Basic
+
+# Test Bearer (OAuth2) authentication
+gomailtest ews testauth --host mail.example.com `
+    --username user@example.com --accesstoken "eyJ0..."
+
+# Get Inbox folder properties
+gomailtest ews getfolder --host mail.example.com `
+    --username "CORP\user" --password "secret"
+
+# Run Autodiscover
+gomailtest ews autodiscover --host mail.example.com `
+    --username user@example.com
+```
+
+Environment variable shortcut:
+
+```powershell
+$env:EWSHOST     = "mail.example.com"
+$env:EWSUSERNAME = "CORP\user"
+$env:EWSPASSWORD = "secret"
+
+gomailtest ews testconnect
+gomailtest ews testauth
+gomailtest ews getfolder
+```
+
+See [docs/protocols/ews.md](docs/protocols/ews.md) for full flag and environment variable reference.
+
 ## Microsoft Graph Integration Testing
 
 **Prerequisites:** An Azure AD App Registration with appropriate Microsoft Graph permissions.
@@ -143,6 +187,7 @@ gomailtest smtp testauth --host smtp.example.com `
 
 - [UNIT_TESTS.md](UNIT_TESTS.md) — Unit test documentation
 - [docs/protocols/smtp.md](docs/protocols/smtp.md) — SMTP documentation (includes Mailpit guide)
+- [docs/protocols/ews.md](docs/protocols/ews.md) — EWS documentation
 - [BUILD.md](BUILD.md) — Build instructions
 
                           ..ooOO END OOoo..
