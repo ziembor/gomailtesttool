@@ -3,7 +3,6 @@ package pop3
 import (
 	"bufio"
 	"context"
-	"crypto/md5"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
@@ -258,29 +257,7 @@ func (c *POP3Client) authUSER(username, password string) error {
 
 // authAPOP performs APOP authentication.
 func (c *POP3Client) authAPOP(username, password string) error {
-	// Extract timestamp from greeting
-	timestamp := protocol.ParseGreeting(c.greeting)
-	if timestamp == "" {
-		return fmt.Errorf("APOP not supported: no timestamp in greeting")
-	}
-
-	// Calculate MD5 digest
-	digest := fmt.Sprintf("%x", md5.Sum([]byte(timestamp+password)))
-
-	// Send APOP command
-	if _, err := c.conn.Write([]byte(protocol.APOP(username, digest))); err != nil {
-		return fmt.Errorf("failed to send APOP: %w", err)
-	}
-
-	resp, err := protocol.ReadResponse(c.reader)
-	if err != nil {
-		return fmt.Errorf("failed to read APOP response: %w", err)
-	}
-	if !resp.Success {
-		return fmt.Errorf("APOP failed: %s", resp.Message)
-	}
-
-	return nil
+	return fmt.Errorf("APOP authentication is disabled: protocol requires insecure MD5 challenge-response; use USER/PASS over TLS")
 }
 
 // authXOAUTH2 performs XOAUTH2 authentication.
