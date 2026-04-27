@@ -30,6 +30,7 @@ go test ./internal/protocols/smtp/
 go test ./internal/protocols/imap/
 go test ./internal/protocols/pop3/
 go test ./internal/protocols/jmap/
+go test ./internal/protocols/ews/
 go test ./internal/protocols/msgraph/
 go test ./internal/smtp/protocol/
 go test ./internal/jmap/protocol/
@@ -52,6 +53,7 @@ internal/
 │   ├── security/       - Security function tests
 │   └── validation/     - Input validation tests
 ├── protocols/
+│   ├── ews/            - EWS config, TLS, auth resolution tests
 │   ├── imap/           - IMAP Cobra config + validation tests
 │   ├── jmap/           - JMAP Cobra config + validation tests
 │   ├── msgraph/        - msgraph config, utils, handlers tests
@@ -116,6 +118,21 @@ Each protocol has tests for:
 - Send mail construction
 - Config validation
 - Utils (CRLF sanitization, masking)
+
+### EWS Protocol (`internal/protocols/ews/`)
+
+- `TestResolveAuthMethod` — verifies auth auto-detection (Bearer, NTLM, Basic)
+- `TestConfigFromViper` — verifies defaults and value overrides from Viper
+- `TestValidateConfiguration` — action validation, host/port validation, credential requirements per action
+- `TestBuildTLSConfig` — TLS version and skip-verify flag handling
+- `TestCertCSVFields` — certificate field extraction for CSV logging
+
+Run:
+```bash
+go test ./internal/protocols/ews/
+go test -v -run TestValidateConfiguration ./internal/protocols/ews/
+go test -v -run TestResolveAuthMethod ./internal/protocols/ews/
+```
 
 ## Test Patterns
 
@@ -217,5 +234,6 @@ chmod +x .git/hooks/pre-commit
 - [INTEGRATION_TESTS.md](INTEGRATION_TESTS.md) — Integration test guide
 - [BUILD.md](BUILD.md) — Build instructions
 - [docs/protocols/](docs/protocols/) — Per-protocol documentation
+- [docs/protocols/ews.md](docs/protocols/ews.md) — EWS documentation
 
                           ..ooOO END OOoo..
