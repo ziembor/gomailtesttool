@@ -2,6 +2,7 @@ package serve
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -45,9 +46,10 @@ func (s *Server) Run(ctx context.Context) error {
 
 	addr := fmt.Sprintf("%s:%d", s.config.Listen, s.config.Port)
 	srv := &http.Server{
-		Addr:        addr,
-		Handler:     s.apiKeyMiddleware(mux),
-		ReadTimeout: 5 * time.Second,
+		Addr:         addr,
+		Handler:      s.apiKeyMiddleware(mux),
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 70 * time.Second, // handler timeout is 60s; extra 10s for response flush
 	}
 
 	s.logger.Info("HTTP server listening", "addr", addr)
@@ -73,7 +75,7 @@ func (s *Server) Run(ctx context.Context) error {
 // apiKeyMiddleware enforces X-API-Key on all routes except /health.
 func (s *Server) apiKeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/health" && r.Header.Get("X-API-Key") != s.config.APIKey {
+		if r.URL.Path != "/health" && subtle.ConstantTimeCompare([]byte(r.Header.Get("X-API-Key")), []byte(s.config.APIKey)) != 1 {
 			writeJSON(w, http.StatusUnauthorized, apiResponse{Status: "error", Message: "missing or invalid X-API-Key"})
 			return
 		}

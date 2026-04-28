@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
 	"msgraphtool/internal/common/bootstrap"
 	"msgraphtool/internal/protocols/msgraph"
 	"msgraphtool/internal/protocols/smtp"
@@ -58,31 +59,33 @@ All non-health endpoints require the X-API-Key header.`,
 				smtpBase = nil
 			}
 
-			// Load MS Graph base config from MSGRAPH* env vars and create client
+			// Load MS Graph base config and create client — resolve all values before
+			// calling New() so the constructor receives the final state directly.
+			var msgraphBase *msgraph.Config
+			var graphClient *msgraphsdk.GraphServiceClient
+
 			msgraphViper := viper.New()
 			msgraph.BindEnvs(msgraphViper)
-			msgraphBase := msgraph.ConfigFromViper(msgraphViper)
-			msgraphBase.Action = msgraph.ActionSendMail
+			loadedBase := msgraph.ConfigFromViper(msgraphViper)
+			loadedBase.Action = msgraph.ActionSendMail
 
-			srv := New(cfg, smtpBase, nil, nil, slogger)
-
-			if msgraphBase.TenantID == "" || msgraphBase.ClientID == "" {
+			if loadedBase.TenantID == "" || loadedBase.ClientID == "" {
 				slogger.Warn("MSGRAPHTENANTID or MSGRAPHCLIENTID not set — POST /msgraph/sendmail will return 503")
 			} else {
-				if msgraphBase.ProxyURL != "" {
-					os.Setenv("HTTP_PROXY", msgraphBase.ProxyURL)   //nolint:errcheck
-					os.Setenv("HTTPS_PROXY", msgraphBase.ProxyURL)  //nolint:errcheck
+				if loadedBase.ProxyURL != "" {
+					os.Setenv("HTTP_PROXY", loadedBase.ProxyURL)  //nolint:errcheck
+					os.Setenv("HTTPS_PROXY", loadedBase.ProxyURL) //nolint:errcheck
 				}
-				gc, err := msgraph.NewGraphServiceClient(ctx, msgraphBase, slogger)
+				gc, err := msgraph.NewGraphServiceClient(ctx, loadedBase, slogger)
 				if err != nil {
 					slogger.Warn("MS Graph client init failed — POST /msgraph/sendmail will return 503", "error", err)
 				} else {
-					srv.msgraphBase = msgraphBase
-					srv.graphClient = gc
+					msgraphBase = loadedBase
+					graphClient = gc
 				}
 			}
 
-			return srv.Run(ctx)
+			return New(cfg, smtpBase, msgraphBase, graphClient, slogger).Run(ctx)
 		},
 	}
 

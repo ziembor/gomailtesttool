@@ -12,14 +12,15 @@ import (
 )
 
 // msgraphSendRequest is the JSON body for POST /msgraph/sendmail.
+// Attachments are intentionally omitted: accepting raw filesystem paths from HTTP
+// clients would allow any API-key holder to read arbitrary server-side files.
 type msgraphSendRequest struct {
-	To          []string `json:"to"`
-	Cc          []string `json:"cc,omitempty"`
-	Bcc         []string `json:"bcc,omitempty"`
-	Subject     string   `json:"subject"`
-	Body        string   `json:"body,omitempty"`
-	BodyHTML    string   `json:"bodyHTML,omitempty"`
-	Attachments []string `json:"attachments,omitempty"`
+	To       []string `json:"to"`
+	Cc       []string `json:"cc,omitempty"`
+	Bcc      []string `json:"bcc,omitempty"`
+	Subject  string   `json:"subject"`
+	Body     string   `json:"body,omitempty"`
+	BodyHTML string   `json:"bodyHTML,omitempty"`
 }
 
 func (s *Server) handleMsgraphSendMail(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +75,7 @@ func (s *Server) handleMsgraphSendMail(w http.ResponseWriter, r *http.Request) {
 		defer csvLogger.Close()
 	}
 
-	if err := msgraph.SendEmail(ctx, s.graphClient, cfg.Mailbox, req.To, req.Cc, req.Bcc, req.Subject, req.Body, req.BodyHTML, req.Attachments, &cfg, csvLogger); err != nil {
+	if err := msgraph.SendEmail(ctx, s.graphClient, cfg.Mailbox, req.To, req.Cc, req.Bcc, req.Subject, req.Body, req.BodyHTML, nil, &cfg, csvLogger); err != nil {
 		s.logger.Error("Graph sendmail failed", "error", err)
 		writeJSON(w, http.StatusInternalServerError, apiResponse{Status: "error", Message: err.Error()})
 		return

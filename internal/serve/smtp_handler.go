@@ -45,6 +45,12 @@ func (s *Server) handleSMTPSendMail(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, apiResponse{Status: "error", Message: "from is required (set SMTPFROM or provide 'from' in request body)"})
 		return
 	}
+	if req.From != "" {
+		if err := validation.ValidateEmail(req.From); err != nil {
+			writeJSON(w, http.StatusBadRequest, apiResponse{Status: "error", Message: "invalid from address: " + err.Error()})
+			return
+		}
+	}
 	for _, addr := range req.To {
 		if err := validation.ValidateEmail(addr); err != nil {
 			writeJSON(w, http.StatusBadRequest, apiResponse{Status: "error", Message: "invalid to address " + addr + ": " + err.Error()})

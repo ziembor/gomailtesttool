@@ -239,6 +239,13 @@ func TestHandleSMTPSendMail_Validation(t *testing.T) {
 			wantMsg:    "invalid to address",
 		},
 		{
+			name:       "Invalid from in request body",
+			body:       map[string]any{"to": []string{"a@b.com"}, "subject": "Test", "from": "notanemail"},
+			smtpFrom:   "sender@example.com",
+			wantStatus: http.StatusBadRequest,
+			wantMsg:    "invalid from address",
+		},
+		{
 			name:       "Invalid JSON body",
 			rawBody:    `{bad json`,
 			smtpFrom:   "sender@example.com",
@@ -387,6 +394,29 @@ func TestHandleMsgraphSendMail_ValidRequest_NilClient_Returns503(t *testing.T) {
 		map[string]any{"to": []string{"a@b.com"}, "subject": "Test"},
 		"testkey")
 
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want 503 (body: %s)", rr.Code, rr.Body)
+	}
+}
+
+func TestHandleMsgraphSendMail_AttachmentsFieldIgnored(t *testing.T) {
+	// "attachments" was removed from the HTTP API to prevent path traversal.
+	// A request that includes it should be decoded without error (JSON unknown
+	// fields are silently ignored) and fail only at the graphClient nil check.
+	srv := newTestServer(nil, baseMsgraphConfig()) // graphClient = nil
+
+	rr := serve(t, srv, http.MethodPost, "/msgraph/sendmail",
+		map[string]any{
+			"to":          []string{"a@b.com"},
+			"subject":     "Test",
+			"attachments": []string{"/etc/passwd"}, // must not cause path traversal
+		},
+		"testkey")
+
+	// Should be 503 (validation passed, client nil), NOT 400
+	if rr.Code == http.StatusBadRequest {
+		t.Errorf("attachments field caused a 400 — it should be silently ignored: %s", rr.Body)
+	}
 	if rr.Code != http.StatusServiceUnavailable {
 		t.Errorf("status = %d, want 503 (body: %s)", rr.Code, rr.Body)
 	}
