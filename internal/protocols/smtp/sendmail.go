@@ -30,17 +30,15 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	}
 
 	// Write CSV header
-	if shouldWrite, _ := csvLogger.ShouldWriteHeader(); shouldWrite {
-		if err := csvLogger.WriteHeader([]string{
-			"Action", "Status", "Server", "Port", "Connect_Address", "From", "To",
-			"Subject", "SMTP_Response_Code", "Message_ID",
-			"TLS_Version", "Cipher_Suite", "Cipher_Strength",
-			"Cert_Subject", "Cert_Issuer", "Cert_SANs",
-			"Cert_Valid_From", "Cert_Valid_To", "Cert_Verification_Status",
-			"Error",
-		}); err != nil {
-			logger.LogError(slogLogger, "Failed to write CSV header", "error", err)
-		}
+	if err := writeSMTPCSVHeader(csvLogger, []string{
+		"Action", "Status", "Server", "Port", "Connect_Address", "From", "To",
+		"Subject", "SMTP_Response_Code", "Message_ID",
+		"TLS_Version", "Cipher_Suite", "Cipher_Strength",
+		"Cert_Subject", "Cert_Issuer", "Cert_SANs",
+		"Cert_Valid_From", "Cert_Valid_To", "Cert_Verification_Status",
+		"Error",
+	}); err != nil {
+		logger.LogError(slogLogger, "Failed to write CSV header", "error", err)
 	}
 
 	fmt.Printf("From:    %s\n", config.From)
@@ -53,7 +51,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 	if err := client.Connect(ctx); err != nil {
 		logger.LogError(slogLogger, "Connection failed", "error", err)
-		if logErr := csvLogger.WriteRow([]string{
+		if logErr := writeSMTPCSVRow(csvLogger, []string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 			config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject, "", "",
 			"", "", "", "", "", "", "", "", "", // No TLS info on connection failure
@@ -84,7 +82,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	caps, err := client.EHLO("smtptool.local")
 	if err != nil {
 		logger.LogError(slogLogger, "EHLO failed", "error", err)
-		if logErr := csvLogger.WriteRow([]string{
+		if logErr := writeSMTPCSVRow(csvLogger, []string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 			config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject, "", "",
 			"", "", "", "", "", "", "", "", "", // No TLS info on EHLO failure
@@ -118,7 +116,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		tlsState, err = client.StartTLS(tlsConfig)
 		if err != nil {
 			logger.LogError(slogLogger, "STARTTLS failed", "error", err)
-			if logErr := csvLogger.WriteRow([]string{
+			if logErr := writeSMTPCSVRow(csvLogger, []string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 				config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject, "", "",
 				"", "", "", "", "", "", "", "", "", // No TLS info on STARTTLS failure
@@ -152,7 +150,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		if methodToUse == "" {
 			msg := "No compatible authentication mechanism found"
 			tlsData := formatTLSInfoForCSV(tlsState, config.Host)
-			if logErr := csvLogger.WriteRow([]string{
+			if logErr := writeSMTPCSVRow(csvLogger, []string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 				config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject, "", "",
 				tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
@@ -180,7 +178,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 			}
 
 			tlsData := formatTLSInfoForCSV(tlsState, config.Host)
-			if logErr := csvLogger.WriteRow([]string{
+			if logErr := writeSMTPCSVRow(csvLogger, []string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 				config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject, "", "",
 				tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
@@ -208,7 +206,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	if err != nil {
 		logger.LogError(slogLogger, "Failed to send email", "error", err)
 		tlsData := formatTLSInfoForCSV(tlsState, config.Host)
-		if logErr := csvLogger.WriteRow([]string{
+		if logErr := writeSMTPCSVRow(csvLogger, []string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
 			config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject, "", "",
 			tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
@@ -226,7 +224,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 	// Log to CSV
 	tlsData := formatTLSInfoForCSV(tlsState, config.Host)
-	if logErr := csvLogger.WriteRow([]string{
+	if logErr := writeSMTPCSVRow(csvLogger, []string{
 		config.Action, "SUCCESS", config.Host, fmt.Sprintf("%d", config.Port),
 		config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject,
 		"250", messageID,
@@ -242,6 +240,30 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	logger.LogInfo(slogLogger, "sendmail completed successfully", "messageID", messageID)
 
 	return nil
+}
+
+func writeSMTPCSVHeader(csvLogger logger.Logger, columns []string) error {
+	if csvLogger == nil {
+		return nil
+	}
+
+	shouldWrite, err := csvLogger.ShouldWriteHeader()
+	if err != nil {
+		return err
+	}
+	if !shouldWrite {
+		return nil
+	}
+
+	return csvLogger.WriteHeader(columns)
+}
+
+func writeSMTPCSVRow(csvLogger logger.Logger, row []string) error {
+	if csvLogger == nil {
+		return nil
+	}
+
+	return csvLogger.WriteRow(row)
 }
 
 // buildEmailMessage constructs an RFC 5322 email message.
