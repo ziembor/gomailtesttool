@@ -39,6 +39,7 @@ func New(cfg *Config, smtpBase *smtp.Config, msgraphBase *msgraph.Config, graphC
 // Run starts the HTTP server and blocks until ctx is cancelled or the server errors.
 func (s *Server) Run(ctx context.Context) error {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /", s.handleSummary)
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("POST /smtp/sendmail", s.handleSMTPSendMail)
 	mux.HandleFunc("POST /msgraph/sendmail", s.handleMsgraphSendMail)
@@ -72,10 +73,11 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 }
 
-// apiKeyMiddleware enforces X-API-Key on all routes except /health.
+// apiKeyMiddleware enforces X-API-Key on all routes except /health and GET /.
 func (s *Server) apiKeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/health" && subtle.ConstantTimeCompare([]byte(r.Header.Get("X-API-Key")), []byte(s.config.APIKey)) != 1 {
+		exempt := r.URL.Path == "/health" || (r.URL.Path == "/" && r.Method == http.MethodGet)
+		if !exempt && subtle.ConstantTimeCompare([]byte(r.Header.Get("X-API-Key")), []byte(s.config.APIKey)) != 1 {
 			writeJSON(w, http.StatusUnauthorized, apiResponse{Status: "error", Message: "missing or invalid X-API-Key"})
 			return
 		}
@@ -85,6 +87,30 @@ func (s *Server) apiKeyMiddleware(next http.Handler) http.Handler {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": version.Get()})
+}
+
+func (s *Server) handleSummary(w http.ResponseWriter, r *http.Request) {
+	type endpointInfo struct {
+		Method      string `json:"method"`
+		Path        string `json:"path"`
+		Description string `json:"description"`
+		Available   bool   `json:"available"`
+	}
+	type summaryResponse struct {
+		Name      string         `json:"name"`
+		Version   string         `json:"version"`
+		Endpoints []endpointInfo `json:"endpoints"`
+	}
+	writeJSON(w, http.StatusOK, summaryResponse{
+		Name:    "gomailtest serve",
+		Version: version.Get(),
+		Endpoints: []endpointInfo{
+			{Method: "GET", Path: "/health", Description: "Health check (no API key required)", Available: true},
+			{Method: "POST", Path: "/smtp/sendmail", Description: "Send email via SMTP (X-API-Key required)", Available: s.smtpBase != nil},
+			{Method: "POST", Path: "/msgraph/sendmail", Description: "Send email via Microsoft Graph (X-API-Key required)", Available: s.msgraphBase != nil && s.graphClient != nil},
+			{Method: "POST", Path: "/ews/sendmail", Description: "Send email via EWS — not yet implemented", Available: false},
+		},
+	})
 }
 
 // apiResponse is the standard JSON envelope for all endpoint responses.
