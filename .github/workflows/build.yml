@@ -122,7 +122,7 @@ jobs:
     - name: Create ZIP archive (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        Compress-Archive -Path bin\gomailtest${{ matrix.ext }},README.md,TOOLS.md,EXAMPLES.md,LICENSE -DestinationPath $env:ZIP_NAME
+        Compress-Archive -Path bin\gomailtest${{ matrix.ext }},README.md,TOOLS.md,LICENSE -DestinationPath $env:ZIP_NAME
         Write-Host "Created ZIP archive: $env:ZIP_NAME"
         Get-Item $env:ZIP_NAME | Select-Object Name, Length
 
@@ -130,7 +130,7 @@ jobs:
       if: matrix.os != 'windows-latest'
       run: |
         cd bin && zip ../$ZIP_NAME gomailtest${{ matrix.ext }} && cd ..
-        zip -u $ZIP_NAME README.md TOOLS.md EXAMPLES.md LICENSE
+        zip -u $ZIP_NAME README.md TOOLS.md LICENSE
         echo "Created ZIP archive: $ZIP_NAME"
         ls -lh $ZIP_NAME
 
@@ -157,7 +157,6 @@ jobs:
           Plus documentation:
           - **README.md** - Main documentation
           - **TOOLS.md** - Protocol-specific tool guides
-          - **EXAMPLES.md** - Usage examples
           - **LICENSE** - MIT License
 
           ### Installation

@@ -2,12 +2,14 @@
 
 ## Overview
 
-**gomailtesttool** is a unified CLI (`gomailtest`) for email infrastructure testing, with 5 protocol subcommands plus developer tooling:
+**gomailtesttool** is a unified CLI (`gomailtest`) for email infrastructure testing, with 6 protocol subcommands plus developer tooling and an HTTP server mode:
 - **smtp** - SMTP connectivity and TLS diagnostics
 - **imap** - IMAP server testing with OAuth2
 - **pop3** - POP3 server testing with OAuth2
 - **jmap** - JMAP protocol testing
+- **ews** - Exchange Web Services (on-premises Exchange 2007–2019)
 - **msgraph** - Microsoft Graph API (Exchange Online)
+- **serve** - HTTP/REST server for triggering send operations programmatically
 - **devtools** - Release automation and environment management
 
 ## File Structure and Dependencies
@@ -43,6 +45,15 @@ gomailtesttool/
 │   │   │   └── proxy_test.go
 │   │   └── version/
 │   │       └── version.go            # Single source of truth for version
+│   │
+│   ├── serve/                        # HTTP server subcommand
+│   │   ├── cmd.go                    # 'gomailtest serve' — startup, env loading, client init
+│   │   ├── config.go                 # ServeConfig (Port, Listen, APIKey)
+│   │   ├── server.go                 # HTTP server, mux, API key middleware, /health
+│   │   ├── smtp_handler.go           # POST /smtp/sendmail
+│   │   ├── msgraph_handler.go        # POST /msgraph/sendmail
+│   │   ├── ews_handler.go            # POST /ews/sendmail (501 placeholder)
+│   │   └── server_test.go
 │   │
 │   ├── devtools/                     # Developer-facing subcommand
 │   │   ├── cmd.go                    # 'gomailtest devtools' root
@@ -104,6 +115,18 @@ gomailtesttool/
 │   │   │   ├── testauth.go
 │   │   │   ├── utils.go
 │   │   │   └── utils_test.go
+│   │   │
+│   │   ├── ews/
+│   │   │   ├── cmd.go
+│   │   │   ├── config.go
+│   │   │   ├── config_test.go
+│   │   │   ├── ews_client.go
+│   │   │   ├── soap_bodies.go
+│   │   │   ├── testconnect.go
+│   │   │   ├── testauth.go
+│   │   │   ├── getfolder.go
+│   │   │   ├── autodiscover.go
+│   │   │   └── utils.go
 │   │   │
 │   │   └── msgraph/
 │   │       ├── cmd.go
@@ -182,6 +205,11 @@ gomailtest
 │   ├── testconnect
 │   ├── testauth
 │   └── getmailboxes
+├── ews
+│   ├── testconnect
+│   ├── testauth
+│   ├── getfolder
+│   └── autodiscover
 ├── msgraph
 │   ├── getevents
 │   ├── sendinvite
@@ -190,6 +218,11 @@ gomailtest
 │   ├── getinbox
 │   ├── exportinbox
 │   └── searchandexport
+├── serve
+│   ├── (GET)  /health
+│   ├── (POST) /smtp/sendmail
+│   ├── (POST) /msgraph/sendmail
+│   └── (POST) /ews/sendmail        (501 — not yet implemented)
 └── devtools
     ├── env       (get/set/clear MSGRAPH* environment variables)
     └── release   (interactive: version bump → changelog → git tag → GitHub release)
@@ -226,7 +259,9 @@ cmd/gomailtest/root.go
   rootCmd.AddCommand(imap.NewCmd())
   rootCmd.AddCommand(pop3.NewCmd())
   rootCmd.AddCommand(jmap.NewCmd())
+  rootCmd.AddCommand(ews.NewCmd())
   rootCmd.AddCommand(msgraph.NewCmd())
+  rootCmd.AddCommand(serve.NewCmd())
   rootCmd.AddCommand(devtools.NewCmd())
           │
           ▼
@@ -285,6 +320,23 @@ cmd.go
   └─► jmap_client.go     — HTTP-based JMAP client
 ```
 
+### ews (internal/protocols/ews/)
+
+```
+cmd.go
+  └─► testconnect.go   — HTTP/TLS probe; HTTP 401 confirms server alive; reports TLS version, cipher, cert
+  └─► testauth.go      — NTLM, Basic, Bearer (OAuth2); verifies via GetFolder(Inbox)
+  └─► getfolder.go     — retrieve Inbox folder properties (display name, total/unread count, folder ID)
+  └─► autodiscover.go  — POST GetUserSettings to Autodiscover; resolves EWS URLs, user display name, AD server
+  └─► ews_client.go    — HTTP/SOAP client with NTLM transport (go-ntlmssp), Basic, Bearer auth
+  └─► soap_bodies.go   — SOAP request body builders
+```
+
+Auth method auto-detection:
+- Bearer if `--accesstoken` provided
+- NTLM if `--username` contains `\` or `--domain` set
+- Basic otherwise
+
 ### msgraph (internal/protocols/msgraph/)
 
 ```
@@ -300,13 +352,41 @@ cmd.go → handlers.go
       ├─► handleExportInbox()        (exportinbox)
       └─► handleSearchAndExport()    (searchandexport)
 
-auth.go → getCredential()
+auth.go → NewGraphServiceClient() → getCredential()
   ├─► azidentity.NewClientSecretCredential()   (-secret / MSGRAPHSECRET)
   ├─► azidentity.NewClientCertificateCredential()
   │   ├─► From PFX file (-pfx + -pfxpass)
   │   └─► From Windows Cert Store (-thumbprint) → cert_windows.go
   └─► azidentity.NewBearerTokenCredential()    (-accesstoken)
+
+NewGraphServiceClient() is also called by internal/serve/cmd.go at server startup.
 ```
+
+### serve (internal/serve/)
+
+```
+cmd.go → server.go
+  ├── Startup
+  │   ├── Requires --api-key / SERVE_API_KEY (fails fast if absent)
+  │   ├── Loads SMTP base config from SMTP* env vars via smtp.ConfigFromViper()
+  │   │   └── SMTPHOST absent → SMTP endpoint returns 503 (server still starts)
+  │   ├── Loads MS Graph base config from MSGRAPH* env vars via msgraph.ConfigFromViper()
+  │   │   └── Missing TenantID/ClientID → Graph endpoint returns 503
+  │   │   └── Client init failure → Graph endpoint returns 503
+  │   └── msgraph.NewGraphServiceClient() — created once, reused across requests
+  │
+  ├── Middleware
+  │   └── X-API-Key header check on all routes except GET /health
+  │
+  └── Endpoints
+      ├── GET  /health           → {"status":"ok","version":"3.x.x"}
+      ├── POST /smtp/sendmail    → smtp_handler.go → smtp.SendMail()
+      ├── POST /msgraph/sendmail → msgraph_handler.go → msgraph.SendEmail()
+      └── POST /ews/sendmail     → ews_handler.go → 501 Not Implemented
+```
+
+Credential model: credentials loaded from env vars at startup; request bodies carry
+only message content (to, subject, body, etc.) — no credentials in HTTP requests.
 
 ## Shared Internal Packages
 
@@ -318,7 +398,7 @@ internal/common/
   ├── retry/         — exponential backoff (50ms → 10s cap), retryable error detection
   ├── security/      — credential masking (maskSecret, maskGUID)
   ├── validation/    — email, GUID, RFC3339, proxy URL, path, OData injection prevention
-  └── version/       — single const Version = "3.1.6"
+  └── version/       — single const Version = "3.3.1"
 ```
 
 ## devtools Subcommand
@@ -363,7 +443,10 @@ Unit tests (go test ./...):
   ├── internal/protocols/smtp/          config_test.go, smtp_client_test.go,
   │                                     sendmail_test.go, utils_test.go
   ├── internal/protocols/jmap/          config_test.go, utils_test.go
+  ├── internal/protocols/ews/           config_test.go
   ├── internal/protocols/msgraph/       utils_test.go
+  ├── internal/serve/                   server_test.go
+  │                                     (middleware, health, EWS 501, SMTP/Graph validation)
   ├── internal/common/logger/           json_test.go
   ├── internal/common/ratelimit/        ratelimit_test.go
   ├── internal/common/security/         masking_test.go
@@ -395,7 +478,7 @@ build job (on tag push, needs: test):
   Matrix: windows-latest (amd64), ubuntu-latest (amd64), macos-latest (arm64)
   ├── go build -ldflags="-s -w" -o bin/gomailtest[.exe] ./cmd/gomailtest
   ├── Verify binary exists
-  ├── Create ZIP: bin/gomailtest[.exe] + README.md + TOOLS.md + EXAMPLES.md + LICENSE
+  ├── Create ZIP: bin/gomailtest[.exe] + README.md + TOOLS.md + LICENSE
   │   → gomailtesttool-{os}-{arch}.zip
   ├── Upload artifacts
   └── Create GitHub Release (softprops/action-gh-release)
@@ -479,9 +562,31 @@ Action-specific files prevent schema conflicts:
 %TEMP%\_imaptool_listfolders_{date}.csv
 %TEMP%\_pop3tool_listmail_{date}.csv
 %TEMP%\_jmaptool_getmailboxes_{date}.csv
+%TEMP%\_ewstool_testconnect_{date}.csv
+%TEMP%\_ewstool_testauth_{date}.csv
+%TEMP%\_ewstool_getfolder_{date}.csv
+%TEMP%\_ewstool_autodiscover_{date}.csv
+%TEMP%\_servetool_smtp-sendmail_{date}.csv
+%TEMP%\_servetool_msgraph-sendmail_{date}.csv
 ```
 
-### 6. JSON Export Pattern
+### 6. HTTP Serve Pattern
+
+`gomailtest serve` exposes send operations as REST endpoints using only stdlib `net/http`:
+
+```
+Startup:  load SMTP*/MSGRAPH* env vars → build base configs → init Graph client once
+Request:  X-API-Key middleware → decode JSON body → validate → call protocol Send*() → JSON response
+
+POST /smtp/sendmail    body: {to, from?, subject, body}
+POST /msgraph/sendmail body: {to, cc?, bcc?, subject, body?, bodyHTML?, attachments?}
+GET  /health           → {"status":"ok","version":"3.x.x"}
+```
+
+Credentials never appear in request bodies. A missing credential set causes graceful 503
+degradation for that endpoint only — the server continues serving other endpoints.
+
+### 7. JSON Export Pattern
 
 Export actions create date-stamped directories:
 
@@ -496,12 +601,12 @@ Export actions create date-stamped directories:
 
 ## Project Statistics
 
-**Version:** 3.1.6 (Latest)
-**Last Updated:** 2026-04-12
+**Version:** 3.3.1 (Latest)
+**Last Updated:** 2026-04-28
 
 ### Codebase Metrics
 - **Binary:** 1 unified `gomailtest` (cobra CLI)
-- **Protocol subcommands:** 5 (smtp, imap, pop3, jmap, msgraph)
+- **Protocol subcommands:** 6 (smtp, imap, pop3, jmap, ews, msgraph) + serve mode
 - **Supported Platforms:** Windows (amd64), Linux (amd64), macOS (arm64)
 - **Integration Tests:** MS Graph sendmail (tests/integration/)
 
@@ -509,5 +614,7 @@ Export actions create date-stamped directories:
 - **v1.x:** Single msgraphtool binary
 - **v2.0+:** Multi-tool suite (5 separate binaries) with shared internal packages
 - **v3.0+:** Unified `gomailtest` binary with cobra subcommands; protocol logic in `internal/protocols/`; `devtools` subcommand replaces PS1 release scripts
+- **v3.3+:** Added `ews` subcommand for on-premises Exchange Web Services (NTLM/Basic/Bearer, Autodiscover)
+- **v3.3+:** Added `serve` subcommand — HTTP/REST server for triggering sends via API (no new dependencies, stdlib `net/http`)
 
                           ..ooOO END OOoo..

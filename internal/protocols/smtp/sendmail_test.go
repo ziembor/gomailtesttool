@@ -4,6 +4,8 @@
 package smtp
 
 import (
+	"context"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -252,6 +254,25 @@ func TestGenerateMessageID(t *testing.T) {
 				t.Errorf("generateMessageID() not unique: %s == %s", msgID, msgID2)
 			}
 		})
+	}
+}
+
+func TestSendMail_AllowsNilCSVLogger(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	cfg := NewConfig()
+	cfg.Action = ActionSendMail
+	cfg.Host = "127.0.0.1"
+	cfg.Port = 1
+	cfg.From = "sender@example.com"
+	cfg.To = []string{"recipient@example.com"}
+	cfg.Subject = "Nil Logger Test"
+	cfg.Body = "test body"
+
+	err := SendMail(ctx, cfg, nil, slog.New(slog.NewTextHandler(&strings.Builder{}, nil)))
+	if err == nil {
+		t.Fatal("SendMail() error = nil, want connection failure without panic")
 	}
 }
 

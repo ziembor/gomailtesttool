@@ -74,7 +74,7 @@ func newGetEventsCmd(v *viper.Viper) *cobra.Command {
 				os.Setenv("HTTPS_PROXY", config.ProxyURL)
 			}
 
-			client, err := setupGraphClient(ctx, config, slogger)
+			client, err := NewGraphServiceClient(ctx, config, slogger)
 			if err != nil {
 				return err
 			}
@@ -126,7 +126,7 @@ func newSendMailCmd(v *viper.Viper) *cobra.Command {
 				config.BodyHTML = string(content)
 			}
 
-			client, err := setupGraphClient(ctx, config, slogger)
+			client, err := NewGraphServiceClient(ctx, config, slogger)
 			if err != nil {
 				return err
 			}
@@ -136,8 +136,7 @@ func newSendMailCmd(v *viper.Viper) *cobra.Command {
 				config.To = stringSlice{config.Mailbox}
 			}
 
-			sendEmail(ctx, client, config.Mailbox, config.To, config.Cc, config.Bcc, config.Subject, config.Body, config.BodyHTML, config.AttachmentFiles, config, csvLogger)
-			return nil
+			return SendEmail(ctx, client, config.Mailbox, config.To, config.Cc, config.Bcc, config.Subject, config.Body, config.BodyHTML, config.AttachmentFiles, config, csvLogger)
 		},
 	}
 	cmd.Flags().String("to", "", "Comma-separated TO recipients (env: MSGRAPHTO)")
@@ -182,7 +181,7 @@ func newSendInviteCmd(v *viper.Viper) *cobra.Command {
 				os.Setenv("HTTPS_PROXY", config.ProxyURL)
 			}
 
-			client, err := setupGraphClient(ctx, config, slogger)
+			client, err := NewGraphServiceClient(ctx, config, slogger)
 			if err != nil {
 				return err
 			}
@@ -238,7 +237,7 @@ func newGetInboxCmd(v *viper.Viper) *cobra.Command {
 				os.Setenv("HTTPS_PROXY", config.ProxyURL)
 			}
 
-			client, err := setupGraphClient(ctx, config, slogger)
+			client, err := NewGraphServiceClient(ctx, config, slogger)
 			if err != nil {
 				return err
 			}
@@ -281,7 +280,7 @@ func newGetScheduleCmd(v *viper.Viper) *cobra.Command {
 				os.Setenv("HTTPS_PROXY", config.ProxyURL)
 			}
 
-			client, err := setupGraphClient(ctx, config, slogger)
+			client, err := NewGraphServiceClient(ctx, config, slogger)
 			if err != nil {
 				return err
 			}
@@ -324,7 +323,7 @@ func newExportInboxCmd(v *viper.Viper) *cobra.Command {
 				os.Setenv("HTTPS_PROXY", config.ProxyURL)
 			}
 
-			client, err := setupGraphClient(ctx, config, slogger)
+			client, err := NewGraphServiceClient(ctx, config, slogger)
 			if err != nil {
 				return err
 			}
@@ -367,7 +366,7 @@ func newSearchAndExportCmd(v *viper.Viper) *cobra.Command {
 				os.Setenv("HTTPS_PROXY", config.ProxyURL)
 			}
 
-			client, err := setupGraphClient(ctx, config, slogger)
+			client, err := NewGraphServiceClient(ctx, config, slogger)
 			if err != nil {
 				return err
 			}

@@ -61,6 +61,13 @@ gomailtest msgraph sendmail \
     --subject "HTML Email" \
     --bodyHTML "<h1>Hello</h1><p>This is an <strong>HTML</strong> email.</p>"
 
+# Both text and HTML (multipart MIME)
+gomailtest msgraph sendmail \
+    --to "recipient@example.com" \
+    --subject "Multipart Email" \
+    --body "This is the plain text version" \
+    --bodyHTML "<h1>HTML Version</h1><p>This is the <em>HTML</em> version</p>"
+
 # With attachments
 gomailtest msgraph sendmail \
     --to "recipient@example.com" \
@@ -77,6 +84,12 @@ gomailtest msgraph sendinvite \
     --subject "Project Review" \
     --start "2026-01-15T14:00:00Z" \
     --end "2026-01-15T15:00:00Z"
+
+# All-day event
+gomailtest msgraph sendinvite \
+    --subject "Conference Day" \
+    --start "2026-02-01T00:00:00Z" \
+    --end "2026-02-02T00:00:00Z"
 ```
 
 ### getinbox — Retrieve Inbox Messages
@@ -195,9 +208,53 @@ $env:MSGRAPHMAILBOX = "user@example.com"
 gomailtest msgraph sendmail --to "recipient@example.com"
 ```
 
+## Proxy Usage
+
+```powershell
+# Specify proxy on command line
+gomailtest msgraph sendmail \
+    --to "user@example.com" \
+    --proxy "http://proxy.company.com:8080"
+
+# Proxy via environment variable
+$env:MSGRAPHPROXY = "http://proxy.company.com:8080"
+gomailtest msgraph getevents
+```
+
+## Advanced Examples
+
+### HTML Report with Multiple Attachments
+
+```powershell
+gomailtest msgraph sendmail \
+    --to "team-lead@example.com,manager@example.com" \
+    --cc "team@example.com" \
+    --subject "Q1 2026 Performance Report" \
+    --bodyHTML "<h1>Q1 Performance Report</h1><p>See attached metrics and analysis.</p>" \
+    --attachments "C:\Reports\Q1-Metrics.xlsx,C:\Reports\Q1-Analysis.pdf" \
+    --verbose
+```
+
+### Automated Monitoring Script
+
+```powershell
+# Log inbox and calendar to files
+gomailtest msgraph getinbox --count 50 | Out-File -Append "C:\Logs\inbox-monitor.log"
+gomailtest msgraph getevents --count 20 | Out-File -Append "C:\Logs\calendar-monitor.log"
+```
+
 ## CSV Logging
 
 Operations are logged to `%TEMP%\_msgraphtool_{action}_{date}.csv`.
+
+### Log Schemas
+
+| Action | Columns |
+|--------|---------|
+| `getevents` | Timestamp, Action, Status, Mailbox, Event Subject, Event ID |
+| `sendmail` | Timestamp, Action, Status, Mailbox, To, CC, BCC, Subject, Body Type, Attachments |
+| `sendinvite` | Timestamp, Action, Status, Mailbox, Subject, Start Time, End Time, Event ID |
+| `getinbox` | Timestamp, Action, Status, Mailbox, Subject, From, To, Received DateTime |
 
 ## Retry Configuration
 
@@ -220,10 +277,19 @@ Retry uses exponential backoff: 2s → 4s → 8s → 16s → 30s (capped). Retri
 | getinbox, exportinbox, searchandexport | `Mail.Read` |
 | getschedule | `Calendars.Read` |
 
+## Tips and Best Practices
+
+1. **Security**: Use environment variables for sensitive data — avoid passing secrets as CLI flags (visible in process list)
+2. **Verbose Mode**: Use `--verbose` when troubleshooting authentication or API issues
+3. **CSV Logs**: Check CSV log files for historical records of all operations
+4. **Graceful Shutdown**: Press Ctrl+C to interrupt long-running operations safely (CSV logger closes cleanly)
+5. **Flag Precedence**: Command-line flags override environment variables
+6. **Comma Separation**: Lists (`--to`, `--cc`, `--bcc`, `--attachments`) use comma-separation; spaces are trimmed
+7. **Time Format**: Calendar times use RFC3339 format (e.g., `2026-01-15T14:00:00Z`)
+
 ## Related Documentation
 
 - [BUILD.md](../../BUILD.md) — Build instructions
-- [EXAMPLES.md](../../EXAMPLES.md) — Extended usage examples
 - [TROUBLESHOOTING.md](../../TROUBLESHOOTING.md) — Common issues
 - [SECURITY.md](../../SECURITY.md) — Security policy
 

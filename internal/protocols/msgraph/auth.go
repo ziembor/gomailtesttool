@@ -58,8 +58,8 @@ func (c *BearerTokenCredential) GetToken(ctx context.Context, options policy.Tok
 	}, nil
 }
 
-// setupGraphClient creates credentials and initializes the Microsoft Graph SDK client
-func setupGraphClient(ctx context.Context, config *Config, logger *slog.Logger) (*msgraphsdk.GraphServiceClient, error) {
+// NewGraphServiceClient creates credentials and initializes the Microsoft Graph SDK client.
+func NewGraphServiceClient(ctx context.Context, config *Config, logger *slog.Logger) (*msgraphsdk.GraphServiceClient, error) {
 	// Setup Authentication
 	logDebug(logger, "Setting up Microsoft Graph client", "tenantID", maskGUID(config.TenantID), "clientID", maskGUID(config.ClientID))
 
