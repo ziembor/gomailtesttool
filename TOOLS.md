@@ -262,7 +262,7 @@ gomailtest ews autodiscover --host mail.example.com \
 
 - [README.md](README.md) - Project overview
 - [BUILD.md](BUILD.md) - Build instructions
-- [EXAMPLES.md](EXAMPLES.md) - Additional usage examples
+- [docs/protocols/msgraph.md](docs/protocols/msgraph.md) - Microsoft Graph examples and reference
 
 ### Tool-Specific Documentation
 

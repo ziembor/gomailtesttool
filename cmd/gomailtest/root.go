@@ -11,6 +11,7 @@ import (
 	"msgraphtool/internal/protocols/msgraph"
 	"msgraphtool/internal/protocols/pop3"
 	"msgraphtool/internal/protocols/smtp"
+	"msgraphtool/internal/serve"
 )
 
 var rootCmd = &cobra.Command{
@@ -38,6 +39,7 @@ func init() {
 	rootCmd.AddCommand(jmap.NewCmd())
 	rootCmd.AddCommand(ews.NewCmd())
 	rootCmd.AddCommand(devtools.NewCmd())
+	rootCmd.AddCommand(serve.NewCmd())
 }
 
 // Execute runs the root command and returns any error.

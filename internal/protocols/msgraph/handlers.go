@@ -103,7 +103,9 @@ func listEvents(ctx context.Context, client *msgraphsdk.GraphServiceClient, mail
 	return nil
 }
 
-func sendEmail(ctx context.Context, client *msgraphsdk.GraphServiceClient, senderMailbox string, to, cc, bcc []string, subject, textContent, htmlContent string, attachmentPaths []string, config *Config, logger logger.Logger) {
+// SendEmail sends an email via the Microsoft Graph API.
+// Returns a non-nil error if the send fails; logging to CSV and console occurs regardless.
+func SendEmail(ctx context.Context, client *msgraphsdk.GraphServiceClient, senderMailbox string, to, cc, bcc []string, subject, textContent, htmlContent string, attachmentPaths []string, config *Config, logger logger.Logger) error {
 	message := models.NewMessage()
 
 	// Set Subject
@@ -155,11 +157,13 @@ func sendEmail(ctx context.Context, client *msgraphsdk.GraphServiceClient, sende
 
 	status := StatusSuccess
 	attachmentCount := len(attachmentPaths)
+	var returnErr error
 	if err != nil {
 		// Enrich error with rate limit and service error details
 		enrichedErr := enrichGraphAPIError(err, logger, "sendEmail")
 		log.Printf("Error sending mail: %v", enrichedErr)
 		status = fmt.Sprintf("%s: %v", StatusError, enrichedErr)
+		returnErr = enrichedErr
 	} else {
 		logVerbose(config.VerboseMode, "Email sent successfully via Graph API")
 		fmt.Printf("Email sent successfully from %s.\n", senderMailbox)
@@ -188,6 +192,8 @@ func sendEmail(ctx context.Context, client *msgraphsdk.GraphServiceClient, sende
 		}
 		_ = logger.WriteRow([]string{ActionSendMail, status, senderMailbox, toStr, ccStr, bccStr, subject, bodyType, fmt.Sprintf("%d", attachmentCount)})
 	}
+
+	return returnErr
 }
 
 func createInvite(ctx context.Context, client *msgraphsdk.GraphServiceClient, mailbox, subject, startTimeStr, endTimeStr string, config *Config, logger logger.Logger) {

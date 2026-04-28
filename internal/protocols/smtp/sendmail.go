@@ -13,8 +13,8 @@ import (
 	smtptls "msgraphtool/internal/smtp/tls"
 )
 
-// sendMail performs end-to-end email sending test.
-func sendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slogLogger *slog.Logger) error {
+// SendMail performs end-to-end email sending test.
+func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slogLogger *slog.Logger) error {
 	if config.SMTPS {
 		if config.ConnectAddress != "" {
 			fmt.Printf("Sending test email via %s:%d (SMTPS) (connecting via %s)...\n\n", config.Host, config.Port, config.ConnectAddress)

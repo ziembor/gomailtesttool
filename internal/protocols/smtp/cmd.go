@@ -193,7 +193,7 @@ upgrades to TLS automatically, and logs the result (including TLS details) to CS
 
 			logger.LogInfo(slogger, "SMTP Connectivity Testing Tool started", "action", config.Action, "host", config.Host, "port", config.Port)
 
-			if err := sendMail(ctx, config, csvLogger, slogger); err != nil {
+			if err := SendMail(ctx, config, csvLogger, slogger); err != nil {
 				logger.LogError(slogger, "Action failed", "error", err)
 				return err
 			}

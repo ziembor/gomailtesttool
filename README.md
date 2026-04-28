@@ -167,7 +167,7 @@ The individual tool binaries (`smtptool`, `imaptool`, `pop3tool`, `jmaptool`, `m
 
 ### General Docs
 - [BUILD.md](BUILD.md) — Build instructions
-- [EXAMPLES.md](EXAMPLES.md) — Extended Microsoft Graph examples
+- [docs/protocols/msgraph.md](docs/protocols/msgraph.md) — Microsoft Graph examples, CSV schemas, and tips
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — Common errors and solutions
 - [SECURITY.md](SECURITY.md) — Security policy and threat model
 - [RELEASE.md](RELEASE.md) — Release process and versioning policy
