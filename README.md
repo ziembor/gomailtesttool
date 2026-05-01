@@ -164,6 +164,7 @@ The individual tool binaries (`smtptool`, `imaptool`, `pop3tool`, `jmaptool`, `m
 - [docs/protocols/jmap.md](docs/protocols/jmap.md) — JMAP tool
 - [docs/protocols/ews.md](docs/protocols/ews.md) — EWS tool (on-premises Exchange)
 - [docs/protocols/msgraph.md](docs/protocols/msgraph.md) — Microsoft Graph tool
+- [docs/protocols/serve.md](docs/protocols/serve.md) — HTTP serve mode (REST API with X-API-Key)
 
 ### General Docs
 - [BUILD.md](BUILD.md) — Build instructions
