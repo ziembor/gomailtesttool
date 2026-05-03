@@ -269,7 +269,7 @@ func writeSMTPCSVRow(csvLogger logger.Logger, row []string) error {
 // buildEmailMessage constructs an RFC 5322 email message.
 // Defense-in-Depth: Email headers (From, To, Subject) are sanitized to remove
 // CRLF sequences that could be used for header injection attacks. The message
-// body is not sanitized as it legitimately may contain newlines.
+// body is sanitized to normalize newlines and strip unsafe control characters.
 func buildEmailMessage(from string, to []string, subject, body string) []byte {
 	messageID := generateMessageID("")
 	date := time.Now().Format(time.RFC1123Z)
@@ -281,6 +281,7 @@ func buildEmailMessage(from string, to []string, subject, body string) []byte {
 	for i, addr := range to {
 		sanitizedTo[i] = sanitizeEmailHeader(addr)
 	}
+	body = sanitizeEmailBody(body)
 
 	message := fmt.Sprintf("Message-ID: <%s>\r\n", messageID)
 	message += fmt.Sprintf("Date: %s\r\n", date)
@@ -302,6 +303,22 @@ func sanitizeEmailHeader(header string) string {
 	header = strings.ReplaceAll(header, "\r", "")
 	header = strings.ReplaceAll(header, "\n", "")
 	return header
+}
+
+// sanitizeEmailBody normalizes line endings and removes unsafe control
+// characters from body content while preserving regular text formatting.
+func sanitizeEmailBody(body string) string {
+	body = strings.ReplaceAll(body, "\r\n", "\n")
+	body = strings.ReplaceAll(body, "\r", "\n")
+
+	var b strings.Builder
+	b.Grow(len(body))
+	for _, r := range body {
+		if r == '\n' || r == '\t' || r >= 0x20 {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // generateMessageID creates a unique message ID.
