@@ -50,19 +50,35 @@ gomailtest smtp teststarttls --host smtp.example.com --port 587 --tlsversion 1.3
 
 ### testauth — Authentication Testing
 
-Connects, negotiates STARTTLS, then authenticates. Supports PLAIN, LOGIN, CRAM-MD5, NTLM, and XOAUTH2.
+Connects, negotiates STARTTLS, then authenticates. Auto-selects the strongest available method when `--authmethod auto` (default).
+
+**Supported methods and auto-select priority:** `CRAM-MD5` → `NTLM` → `PLAIN` → `LOGIN` (or `XOAUTH2` first when `--accesstoken` provided).
+
+| Method | Use case | Credentials |
+|--------|----------|-------------|
+| `CRAM-MD5` | Secure challenge-response | `--username`, `--password` |
+| `NTLM` | On-premises Exchange / Windows SMTP | `--username` (`DOMAIN\user`), `--password` |
+| `PLAIN` | Standard username/password over TLS | `--username`, `--password` |
+| `LOGIN` | Legacy username/password (two-step) | `--username`, `--password` |
+| `XOAUTH2` | Microsoft 365, Google Workspace | `--username`, `--accesstoken` |
 
 ```powershell
+# Auto-detect (picks strongest advertised method)
 gomailtest smtp testauth --host smtp.example.com --port 587 \
   --username user@example.com --password "yourpassword"
 
-# Specify auth method explicitly
+# CRAM-MD5 explicit
 gomailtest smtp testauth --host smtp.example.com --port 587 \
   --username user@example.com --password "secret" --authmethod CRAM-MD5
 
-# NTLM (on-premises Exchange / Windows SMTP)
+# NTLM (on-premises Exchange / Windows SMTP relay)
+# Username may be in DOMAIN\user or plain user@domain.com format
 gomailtest smtp testauth --host exchange.contoso.com --port 25 \
   --username "CONTOSO\user" --password "secret" --authmethod NTLM
+
+# XOAUTH2 (Microsoft 365 / Google Workspace)
+gomailtest smtp testauth --host smtp.office365.com --port 587 \
+  --username user@company.com --accesstoken "eyJ..."
 ```
 
 ### sendmail — End-to-End Email Sending
@@ -87,8 +103,9 @@ gomailtest smtp sendmail \
 | `--host` | SMTP server hostname or IP | `SMTPHOST` | — |
 | `--port` | SMTP server port | `SMTPPORT` | 25 |
 | `--timeout` | Connection timeout (seconds) | `SMTPTIMEOUT` | 30 |
-| `--username` | SMTP username | `SMTPUSERNAME` | — |
+| `--username` | SMTP username (`DOMAIN\user` for NTLM) | `SMTPUSERNAME` | — |
 | `--password` | SMTP password | `SMTPPASSWORD` | — |
+| `--accesstoken` | OAuth2 bearer token for XOAUTH2 | `SMTPACCESSTOKEN` | — |
 | `--authmethod` | Auth method: PLAIN, LOGIN, CRAM-MD5, NTLM, XOAUTH2, auto | `SMTPAUTHMETHOD` | auto |
 | `--starttls` | Force STARTTLS usage | `SMTPSTARTTLS` | false |
 | `--smtps` | Use implicit TLS (port 465) | `SMTPSMTPS` | false |
