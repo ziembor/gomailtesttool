@@ -44,9 +44,21 @@ gomailtest smtp testconnect --host smtp.example.com --port 25
 # Comprehensive TLS diagnostics
 gomailtest smtp teststarttls --host smtp.example.com --port 587
 
-# Test authentication
+# Test authentication (auto-selects best method)
 gomailtest smtp testauth --host smtp.example.com --port 587 \
   --username user@example.com --password "..."
+
+# NTLM — on-premises Exchange / Windows SMTP
+gomailtest smtp testauth --host exchange.contoso.com --port 25 \
+  --username "CONTOSO\user" --password "..."
+
+# GSSAPI/Kerberos — on-premises Exchange / Active Directory
+gomailtest smtp testauth --host exchange.contoso.com --port 25 \
+  --username "alice@CONTOSO.COM" --password "..." --authmethod GSSAPI
+
+# XOAUTH2 — Microsoft 365 / Google Workspace
+gomailtest smtp testauth --host smtp.office365.com --port 587 \
+  --username user@company.com --accesstoken "eyJ..."
 
 # Send test email
 gomailtest smtp sendmail --host smtp.example.com --port 587 \

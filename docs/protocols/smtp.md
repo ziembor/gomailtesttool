@@ -50,19 +50,46 @@ gomailtest smtp teststarttls --host smtp.example.com --port 587 --tlsversion 1.3
 
 ### testauth — Authentication Testing
 
-Connects, negotiates STARTTLS, then authenticates. Supports PLAIN, LOGIN, CRAM-MD5, NTLM, and XOAUTH2.
+Connects, negotiates STARTTLS, then authenticates. Auto-selects the strongest available method when `--authmethod auto` (default).
+
+**Supported methods and auto-select priority:** `GSSAPI` → `CRAM-MD5` → `NTLM` → `PLAIN` → `LOGIN` (or `XOAUTH2` first when `--accesstoken` provided).
+
+| Method | Use case | Credentials |
+|--------|----------|-------------|
+| `GSSAPI` | On-premises AD/Exchange (Kerberos 5) | `--username` (`user@REALM`), `--password`, optional `--realm`, `--kdc` |
+| `CRAM-MD5` | Secure challenge-response | `--username`, `--password` |
+| `NTLM` | On-premises Exchange / Windows SMTP | `--username` (`DOMAIN\user`), `--password` |
+| `PLAIN` | Standard username/password over TLS | `--username`, `--password` |
+| `LOGIN` | Legacy username/password (two-step) | `--username`, `--password` |
+| `XOAUTH2` | Microsoft 365, Google Workspace | `--username`, `--accesstoken` |
 
 ```powershell
+# Auto-detect (picks strongest advertised method)
 gomailtest smtp testauth --host smtp.example.com --port 587 \
   --username user@example.com --password "yourpassword"
 
-# Specify auth method explicitly
+# CRAM-MD5 explicit
 gomailtest smtp testauth --host smtp.example.com --port 587 \
   --username user@example.com --password "secret" --authmethod CRAM-MD5
 
-# NTLM (on-premises Exchange / Windows SMTP)
+# NTLM (on-premises Exchange / Windows SMTP relay)
+# Username may be in DOMAIN\user or plain user@domain.com format
 gomailtest smtp testauth --host exchange.contoso.com --port 25 \
   --username "CONTOSO\user" --password "secret" --authmethod NTLM
+
+# GSSAPI/Kerberos (on-premises Exchange / Active Directory)
+# Realm is auto-extracted from user@REALM format
+gomailtest smtp testauth --host exchange.contoso.com --port 25 \
+  --username "alice@CONTOSO.COM" --password "secret" --authmethod GSSAPI
+
+# GSSAPI with explicit KDC (useful when DNS SRV records are not configured)
+gomailtest smtp testauth --host exchange.contoso.com --port 25 \
+  --username "alice@CONTOSO.COM" --password "secret" --authmethod GSSAPI \
+  --kdc dc01.contoso.com
+
+# XOAUTH2 (Microsoft 365 / Google Workspace)
+gomailtest smtp testauth --host smtp.office365.com --port 587 \
+  --username user@company.com --accesstoken "eyJ..."
 ```
 
 ### sendmail — End-to-End Email Sending
@@ -87,9 +114,12 @@ gomailtest smtp sendmail \
 | `--host` | SMTP server hostname or IP | `SMTPHOST` | — |
 | `--port` | SMTP server port | `SMTPPORT` | 25 |
 | `--timeout` | Connection timeout (seconds) | `SMTPTIMEOUT` | 30 |
-| `--username` | SMTP username | `SMTPUSERNAME` | — |
+| `--username` | SMTP username (`DOMAIN\user` for NTLM, `user@REALM` for GSSAPI) | `SMTPUSERNAME` | — |
 | `--password` | SMTP password | `SMTPPASSWORD` | — |
-| `--authmethod` | Auth method: PLAIN, LOGIN, CRAM-MD5, NTLM, XOAUTH2, auto | `SMTPAUTHMETHOD` | auto |
+| `--accesstoken` | OAuth2 bearer token for XOAUTH2 | `SMTPACCESSTOKEN` | — |
+| `--authmethod` | Auth method: PLAIN, LOGIN, CRAM-MD5, NTLM, GSSAPI, XOAUTH2, auto | `SMTPAUTHMETHOD` | auto |
+| `--realm` | Kerberos realm for GSSAPI (auto-extracted from `user@REALM` if omitted) | `SMTPREALM` | — |
+| `--kdc` | KDC address for GSSAPI (uses DNS SRV if omitted) | `SMTPKDC` | — |
 | `--starttls` | Force STARTTLS usage | `SMTPSTARTTLS` | false |
 | `--smtps` | Use implicit TLS (port 465) | `SMTPSMTPS` | false |
 | `--skipverify` | Skip TLS certificate verification | `SMTPSKIPVERIFY` | false |
