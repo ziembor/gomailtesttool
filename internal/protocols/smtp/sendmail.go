@@ -269,7 +269,7 @@ func writeSMTPCSVRow(csvLogger logger.Logger, row []string) error {
 // buildEmailMessage constructs an RFC 5322 email message.
 // Defense-in-Depth: Email headers (From, To, Subject) are sanitized to remove
 // CRLF sequences that could be used for header injection attacks. The message
-// body is sanitized to normalize newlines and strip unsafe control characters.
+// body is written as provided after the header/body separator.
 func buildEmailMessage(from string, to []string, subject, body string) []byte {
 	messageID := generateMessageID("")
 	date := time.Now().Format(time.RFC1123Z)
@@ -281,8 +281,6 @@ func buildEmailMessage(from string, to []string, subject, body string) []byte {
 	for i, addr := range to {
 		sanitizedTo[i] = sanitizeEmailHeader(addr)
 	}
-	body = sanitizeEmailBody(body)
-
 	message := fmt.Sprintf("Message-ID: <%s>\r\n", messageID)
 	message += fmt.Sprintf("Date: %s\r\n", date)
 	message += fmt.Sprintf("From: %s\r\n", from)
