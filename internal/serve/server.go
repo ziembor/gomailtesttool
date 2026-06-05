@@ -10,9 +10,9 @@ import (
 	"time"
 
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-	"msgraphtool/internal/common/version"
-	"msgraphtool/internal/protocols/msgraph"
-	"msgraphtool/internal/protocols/smtp"
+	"github.com/ziembor/gomailtesttool/internal/common/version"
+	"github.com/ziembor/gomailtesttool/internal/protocols/msgraph"
+	"github.com/ziembor/gomailtesttool/internal/protocols/smtp"
 )
 
 // Server holds shared state for the HTTP serve command.

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	smtptls "msgraphtool/internal/smtp/tls"
+	smtptls "github.com/ziembor/gomailtesttool/internal/smtp/tls"
 )
 
 // TLSCSVData holds formatted TLS and certificate data for CSV logging.

@@ -2,16 +2,16 @@ package main
 
 import (
 	"github.com/spf13/cobra"
-	"msgraphtool/internal/common/bootstrap"
-	"msgraphtool/internal/common/version"
-	"msgraphtool/internal/devtools"
-	"msgraphtool/internal/protocols/ews"
-	"msgraphtool/internal/protocols/imap"
-	"msgraphtool/internal/protocols/jmap"
-	"msgraphtool/internal/protocols/msgraph"
-	"msgraphtool/internal/protocols/pop3"
-	"msgraphtool/internal/protocols/smtp"
-	"msgraphtool/internal/serve"
+	"github.com/ziembor/gomailtesttool/internal/common/bootstrap"
+	"github.com/ziembor/gomailtesttool/internal/common/version"
+	"github.com/ziembor/gomailtesttool/internal/devtools"
+	"github.com/ziembor/gomailtesttool/internal/protocols/ews"
+	"github.com/ziembor/gomailtesttool/internal/protocols/imap"
+	"github.com/ziembor/gomailtesttool/internal/protocols/jmap"
+	"github.com/ziembor/gomailtesttool/internal/protocols/msgraph"
+	"github.com/ziembor/gomailtesttool/internal/protocols/pop3"
+	"github.com/ziembor/gomailtesttool/internal/protocols/smtp"
+	"github.com/ziembor/gomailtesttool/internal/serve"
 )
 
 var rootCmd = &cobra.Command{

@@ -16,9 +16,9 @@ import (
 	"github.com/jcmturner/gokrb5/v8/gssapi"
 	"github.com/jcmturner/gokrb5/v8/spnego"
 	"github.com/jcmturner/gokrb5/v8/types"
-	"msgraphtool/internal/common/ratelimit"
-	"msgraphtool/internal/smtp/protocol"
-	smtptls "msgraphtool/internal/smtp/tls"
+	"github.com/ziembor/gomailtesttool/internal/common/ratelimit"
+	"github.com/ziembor/gomailtesttool/internal/smtp/protocol"
+	smtptls "github.com/ziembor/gomailtesttool/internal/smtp/tls"
 )
 
 // SMTPClient wraps SMTP connection with enhanced diagnostics.

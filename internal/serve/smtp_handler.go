@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"msgraphtool/internal/common/logger"
-	"msgraphtool/internal/common/validation"
-	"msgraphtool/internal/protocols/smtp"
+	"github.com/ziembor/gomailtesttool/internal/common/logger"
+	"github.com/ziembor/gomailtesttool/internal/common/validation"
+	"github.com/ziembor/gomailtesttool/internal/protocols/smtp"
 )
 
 // smtpSendRequest is the JSON body for POST /smtp/sendmail.

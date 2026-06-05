@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"msgraphtool/internal/smtp/protocol"
+	"github.com/ziembor/gomailtesttool/internal/smtp/protocol"
 )
 
 // ExchangeInfo holds information about a detected Exchange server.

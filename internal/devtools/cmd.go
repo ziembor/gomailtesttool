@@ -4,8 +4,8 @@ package devtools
 
 import (
 	"github.com/spf13/cobra"
-	"msgraphtool/internal/devtools/env"
-	"msgraphtool/internal/devtools/release"
+	"github.com/ziembor/gomailtesttool/internal/devtools/env"
+	"github.com/ziembor/gomailtesttool/internal/devtools/release"
 )
 
 // NewCmd returns the cobra command for 'gomailtest devtools'.

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"msgraphtool/internal/jmap/protocol"
+	"github.com/ziembor/gomailtesttool/internal/jmap/protocol"
 )
 
 // JMAPClient wraps HTTP client for JMAP operations.

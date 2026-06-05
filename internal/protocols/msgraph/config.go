@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"msgraphtool/internal/common/validation"
+	"github.com/ziembor/gomailtesttool/internal/common/validation"
 )
 
 // Config holds all application configuration including command-line flags,
