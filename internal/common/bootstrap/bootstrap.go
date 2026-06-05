@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"msgraphtool/internal/common/logger"
+	"github.com/ziembor/gomailtesttool/internal/common/logger"
 )
 
 // SetupSignalContext returns a context cancelled on SIGINT/SIGTERM.

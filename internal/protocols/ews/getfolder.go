@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"time"
 
-	"msgraphtool/internal/common/logger"
+	"github.com/ziembor/gomailtesttool/internal/common/logger"
 )
 
 // getFolder calls GetFolder(Inbox) and displays folder properties.

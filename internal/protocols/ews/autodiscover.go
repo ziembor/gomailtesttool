@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"time"
 
-	"msgraphtool/internal/common/logger"
+	"github.com/ziembor/gomailtesttool/internal/common/logger"
 )
 
 // Autodiscover SOAP response structures

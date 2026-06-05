@@ -7,9 +7,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	msgraphsdk "github.com/microsoftgraph/msgraph-sdk-go"
-	"msgraphtool/internal/common/bootstrap"
-	"msgraphtool/internal/protocols/msgraph"
-	"msgraphtool/internal/protocols/smtp"
+	"github.com/ziembor/gomailtesttool/internal/common/bootstrap"
+	"github.com/ziembor/gomailtesttool/internal/protocols/msgraph"
+	"github.com/ziembor/gomailtesttool/internal/protocols/smtp"
 )
 
 // NewCmd returns the "serve" cobra.Command.

@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"msgraphtool/internal/common/logger"
+	"github.com/ziembor/gomailtesttool/internal/common/logger"
 )
 
 // testConnect tests basic POP3 connectivity.

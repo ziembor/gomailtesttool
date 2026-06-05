@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"msgraphtool/internal/common/security"
+	"github.com/ziembor/gomailtesttool/internal/common/security"
 )
 
 // RequiredVars are the environment variables needed for Microsoft Graph tests.

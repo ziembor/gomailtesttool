@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"msgraphtool/internal/smtp/protocol"
+	"github.com/ziembor/gomailtesttool/internal/smtp/protocol"
 )
 
 // TestDebugLogCommand tests debug logging of SMTP commands

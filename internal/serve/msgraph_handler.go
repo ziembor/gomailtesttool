@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"msgraphtool/internal/common/logger"
-	"msgraphtool/internal/common/validation"
-	"msgraphtool/internal/protocols/msgraph"
+	"github.com/ziembor/gomailtesttool/internal/common/logger"
+	"github.com/ziembor/gomailtesttool/internal/common/validation"
+	"github.com/ziembor/gomailtesttool/internal/protocols/msgraph"
 )
 
 // msgraphSendRequest is the JSON body for POST /msgraph/sendmail.

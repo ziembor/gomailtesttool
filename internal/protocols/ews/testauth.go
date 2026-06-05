@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"msgraphtool/internal/common/logger"
+	"github.com/ziembor/gomailtesttool/internal/common/logger"
 )
 
 // getFolderResponseEnvelope is used to parse the EWS GetFolder SOAP response.

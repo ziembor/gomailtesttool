@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"msgraphtool/internal/common/logger"
-	smtptls "msgraphtool/internal/smtp/tls"
+	"github.com/ziembor/gomailtesttool/internal/common/logger"
+	smtptls "github.com/ziembor/gomailtesttool/internal/smtp/tls"
 )
 
 // SendMail performs end-to-end email sending test.
