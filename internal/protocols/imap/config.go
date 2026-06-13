@@ -30,6 +30,8 @@ type Config struct {
 	// TLS configuration
 	IMAPS      bool   // Use IMAPS (implicit TLS on port 993)
 	StartTLS   bool   // Force STARTTLS
+	NoStartTLS bool   // Force plain connection: disable STARTTLS; error if --starttls is also set
+	NoIMAPS    bool   // Force plain connection: error if --imaps is also set
 	SkipVerify bool   // Skip TLS certificate verification
 	TLSVersion string // TLS version to use: 1.2, 1.3
 
@@ -93,6 +95,8 @@ func RegisterPersistentFlags(cmd *cobra.Command) {
 	// TLS
 	f.Bool("starttls", false, "Force STARTTLS usage (env: IMAPSTARTTLS)")
 	f.Bool("imaps", false, "Use IMAPS (implicit TLS), typically on port 993 (env: IMAPIMAPS)")
+	f.Bool("no-starttls", false, "Force plain connection: disable STARTTLS; error if --starttls is also set (env: IMAPNOSTARTTLS)")
+	f.Bool("no-imaps", false, "Force plain connection: error if --imaps is also set (env: IMAPNOIMAPS)")
 	f.Bool("skipverify", false, "Skip TLS certificate verification (insecure) (env: IMAPSKIPVERIFY)")
 	f.String("tlsversion", "1.2", "TLS version to use (exact): 1.2, 1.3 (env: IMAPTLSVERSION)")
 
@@ -123,6 +127,8 @@ func BindEnvs(v *viper.Viper) {
 		"authmethod":  "IMAPAUTHMETHOD",
 		"starttls":    "IMAPSTARTTLS",
 		"imaps":       "IMAPIMAPS",
+		"no-starttls": "IMAPNOSTARTTLS",
+		"no-imaps":    "IMAPNOIMAPS",
 		"skipverify":  "IMAPSKIPVERIFY",
 		"tlsversion":  "IMAPTLSVERSION",
 		"address":     "IMAPADDRESS",
@@ -198,6 +204,8 @@ func ConfigFromViper(v *viper.Viper) *Config {
 		AuthMethod:     authMethod,
 		IMAPS:          v.GetBool("imaps"),
 		StartTLS:       v.GetBool("starttls"),
+		NoStartTLS:     v.GetBool("no-starttls"),
+		NoIMAPS:        v.GetBool("no-imaps"),
 		SkipVerify:     v.GetBool("skipverify"),
 		TLSVersion:     tlsVersion,
 		ConnectAddress: v.GetString("address"),
@@ -242,6 +250,15 @@ func validateConfiguration(config *Config) error {
 	// Validate mutual exclusion: --imaps and --starttls cannot be used together
 	if config.IMAPS && config.StartTLS {
 		return fmt.Errorf("cannot use both --imaps and --starttls flags simultaneously")
+	}
+
+	// Validate mutual exclusion: --no-imaps/--no-starttls cannot be combined
+	// with the flags they negate
+	if config.IMAPS && config.NoIMAPS {
+		return fmt.Errorf("cannot use both --imaps and --no-imaps flags simultaneously")
+	}
+	if config.StartTLS && config.NoStartTLS {
+		return fmt.Errorf("cannot use both --starttls and --no-starttls flags simultaneously")
 	}
 
 	// Smart port default: if --imaps is set and port is 143 (default), change to 993

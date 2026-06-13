@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/ziembor/gomailtesttool/internal/common/email"
 	"github.com/ziembor/gomailtesttool/internal/common/validation"
 )
 
@@ -28,10 +29,12 @@ type Config struct {
 	BearerToken string // Pre-obtained Bearer token for authentication
 
 	// Email recipients (using stringSlice type for comma-separated lists)
-	To              stringSlice // To recipients for email
-	Cc              stringSlice // CC recipients for email
-	Bcc             stringSlice // BCC recipients for email
-	AttachmentFiles stringSlice // File paths to attach to email
+	To                    stringSlice // To recipients for email
+	Cc                    stringSlice // CC recipients for email
+	Bcc                   stringSlice // BCC recipients for email
+	AttachmentFiles       stringSlice // File paths to attach to email
+	InlineAttachmentFiles stringSlice // File paths to embed inline via cid: (referenced from BodyHTML)
+	Headers               []string    // Custom headers in "Name: Value" form
 
 	// Email content
 	Subject      string // Email subject line
@@ -122,32 +125,33 @@ func RegisterPersistentFlags(cmd *cobra.Command) {
 // Must be called after RegisterPersistentFlags.
 func BindEnvs(v *viper.Viper) {
 	bindings := map[string]string{
-		"tenantid":     "MSGRAPHTENANTID",
-		"clientid":     "MSGRAPHCLIENTID",
-		"secret":       "MSGRAPHSECRET",
-		"pfx":          "MSGRAPHPFX",
-		"pfxpass":      "MSGRAPHPFXPASS",
-		"thumbprint":   "MSGRAPHTHUMBPRINT",
-		"bearertoken":  "MSGRAPHBEARERTOKEN",
-		"mailbox":      "MSGRAPHMAILBOX",
-		"to":           "MSGRAPHTO",
-		"cc":           "MSGRAPHCC",
-		"bcc":          "MSGRAPHBCC",
-		"subject":      "MSGRAPHSUBJECT",
-		"body":         "MSGRAPHBODY",
-		"bodyhtml":     "MSGRAPHBODYHTML",
-		"body-template": "MSGRAPHBODYTEMPLATE",
-		"attachments":  "MSGRAPHATTACHMENTS",
-		"start":        "MSGRAPHSTART",
-		"end":          "MSGRAPHEND",
-		"messageid":    "MSGRAPHMESSAGEID",
-		"proxy":        "MSGRAPHPROXY",
-		"maxretries":   "MSGRAPHMAXRETRIES",
-		"retrydelay":   "MSGRAPHRETRYDELAY",
-		"loglevel":     "MSGRAPHLOGLEVEL",
-		"output":       "MSGRAPHOUTPUT",
-		"logformat":    "MSGRAPHLOGFORMAT",
-		"count":        "MSGRAPHCOUNT",
+		"tenantid":           "MSGRAPHTENANTID",
+		"clientid":           "MSGRAPHCLIENTID",
+		"secret":             "MSGRAPHSECRET",
+		"pfx":                "MSGRAPHPFX",
+		"pfxpass":            "MSGRAPHPFXPASS",
+		"thumbprint":         "MSGRAPHTHUMBPRINT",
+		"bearertoken":        "MSGRAPHBEARERTOKEN",
+		"mailbox":            "MSGRAPHMAILBOX",
+		"to":                 "MSGRAPHTO",
+		"cc":                 "MSGRAPHCC",
+		"bcc":                "MSGRAPHBCC",
+		"subject":            "MSGRAPHSUBJECT",
+		"body":               "MSGRAPHBODY",
+		"bodyhtml":           "MSGRAPHBODYHTML",
+		"body-template":      "MSGRAPHBODYTEMPLATE",
+		"attachments":        "MSGRAPHATTACHMENTS",
+		"inline-attachments": "MSGRAPHINLINEATTACHMENTS",
+		"start":              "MSGRAPHSTART",
+		"end":                "MSGRAPHEND",
+		"messageid":          "MSGRAPHMESSAGEID",
+		"proxy":              "MSGRAPHPROXY",
+		"maxretries":         "MSGRAPHMAXRETRIES",
+		"retrydelay":         "MSGRAPHRETRYDELAY",
+		"loglevel":           "MSGRAPHLOGLEVEL",
+		"output":             "MSGRAPHOUTPUT",
+		"logformat":          "MSGRAPHLOGFORMAT",
+		"count":              "MSGRAPHCOUNT",
 	}
 	for key, env := range bindings {
 		_ = v.BindEnv(key, env)
@@ -200,34 +204,36 @@ func ConfigFromViper(v *viper.Viper) *Config {
 	}
 
 	return &Config{
-		TenantID:        v.GetString("tenantid"),
-		ClientID:        v.GetString("clientid"),
-		Mailbox:         v.GetString("mailbox"),
-		Secret:          v.GetString("secret"),
-		PfxPath:         v.GetString("pfx"),
-		PfxPass:         v.GetString("pfxpass"),
-		Thumbprint:      v.GetString("thumbprint"),
-		BearerToken:     v.GetString("bearertoken"),
-		To:              parseStringSlice(v.GetString("to")),
-		Cc:              parseStringSlice(v.GetString("cc")),
-		Bcc:             parseStringSlice(v.GetString("bcc")),
-		AttachmentFiles: parseStringSlice(v.GetString("attachments")),
-		Subject:         subject,
-		Body:            body,
-		BodyHTML:        v.GetString("bodyhtml"),
-		BodyTemplate:    v.GetString("body-template"),
-		InviteSubject:   v.GetString("invite-subject"),
-		StartTime:       v.GetString("start"),
-		EndTime:         v.GetString("end"),
-		MessageID:       v.GetString("messageid"),
-		ProxyURL:        v.GetString("proxy"),
-		MaxRetries:      maxRetries,
-		RetryDelay:      time.Duration(retryDelayMs) * time.Millisecond,
-		VerboseMode:     v.GetBool("verbose"),
-		LogLevel:        logLevel,
-		OutputFormat:    outputFormat,
-		LogFormat:       logFormat,
-		Count:           count,
+		TenantID:              v.GetString("tenantid"),
+		ClientID:              v.GetString("clientid"),
+		Mailbox:               v.GetString("mailbox"),
+		Secret:                v.GetString("secret"),
+		PfxPath:               v.GetString("pfx"),
+		PfxPass:               v.GetString("pfxpass"),
+		Thumbprint:            v.GetString("thumbprint"),
+		BearerToken:           v.GetString("bearertoken"),
+		To:                    parseStringSlice(v.GetString("to")),
+		Cc:                    parseStringSlice(v.GetString("cc")),
+		Bcc:                   parseStringSlice(v.GetString("bcc")),
+		AttachmentFiles:       parseStringSlice(v.GetString("attachments")),
+		InlineAttachmentFiles: parseStringSlice(v.GetString("inline-attachments")),
+		Headers:               v.GetStringSlice("header"),
+		Subject:               subject,
+		Body:                  body,
+		BodyHTML:              v.GetString("bodyhtml"),
+		BodyTemplate:          v.GetString("body-template"),
+		InviteSubject:         v.GetString("invite-subject"),
+		StartTime:             v.GetString("start"),
+		EndTime:               v.GetString("end"),
+		MessageID:             v.GetString("messageid"),
+		ProxyURL:              v.GetString("proxy"),
+		MaxRetries:            maxRetries,
+		RetryDelay:            time.Duration(retryDelayMs) * time.Millisecond,
+		VerboseMode:           v.GetBool("verbose"),
+		LogLevel:              logLevel,
+		OutputFormat:          outputFormat,
+		LogFormat:             logFormat,
+		Count:                 count,
 	}
 }
 
@@ -289,6 +295,19 @@ func validateConfiguration(config *Config) error {
 		if err := validateFilePath(attachmentPath, fieldName); err != nil {
 			return err
 		}
+	}
+
+	// Validate inline attachment file paths
+	for i, attachmentPath := range config.InlineAttachmentFiles {
+		fieldName := fmt.Sprintf("Inline attachment file #%d", i+1)
+		if err := validateFilePath(attachmentPath, fieldName); err != nil {
+			return err
+		}
+	}
+
+	// Validate custom headers
+	if _, err := email.ParseHeaders(config.Headers); err != nil {
+		return fmt.Errorf("invalid -header: %w", err)
 	}
 
 	// Validate body template file path

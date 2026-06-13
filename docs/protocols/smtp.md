@@ -111,6 +111,26 @@ gomailtest smtp sendmail \
   --subject "Test Email" --body "This is a test message"
 ```
 
+#### HTML body, attachments, inline images, and custom headers
+
+```powershell
+gomailtest smtp sendmail \
+  --host smtp.example.com --port 587 \
+  --username user@example.com --password "yourpassword" \
+  --from sender@example.com --to recipient@example.com \
+  --subject "Test Email" \
+  --body "Plain text fallback" \
+  --bodyhtml '<p>Hello! Here is our logo: <img src="cid:logo.png"></p>' \
+  --inline-attachments ./logo.png \
+  --attachments ./report.pdf,./data.csv \
+  --header "X-Custom-Header: example-value"
+```
+
+- `--bodyhtml` alone sends an HTML-only message; combined with `--body` it sends a `multipart/alternative` message with both a plain-text and HTML version.
+- `--inline-attachments` embeds files as `multipart/related` parts referenced from `--bodyhtml` via `cid:<filename>` (e.g. `cid:logo.png` for `./logo.png`).
+- `--attachments` adds regular file attachments (MIME type detected from file extension).
+- `--header` adds a custom header in `"Name: Value"` form; repeat the flag for multiple headers. Standard headers (`From`, `To`, `Subject`, `Date`, `Message-ID`, `MIME-Version`, `Content-Type`, etc.) cannot be overridden this way.
+
 ## Flags
 
 ### Persistent (all subcommands)
@@ -145,6 +165,10 @@ gomailtest smtp sendmail \
 | `--to` | Comma-separated TO recipients | `SMTPTO` |
 | `--subject` | Email subject | `SMTPSUBJECT` |
 | `--body` | Email body text | `SMTPBODY` |
+| `--bodyhtml` | HTML body content; combine with `--body` for `multipart/alternative` | `SMTPBODYHTML` |
+| `--attachments` | Comma-separated file paths to attach | `SMTPATTACHMENTS` |
+| `--inline-attachments` | Comma-separated file paths to embed inline via `cid:<filename>` | `SMTPINLINEATTACHMENTS` |
+| `--header` | Custom header in `"Name: Value"` form (repeatable) | — (CLI only) |
 
 ## Environment Variables
 

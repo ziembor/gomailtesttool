@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/ziembor/gomailtesttool/internal/common/email"
 	"github.com/ziembor/gomailtesttool/internal/common/validation"
 )
 
@@ -30,19 +31,25 @@ type Config struct {
 	KDCAddress  string // KDC host:port override for GSSAPI (uses DNS SRV if empty)
 
 	// Email configuration (for sendmail)
-	From    string
-	To      []string
-	Subject string
-	Body    string
+	From              string
+	To                []string
+	Subject           string
+	Body              string
+	BodyHTML          string   // HTML body content; if set alongside Body, a multipart/alternative message is sent
+	Attachments       []string // File paths to attach to email
+	InlineAttachments []string // File paths to embed inline via cid: (referenced from BodyHTML)
+	Headers           []string // Custom headers in "Name: Value" form
 
 	// TLS configuration
 	StartTLS   bool   // Force STARTTLS
 	SMTPS      bool   // Use SMTPS (implicit TLS on port 465)
+	NoStartTLS bool   // Force plain connection: disable STARTTLS (incl. automatic upgrade)
+	NoSMTPS    bool   // Force plain connection: error if --smtps is also set
 	SkipVerify bool   // Skip TLS certificate verification
 	TLSVersion string // TLS version to use (exact match): 1.2, 1.3
 
 	// Network configuration
-	ConnectAddress string        // Override address for TCP connection (IP or hostname)
+	ConnectAddress string // Override address for TCP connection (IP or hostname)
 	ProxyURL       string
 	MaxRetries     int
 	RetryDelay     time.Duration
@@ -105,6 +112,8 @@ func RegisterPersistentFlags(cmd *cobra.Command) {
 	// TLS
 	f.Bool("starttls", false, "Force STARTTLS usage (env: SMTPSTARTTLS)")
 	f.Bool("smtps", false, "Use SMTPS (implicit TLS), typically on port 465 (env: SMTPSMTPS)")
+	f.Bool("no-starttls", false, "Force plain connection: disable STARTTLS (including automatic upgrade) even if the server advertises it; error if --starttls is also set (env: SMTPNOSTARTTLS)")
+	f.Bool("no-smtps", false, "Force plain connection: error if --smtps is also set (env: SMTPNOSMTPS)")
 	f.Bool("skipverify", false, "Skip TLS certificate verification (insecure) (env: SMTPSKIPVERIFY)")
 	f.String("tlsversion", "1.2", "TLS version to use (exact): 1.2, 1.3 (env: SMTPTLSVERSION)")
 
@@ -126,28 +135,33 @@ func RegisterPersistentFlags(cmd *cobra.Command) {
 // Must be called after RegisterPersistentFlags.
 func BindEnvs(v *viper.Viper) {
 	bindings := map[string]string{
-		"host":        "SMTPHOST",
-		"port":        "SMTPPORT",
-		"timeout":     "SMTPTIMEOUT",
-		"username":    "SMTPUSERNAME",
-		"password":    "SMTPPASSWORD",
-		"accesstoken": "SMTPACCESSTOKEN",
-		"authmethod":  "SMTPAUTHMETHOD",
-		"realm":       "SMTPREALM",
-		"kdc":         "SMTPKDC",
-		"from":        "SMTPFROM",
-		"to":          "SMTPTO",
-		"starttls":    "SMTPSTARTTLS",
-		"smtps":       "SMTPSMTPS",
-		"skipverify":  "SMTPSKIPVERIFY",
-		"tlsversion":  "SMTPTLSVERSION",
-		"address":     "SMTPADDRESS",
-		"proxy":       "SMTPPROXY",
-		"maxretries":  "SMTPMAXRETRIES",
-		"retrydelay":  "SMTPRETRYDELAY",
-		"output":      "SMTPOUTPUT",
-		"logformat":   "SMTPLOGFORMAT",
-		"ratelimit":   "SMTPRATELIMIT",
+		"host":              "SMTPHOST",
+		"port":              "SMTPPORT",
+		"timeout":           "SMTPTIMEOUT",
+		"username":          "SMTPUSERNAME",
+		"password":          "SMTPPASSWORD",
+		"accesstoken":       "SMTPACCESSTOKEN",
+		"authmethod":        "SMTPAUTHMETHOD",
+		"realm":             "SMTPREALM",
+		"kdc":               "SMTPKDC",
+		"from":              "SMTPFROM",
+		"to":                "SMTPTO",
+		"bodyhtml":          "SMTPBODYHTML",
+		"attachments":       "SMTPATTACHMENTS",
+		"inlineattachments": "SMTPINLINEATTACHMENTS",
+		"starttls":          "SMTPSTARTTLS",
+		"smtps":             "SMTPSMTPS",
+		"no-starttls":       "SMTPNOSTARTTLS",
+		"no-smtps":          "SMTPNOSMTPS",
+		"skipverify":        "SMTPSKIPVERIFY",
+		"tlsversion":        "SMTPTLSVERSION",
+		"address":           "SMTPADDRESS",
+		"proxy":             "SMTPPROXY",
+		"maxretries":        "SMTPMAXRETRIES",
+		"retrydelay":        "SMTPRETRYDELAY",
+		"output":            "SMTPOUTPUT",
+		"logformat":         "SMTPLOGFORMAT",
+		"ratelimit":         "SMTPRATELIMIT",
 	}
 	for key, env := range bindings {
 		_ = v.BindEnv(key, env)
@@ -204,15 +218,10 @@ func ConfigFromViper(v *viper.Viper) *Config {
 		logFormat = defaults.LogFormat
 	}
 
-	// Parse "to" as comma-separated list
-	var toList []string
-	if toStr := v.GetString("to"); toStr != "" {
-		for _, addr := range strings.Split(toStr, ",") {
-			if trimmed := strings.TrimSpace(addr); trimmed != "" {
-				toList = append(toList, trimmed)
-			}
-		}
-	}
+	// Parse comma-separated lists
+	toList := splitCommaSeparated(v.GetString("to"))
+	attachments := splitCommaSeparated(v.GetString("attachments"))
+	inlineAttachments := splitCommaSeparated(v.GetString("inline-attachments"))
 
 	subject := v.GetString("subject")
 	if subject == "" {
@@ -225,33 +234,51 @@ func ConfigFromViper(v *viper.Viper) *Config {
 	}
 
 	return &Config{
-		Host:           v.GetString("host"),
-		Port:           port,
-		Timeout:        time.Duration(timeoutSec) * time.Second,
-		Username:       v.GetString("username"),
-		Password:       v.GetString("password"),
-		AccessToken:    v.GetString("accesstoken"),
-		AuthMethod:     authMethod,
-		Realm:          strings.ToUpper(v.GetString("realm")),
-		KDCAddress:     v.GetString("kdc"),
-		From:           v.GetString("from"),
-		To:             toList,
-		Subject:        subject,
-		Body:           body,
-		StartTLS:       v.GetBool("starttls"),
-		SMTPS:          v.GetBool("smtps"),
-		SkipVerify:     v.GetBool("skipverify"),
-		TLSVersion:     tlsVersion,
-		ConnectAddress: v.GetString("address"),
-		ProxyURL:       v.GetString("proxy"),
-		MaxRetries:     maxRetries,
-		RetryDelay:     time.Duration(retryDelayMs) * time.Millisecond,
-		VerboseMode:    v.GetBool("verbose"),
-		LogLevel:       logLevel,
-		OutputFormat:   outputFormat,
-		LogFormat:      logFormat,
-		RateLimit:      v.GetFloat64("ratelimit"),
+		Host:              v.GetString("host"),
+		Port:              port,
+		Timeout:           time.Duration(timeoutSec) * time.Second,
+		Username:          v.GetString("username"),
+		Password:          v.GetString("password"),
+		AccessToken:       v.GetString("accesstoken"),
+		AuthMethod:        authMethod,
+		Realm:             strings.ToUpper(v.GetString("realm")),
+		KDCAddress:        v.GetString("kdc"),
+		From:              v.GetString("from"),
+		To:                toList,
+		Subject:           subject,
+		Body:              body,
+		BodyHTML:          v.GetString("bodyhtml"),
+		Attachments:       attachments,
+		InlineAttachments: inlineAttachments,
+		Headers:           v.GetStringSlice("header"),
+		StartTLS:          v.GetBool("starttls"),
+		SMTPS:             v.GetBool("smtps"),
+		NoStartTLS:        v.GetBool("no-starttls"),
+		NoSMTPS:           v.GetBool("no-smtps"),
+		SkipVerify:        v.GetBool("skipverify"),
+		TLSVersion:        tlsVersion,
+		ConnectAddress:    v.GetString("address"),
+		ProxyURL:          v.GetString("proxy"),
+		MaxRetries:        maxRetries,
+		RetryDelay:        time.Duration(retryDelayMs) * time.Millisecond,
+		VerboseMode:       v.GetBool("verbose"),
+		LogLevel:          logLevel,
+		OutputFormat:      outputFormat,
+		LogFormat:         logFormat,
+		RateLimit:         v.GetFloat64("ratelimit"),
 	}
+}
+
+// splitCommaSeparated splits a comma-separated string into a trimmed,
+// non-empty list of values. Returns nil if the input is empty.
+func splitCommaSeparated(s string) []string {
+	var result []string
+	for _, item := range strings.Split(s, ",") {
+		if trimmed := strings.TrimSpace(item); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }
 
 // parseBoolEnv parses a boolean environment variable.
@@ -298,6 +325,15 @@ func validateConfiguration(config *Config) error {
 		return fmt.Errorf("cannot use both -smtps and -starttls flags simultaneously")
 	}
 
+	// Validate mutual exclusion: -no-smtps/-no-starttls cannot be combined
+	// with the flags they negate
+	if config.SMTPS && config.NoSMTPS {
+		return fmt.Errorf("cannot use both -smtps and -no-smtps flags simultaneously")
+	}
+	if config.StartTLS && config.NoStartTLS {
+		return fmt.Errorf("cannot use both -starttls and -no-starttls flags simultaneously")
+	}
+
 	// Smart port default: if -smtps is set and port is 25 (default), change to 465
 	if config.SMTPS && config.Port == 25 {
 		config.Port = 465
@@ -330,6 +366,11 @@ func validateConfiguration(config *Config) error {
 
 	// Action-specific validation
 	switch config.Action {
+	case ActionTestStartTLS:
+		if config.NoStartTLS && !config.SMTPS {
+			return fmt.Errorf("teststarttls requires STARTTLS or -smtps; remove -no-starttls or use -smtps")
+		}
+
 	case ActionTestAuth:
 		if config.Username == "" {
 			return fmt.Errorf("testauth requires -username")
@@ -363,13 +404,26 @@ func validateConfiguration(config *Config) error {
 		if len(config.To) == 0 {
 			return fmt.Errorf("sendmail requires -to")
 		}
-		for _, email := range config.To {
-			if err := validation.ValidateEmail(strings.TrimSpace(email)); err != nil {
+		for _, addr := range config.To {
+			if err := validation.ValidateEmail(strings.TrimSpace(addr)); err != nil {
 				return fmt.Errorf("invalid recipient email: %w", err)
 			}
 		}
 		if config.Subject == "" {
 			return fmt.Errorf("sendmail requires -subject")
+		}
+		for i, path := range config.Attachments {
+			if err := validation.ValidateFilePath(path, fmt.Sprintf("Attachment file #%d", i+1)); err != nil {
+				return err
+			}
+		}
+		for i, path := range config.InlineAttachments {
+			if err := validation.ValidateFilePath(path, fmt.Sprintf("Inline attachment file #%d", i+1)); err != nil {
+				return err
+			}
+		}
+		if _, err := email.ParseHeaders(config.Headers); err != nil {
+			return fmt.Errorf("invalid -header: %w", err)
 		}
 	}
 

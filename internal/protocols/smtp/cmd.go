@@ -49,6 +49,10 @@ and (for SMTPS) TLS state. Detects Exchange Online servers.`,
 			_ = v.BindPFlags(cmd.Flags())
 			_ = v.BindPFlags(cmd.InheritedFlags())
 
+			if err := bootstrap.LoadConfigFile(v, v.GetString("config")); err != nil {
+				return err
+			}
+
 			config := ConfigFromViper(v)
 			config.Action = ActionTestConnect
 
@@ -89,6 +93,10 @@ protocol version, cipher suite, certificate chain, SANs, expiry, and security wa
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = v.BindPFlags(cmd.Flags())
 			_ = v.BindPFlags(cmd.InheritedFlags())
+
+			if err := bootstrap.LoadConfigFile(v, v.GetString("config")); err != nil {
+				return err
+			}
 
 			config := ConfigFromViper(v)
 			config.Action = ActionTestStartTLS
@@ -132,6 +140,10 @@ Automatically upgrades to TLS via STARTTLS when available on ports 25/587.`,
 			_ = v.BindPFlags(cmd.Flags())
 			_ = v.BindPFlags(cmd.InheritedFlags())
 
+			if err := bootstrap.LoadConfigFile(v, v.GetString("config")); err != nil {
+				return err
+			}
+
 			config := ConfigFromViper(v)
 			config.Action = ActionTestAuth
 
@@ -173,6 +185,10 @@ upgrades to TLS automatically, and logs the result (including TLS details) to CS
 			_ = v.BindPFlags(cmd.Flags())
 			_ = v.BindPFlags(cmd.InheritedFlags())
 
+			if err := bootstrap.LoadConfigFile(v, v.GetString("config")); err != nil {
+				return err
+			}
+
 			config := ConfigFromViper(v)
 			config.Action = ActionSendMail
 
@@ -207,6 +223,10 @@ upgrades to TLS automatically, and logs the result (including TLS details) to CS
 	cmd.Flags().String("to", "", "Comma-separated recipient email addresses (env: SMTPTO)")
 	cmd.Flags().String("subject", "SMTP Test", "Email subject (env: SMTPSUBJECT)")
 	cmd.Flags().String("body", "This is a test message from smtptool", "Email body text (env: SMTPBODY)")
+	cmd.Flags().String("bodyhtml", "", "HTML body content; combine with --body for multipart/alternative (env: SMTPBODYHTML)")
+	cmd.Flags().String("attachments", "", "Comma-separated file paths to attach (env: SMTPATTACHMENTS)")
+	cmd.Flags().String("inline-attachments", "", "Comma-separated file paths to embed inline via cid:<filename> (env: SMTPINLINEATTACHMENTS)")
+	cmd.Flags().StringArray("header", nil, "Custom header in 'Name: Value' form (repeatable)")
 
 	return cmd
 }

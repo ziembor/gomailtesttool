@@ -117,7 +117,7 @@ func testAuth(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		if config.VerboseMode && tlsState != nil {
 			displayComprehensiveTLSInfo(tlsState, config.Host, config.VerboseMode)
 		}
-	} else if (config.Port == 25 || config.Port == 587) && caps.SupportsSTARTTLS() {
+	} else if !config.NoStartTLS && (config.Port == 25 || config.Port == 587) && caps.SupportsSTARTTLS() {
 		// STARTTLS if on port 25/587 and available
 		fmt.Println("Upgrading to TLS before authentication...")
 		tlsVersion := smtptls.ParseTLSVersion(config.TLSVersion)

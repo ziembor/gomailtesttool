@@ -33,6 +33,8 @@ type Config struct {
 	// TLS configuration
 	POP3S      bool   // Use POP3S (implicit TLS on port 995)
 	StartTLS   bool   // Force STLS
+	NoStartTLS bool   // Force plain connection: disable STLS; error if --starttls is also set
+	NoPOP3S    bool   // Force plain connection: error if --pop3s is also set
 	SkipVerify bool   // Skip TLS certificate verification
 	TLSVersion string // TLS version to use: 1.2, 1.3
 
@@ -97,6 +99,8 @@ func RegisterPersistentFlags(cmd *cobra.Command) {
 	// TLS
 	f.Bool("starttls", false, "Force STLS usage (env: POP3STARTTLS)")
 	f.Bool("pop3s", false, "Use POP3S (implicit TLS), typically on port 995 (env: POP3POP3S)")
+	f.Bool("no-starttls", false, "Force plain connection: disable STLS; error if --starttls is also set (env: POP3NOSTARTTLS)")
+	f.Bool("no-pop3s", false, "Force plain connection: error if --pop3s is also set (env: POP3NOPOP3S)")
 	f.Bool("skipverify", false, "Skip TLS certificate verification (insecure) (env: POP3SKIPVERIFY)")
 	f.String("tlsversion", "1.2", "TLS version to use (exact): 1.2, 1.3 (env: POP3TLSVERSION)")
 
@@ -127,6 +131,8 @@ func BindEnvs(v *viper.Viper) {
 		"authmethod":  "POP3AUTHMETHOD",
 		"starttls":    "POP3STARTTLS",
 		"pop3s":       "POP3POP3S",
+		"no-starttls": "POP3NOSTARTTLS",
+		"no-pop3s":    "POP3NOPOP3S",
 		"skipverify":  "POP3SKIPVERIFY",
 		"tlsversion":  "POP3TLSVERSION",
 		"address":     "POP3ADDRESS",
@@ -209,6 +215,8 @@ func ConfigFromViper(v *viper.Viper) *Config {
 		MaxMessages:    maxMessages,
 		POP3S:          v.GetBool("pop3s"),
 		StartTLS:       v.GetBool("starttls"),
+		NoStartTLS:     v.GetBool("no-starttls"),
+		NoPOP3S:        v.GetBool("no-pop3s"),
 		SkipVerify:     v.GetBool("skipverify"),
 		TLSVersion:     tlsVersion,
 		ConnectAddress: v.GetString("address"),
@@ -253,6 +261,15 @@ func validateConfiguration(config *Config) error {
 	// Validate mutual exclusion: --pop3s and --starttls cannot be used together
 	if config.POP3S && config.StartTLS {
 		return fmt.Errorf("cannot use both --pop3s and --starttls flags simultaneously")
+	}
+
+	// Validate mutual exclusion: --no-pop3s/--no-starttls cannot be combined
+	// with the flags they negate
+	if config.POP3S && config.NoPOP3S {
+		return fmt.Errorf("cannot use both --pop3s and --no-pop3s flags simultaneously")
+	}
+	if config.StartTLS && config.NoStartTLS {
+		return fmt.Errorf("cannot use both --starttls and --no-starttls flags simultaneously")
 	}
 
 	// Smart port default: if --pop3s is set and port is 110 (default), change to 995
