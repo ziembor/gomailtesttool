@@ -36,7 +36,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 	// Write CSV header
 	if err := writeSMTPCSVHeader(csvLogger, []string{
-		"Action", "Status", "Server", "Port", "Connect_Address", "From", "To",
+		"Action", "Status", "Server", "Port", "Connect_Address", "From", "To", "Cc", "Bcc",
 		"Subject", "Body_Type", "Attachment_Count", "SMTP_Response_Code", "Message_ID",
 		"TLS_Version", "Cipher_Suite", "Cipher_Strength",
 		"Cert_Subject", "Cert_Issuer", "Cert_SANs",
@@ -55,6 +55,12 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 	fmt.Printf("From:    %s\n", config.From)
 	fmt.Printf("To:      %s\n", strings.Join(config.To, ", "))
+	if len(config.Cc) > 0 {
+		fmt.Printf("Cc:      %s\n", strings.Join(config.Cc, ", "))
+	}
+	if len(config.Bcc) > 0 {
+		fmt.Printf("Bcc:     %s\n", strings.Join(config.Bcc, ", "))
+	}
 	fmt.Printf("Subject: %s\n", config.Subject)
 	fmt.Printf("Body Type: %s\n", bodyType)
 	if attachmentCount > 0 {
@@ -70,7 +76,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		logger.LogError(slogLogger, "Connection failed", "error", err)
 		if logErr := writeSMTPCSVRow(csvLogger, []string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
+			config.ConnectAddress, config.From, strings.Join(config.To, ", "), strings.Join(config.Cc, ", "), strings.Join(config.Bcc, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
 			"", "", "", "", "", "", "", "", "", // No TLS info on connection failure
 			err.Error(),
 		}); logErr != nil {
@@ -101,7 +107,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		logger.LogError(slogLogger, "EHLO failed", "error", err)
 		if logErr := writeSMTPCSVRow(csvLogger, []string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
+			config.ConnectAddress, config.From, strings.Join(config.To, ", "), strings.Join(config.Cc, ", "), strings.Join(config.Bcc, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
 			"", "", "", "", "", "", "", "", "", // No TLS info on EHLO failure
 			err.Error(),
 		}); logErr != nil {
@@ -116,7 +122,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		// For SMTPS, TLS is already established
 		tlsState = client.GetTLSState()
 		if config.VerboseMode && tlsState != nil {
-			displayComprehensiveTLSInfo(tlsState, config.Host, config.VerboseMode)
+			displayComprehensiveTLSInfo(tlsState, client.GetHost(), config.VerboseMode)
 		}
 	} else if !config.NoStartTLS && (config.Port == 25 || config.Port == 587 || config.Port == 2525 || config.Port == 2526 || config.Port == 1025) && caps.SupportsSTARTTLS() {
 		// STARTTLS if on common SMTP submission ports and available
@@ -124,7 +130,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		fmt.Println("Upgrading to TLS...")
 		tlsVersion := smtptls.ParseTLSVersion(config.TLSVersion)
 		tlsConfig := &tls.Config{
-			ServerName:         config.Host,
+			ServerName:         client.GetHost(), // resolved MX hostname if --use-mx, otherwise --host
 			InsecureSkipVerify: config.SkipVerify,
 			MinVersion:         tlsVersion,
 			MaxVersion:         tlsVersion, // Force exact TLS version
@@ -135,7 +141,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 			logger.LogError(slogLogger, "STARTTLS failed", "error", err)
 			if logErr := writeSMTPCSVRow(csvLogger, []string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-				config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
+				config.ConnectAddress, config.From, strings.Join(config.To, ", "), strings.Join(config.Cc, ", "), strings.Join(config.Bcc, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
 				"", "", "", "", "", "", "", "", "", // No TLS info on STARTTLS failure
 				fmt.Sprintf("STARTTLS failed: %v", err),
 			}); logErr != nil {
@@ -148,7 +154,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 		// Show TLS cipher information in verbose mode
 		if config.VerboseMode {
-			displayComprehensiveTLSInfo(tlsState, config.Host, config.VerboseMode)
+			displayComprehensiveTLSInfo(tlsState, client.GetHost(), config.VerboseMode)
 		}
 
 		// Re-run EHLO on encrypted connection
@@ -166,10 +172,10 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 
 		if methodToUse == "" {
 			msg := "No compatible authentication mechanism found"
-			tlsData := formatTLSInfoForCSV(tlsState, config.Host)
+			tlsData := formatTLSInfoForCSV(tlsState, client.GetHost())
 			if logErr := writeSMTPCSVRow(csvLogger, []string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-				config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
+				config.ConnectAddress, config.From, strings.Join(config.To, ", "), strings.Join(config.Cc, ", "), strings.Join(config.Bcc, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
 				tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
 				tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,
 				tlsData.CertValidFrom, tlsData.CertValidTo, tlsData.VerificationStatus,
@@ -191,13 +197,13 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 			// Show TLS cipher information on auth failure if verbose and TLS was used
 			if config.VerboseMode && tlsState != nil {
 				fmt.Println("\nAuthentication failed. TLS Connection Details:")
-				displayComprehensiveTLSInfo(tlsState, config.Host, config.VerboseMode)
+				displayComprehensiveTLSInfo(tlsState, client.GetHost(), config.VerboseMode)
 			}
 
-			tlsData := formatTLSInfoForCSV(tlsState, config.Host)
+			tlsData := formatTLSInfoForCSV(tlsState, client.GetHost())
 			if logErr := writeSMTPCSVRow(csvLogger, []string{
 				config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-				config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
+				config.ConnectAddress, config.From, strings.Join(config.To, ", "), strings.Join(config.Cc, ", "), strings.Join(config.Bcc, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
 				tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
 				tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,
 				tlsData.CertValidFrom, tlsData.CertValidTo, tlsData.VerificationStatus,
@@ -217,7 +223,7 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 		logger.LogError(slogLogger, "Failed to build email message", "error", err)
 		if logErr := writeSMTPCSVRow(csvLogger, []string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
+			config.ConnectAddress, config.From, strings.Join(config.To, ", "), strings.Join(config.Cc, ", "), strings.Join(config.Bcc, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
 			"", "", "", "", "", "", "", "", "",
 			fmt.Sprintf("Failed to build message: %v", err),
 		}); logErr != nil {
@@ -227,17 +233,20 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	}
 	messageID := generateMessageID(config.Host)
 
-	// Send email
-	fmt.Println("\nSending message...")
-	logger.LogDebug(slogLogger, "Sending email", "from", config.From, "to", config.To)
+	// Send email. The SMTP envelope (RCPT TO) includes To, Cc, and Bcc
+	// recipients; only To and Cc appear in the message headers.
+	envelopeRecipients := collectEnvelopeRecipients(config)
 
-	err = client.SendMail(config.From, config.To, messageData)
+	fmt.Println("\nSending message...")
+	logger.LogDebug(slogLogger, "Sending email", "from", config.From, "to", config.To, "cc", config.Cc, "bcc", config.Bcc)
+
+	err = client.SendMail(config.From, envelopeRecipients, messageData)
 	if err != nil {
 		logger.LogError(slogLogger, "Failed to send email", "error", err)
-		tlsData := formatTLSInfoForCSV(tlsState, config.Host)
+		tlsData := formatTLSInfoForCSV(tlsState, client.GetHost())
 		if logErr := writeSMTPCSVRow(csvLogger, []string{
 			config.Action, "FAILURE", config.Host, fmt.Sprintf("%d", config.Port),
-			config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
+			config.ConnectAddress, config.From, strings.Join(config.To, ", "), strings.Join(config.Cc, ", "), strings.Join(config.Bcc, ", "), config.Subject, bodyType, attachmentCountStr, "", "",
 			tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
 			tlsData.CertSubject, tlsData.CertIssuer, tlsData.CertSANs,
 			tlsData.CertValidFrom, tlsData.CertValidTo, tlsData.VerificationStatus,
@@ -252,10 +261,10 @@ func SendMail(ctx context.Context, config *Config, csvLogger logger.Logger, slog
 	fmt.Printf("  Message-ID: <%s>\n", messageID)
 
 	// Log to CSV
-	tlsData := formatTLSInfoForCSV(tlsState, config.Host)
+	tlsData := formatTLSInfoForCSV(tlsState, client.GetHost())
 	if logErr := writeSMTPCSVRow(csvLogger, []string{
 		config.Action, "SUCCESS", config.Host, fmt.Sprintf("%d", config.Port),
-		config.ConnectAddress, config.From, strings.Join(config.To, ", "), config.Subject,
+		config.ConnectAddress, config.From, strings.Join(config.To, ", "), strings.Join(config.Cc, ", "), strings.Join(config.Bcc, ", "), config.Subject,
 		bodyType, attachmentCountStr,
 		"250", messageID,
 		tlsData.TLSVersion, tlsData.CipherSuite, tlsData.CipherStrength,
@@ -301,22 +310,25 @@ func writeSMTPCSVRow(csvLogger logger.Logger, row []string) error {
 // CRLF sequences that could be used for header injection attacks. The message
 // body is written as provided after the header/body separator. Body safety
 // controls (e.g. DATA dot-stuffing) are handled at the SMTP transport layer.
-func buildEmailMessage(from string, to []string, subject, body string) []byte {
+func buildEmailMessage(from string, to, cc []string, subject, body, priority string) []byte {
 	messageID := generateMessageID("")
 	date := time.Now().Format(time.RFC1123Z)
 
 	// Sanitize header fields to prevent header injection
 	sanitizedFrom := sanitizeEmailHeader(from)
 	sanitizedSubject := sanitizeEmailHeader(subject)
-	sanitizedTo := make([]string, len(to))
-	for i, addr := range to {
-		sanitizedTo[i] = sanitizeEmailHeader(addr)
-	}
+	sanitizedTo := sanitizeEmailHeaders(to)
 	message := fmt.Sprintf("Message-ID: <%s>\r\n", messageID)
 	message += fmt.Sprintf("Date: %s\r\n", date)
 	message += fmt.Sprintf("From: %s\r\n", sanitizedFrom)
 	message += fmt.Sprintf("To: %s\r\n", strings.Join(sanitizedTo, ", "))
+	if len(cc) > 0 {
+		message += fmt.Sprintf("Cc: %s\r\n", strings.Join(sanitizeEmailHeaders(cc), ", "))
+	}
 	message += fmt.Sprintf("Subject: %s\r\n", sanitizedSubject)
+	for _, line := range priorityHeaderLines(priority) {
+		message += line + "\r\n"
+	}
 	message += "MIME-Version: 1.0\r\n"
 	message += "Content-Type: text/plain; charset=UTF-8\r\n"
 	message += "\r\n"
@@ -333,7 +345,7 @@ func buildEmailMessage(from string, to []string, subject, body string) []byte {
 func buildMIMEMessage(config *Config, slogLogger *slog.Logger) ([]byte, error) {
 	hasExtras := config.BodyHTML != "" || len(config.Attachments) > 0 || len(config.InlineAttachments) > 0 || len(config.Headers) > 0
 	if !hasExtras {
-		return buildEmailMessage(config.From, config.To, config.Subject, config.Body), nil
+		return buildEmailMessage(config.From, config.To, config.Cc, config.Subject, config.Body, config.Priority), nil
 	}
 
 	customHeaders, err := email.ParseHeaders(config.Headers)
@@ -366,17 +378,20 @@ func buildMIMEMessage(config *Config, slogLogger *slog.Logger) ([]byte, error) {
 
 	sanitizedFrom := sanitizeEmailHeader(config.From)
 	sanitizedSubject := sanitizeEmailHeader(config.Subject)
-	sanitizedTo := make([]string, len(config.To))
-	for i, addr := range config.To {
-		sanitizedTo[i] = sanitizeEmailHeader(addr)
-	}
+	sanitizedTo := sanitizeEmailHeaders(config.To)
 
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "Message-ID: <%s>\r\n", messageID)
 	fmt.Fprintf(&buf, "Date: %s\r\n", date)
 	fmt.Fprintf(&buf, "From: %s\r\n", sanitizedFrom)
 	fmt.Fprintf(&buf, "To: %s\r\n", strings.Join(sanitizedTo, ", "))
+	if len(config.Cc) > 0 {
+		fmt.Fprintf(&buf, "Cc: %s\r\n", strings.Join(sanitizeEmailHeaders(config.Cc), ", "))
+	}
 	fmt.Fprintf(&buf, "Subject: %s\r\n", sanitizedSubject)
+	for _, line := range priorityHeaderLines(config.Priority) {
+		buf.WriteString(line + "\r\n")
+	}
 	for _, h := range customHeaders {
 		fmt.Fprintf(&buf, "%s: %s\r\n", h.Name, h.Value)
 	}
@@ -550,6 +565,39 @@ func sanitizeEmailHeader(header string) string {
 	header = strings.ReplaceAll(header, "\r", "")
 	header = strings.ReplaceAll(header, "\n", "")
 	return header
+}
+
+// priorityHeaderLines returns the "Name: Value" header lines (without CRLF)
+// for the given priority. "normal" (and any other value) adds no headers,
+// since it matches default mail client behavior.
+func priorityHeaderLines(priority string) []string {
+	switch priority {
+	case "high":
+		return []string{"X-Priority: 1 (Highest)", "Importance: High", "Priority: urgent"}
+	case "low":
+		return []string{"X-Priority: 5 (Lowest)", "Importance: Low", "Priority: non-urgent"}
+	default:
+		return nil
+	}
+}
+
+// collectEnvelopeRecipients returns the full list of SMTP envelope (RCPT TO)
+// recipients: To, then Cc, then Bcc, in that order.
+func collectEnvelopeRecipients(config *Config) []string {
+	recipients := make([]string, 0, len(config.To)+len(config.Cc)+len(config.Bcc))
+	recipients = append(recipients, config.To...)
+	recipients = append(recipients, config.Cc...)
+	recipients = append(recipients, config.Bcc...)
+	return recipients
+}
+
+// sanitizeEmailHeaders applies sanitizeEmailHeader to each address in a list.
+func sanitizeEmailHeaders(addrs []string) []string {
+	sanitized := make([]string, len(addrs))
+	for i, addr := range addrs {
+		sanitized[i] = sanitizeEmailHeader(addr)
+	}
+	return sanitized
 }
 
 // generateMessageID creates a unique message ID.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/ziembor/gomailtesttool/internal/common/network"
 	"github.com/ziembor/gomailtesttool/internal/common/validation"
 )
 
@@ -40,6 +41,8 @@ type Config struct {
 
 	// Network configuration
 	ConnectAddress string // Override address for TCP connection (IP or hostname)
+	IPv4Only       bool   // Force resolving --host/--address to an IPv4 (A record) address
+	IPv6Only       bool   // Force resolving --host/--address to an IPv6 (AAAA record) address
 	ProxyURL       string
 	MaxRetries     int
 	RetryDelay     time.Duration
@@ -86,7 +89,7 @@ func RegisterPersistentFlags(cmd *cobra.Command) {
 	f := cmd.PersistentFlags()
 
 	// POP3 server
-	f.String("host", "", "POP3 server hostname or IP address (env: POP3HOST)")
+	f.String("host", "", "POP3 server hostname (required) — the service to connect to; also used for TLS SNI/certificate checks and authentication (env: POP3HOST)")
 	f.Int("port", 110, "POP3 server port (env: POP3PORT)")
 	f.Int("timeout", 30, "Connection timeout in seconds (env: POP3TIMEOUT)")
 
@@ -105,7 +108,9 @@ func RegisterPersistentFlags(cmd *cobra.Command) {
 	f.String("tlsversion", "1.2", "TLS version to use (exact): 1.2, 1.3 (env: POP3TLSVERSION)")
 
 	// Network
-	f.String("address", "", "Override IP address or hostname for TCP connection (env: POP3ADDRESS)")
+	f.String("address", "", "Optional: connect to this IP/hostname instead of --host (e.g. to test a specific server behind a load balancer); --host is still used for SNI, certificate checks, and authentication (env: POP3ADDRESS)")
+	f.Bool("ipv4", false, "Force IPv4: resolve --host/--address to an A record and connect over IPv4 (env: POP3IPV4)")
+	f.Bool("ipv6", false, "Force IPv6: resolve --host/--address to an AAAA record and connect over IPv6 (env: POP3IPV6)")
 	f.String("proxy", "", "HTTP/HTTPS proxy URL (env: POP3PROXY)")
 	f.Int("maxretries", 3, "Maximum retry attempts (env: POP3MAXRETRIES)")
 	f.Int("retrydelay", 2000, "Retry delay in milliseconds (env: POP3RETRYDELAY)")
@@ -136,6 +141,8 @@ func BindEnvs(v *viper.Viper) {
 		"skipverify":  "POP3SKIPVERIFY",
 		"tlsversion":  "POP3TLSVERSION",
 		"address":     "POP3ADDRESS",
+		"ipv4":        "POP3IPV4",
+		"ipv6":        "POP3IPV6",
 		"proxy":       "POP3PROXY",
 		"maxretries":  "POP3MAXRETRIES",
 		"retrydelay":  "POP3RETRYDELAY",
@@ -220,6 +227,8 @@ func ConfigFromViper(v *viper.Viper) *Config {
 		SkipVerify:     v.GetBool("skipverify"),
 		TLSVersion:     tlsVersion,
 		ConnectAddress: v.GetString("address"),
+		IPv4Only:       v.GetBool("ipv4"),
+		IPv6Only:       v.GetBool("ipv6"),
 		ProxyURL:       v.GetString("proxy"),
 		MaxRetries:     maxRetries,
 		RetryDelay:     time.Duration(retryDelayMs) * time.Millisecond,
@@ -293,6 +302,11 @@ func validateConfiguration(config *Config) error {
 	// Validate proxy URL (if provided)
 	if err := validation.ValidateProxyURL(config.ProxyURL); err != nil {
 		return fmt.Errorf("invalid proxy URL: %w", err)
+	}
+
+	// Validate mutual exclusion: --ipv4 and --ipv6 cannot be used together
+	if err := network.ValidateIPVersionFlags(config.IPv4Only, config.IPv6Only); err != nil {
+		return err
 	}
 
 	// Validate connect address (if provided)

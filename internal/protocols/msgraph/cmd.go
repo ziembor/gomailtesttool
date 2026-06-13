@@ -157,6 +157,7 @@ func newSendMailCmd(v *viper.Viper) *cobra.Command {
 	cmd.Flags().String("attachments", "", "Comma-separated file paths to attach (env: MSGRAPHATTACHMENTS)")
 	cmd.Flags().String("inline-attachments", "", "Comma-separated file paths to embed inline via cid:<filename> (env: MSGRAPHINLINEATTACHMENTS)")
 	cmd.Flags().StringArray("header", nil, "Custom header in 'Name: Value' form (repeatable)")
+	cmd.Flags().String("priority", "normal", "Email priority/importance: high, normal, low (env: MSGRAPHPRIORITY)")
 	return cmd
 }
 

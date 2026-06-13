@@ -9,9 +9,9 @@
 | **SWAKS** | Perl | SMTP, ESMTP, LMTP | The "Swiss Army Knife for SMTP"; the gold standard for step-by-step raw transaction and routing debugging. | [Website](https://jetmore.org/john/code/swaks/) / [GitHub](https://github.com/jetmore/swaks) |
 | ***tluyben/go-smtp-cli*** | Go | SMTP | Go implementation of Perl smtp-cli | [github](https://github.com/tluyben/go-smtp-cli/) |
 
-## Mail tools for proxing traffic
+## Mail tools for relay mail traffic
 
 | Tool | Language | Supported Protocols | Focus / Best Use Case | Link |
 | :--- | :--- | :--- | :--- | :--- |
 
-| ***grafana/smtprelay*** | Go | SMTP | Go implementation of Perl smtp-cli | [github](https://github.com/grafana/smtprelay) |
+| ***grafana/smtprelay*** | Go | SMTP | simple SMTP relay by Grafana | [github](https://github.com/grafana/smtprelay) |

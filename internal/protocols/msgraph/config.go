@@ -41,6 +41,7 @@ type Config struct {
 	Body         string // Email body text content
 	BodyHTML     string // Email body HTML content (future use)
 	BodyTemplate string // Path to HTML email body template file
+	Priority     string // Email priority: high, normal, low (maps to Graph Importance)
 
 	// Calendar invite configuration
 	InviteSubject string // Subject of calendar meeting invitation
@@ -68,6 +69,7 @@ func NewConfig() *Config {
 	return &Config{
 		Subject:       "Automated Tool Notification",
 		Body:          "It's a test message, please ignore",
+		Priority:      "normal",
 		InviteSubject: "System Sync",
 		Action:        ActionGetInbox,
 		Count:         3,
@@ -139,6 +141,7 @@ func BindEnvs(v *viper.Viper) {
 		"subject":            "MSGRAPHSUBJECT",
 		"body":               "MSGRAPHBODY",
 		"bodyhtml":           "MSGRAPHBODYHTML",
+		"priority":           "MSGRAPHPRIORITY",
 		"body-template":      "MSGRAPHBODYTEMPLATE",
 		"attachments":        "MSGRAPHATTACHMENTS",
 		"inline-attachments": "MSGRAPHINLINEATTACHMENTS",
@@ -188,6 +191,11 @@ func ConfigFromViper(v *viper.Viper) *Config {
 		body = defaults.Body
 	}
 
+	priority := strings.ToLower(v.GetString("priority"))
+	if priority == "" {
+		priority = defaults.Priority
+	}
+
 	logLevel := v.GetString("loglevel")
 	if logLevel == "" {
 		logLevel = defaults.LogLevel
@@ -222,6 +230,7 @@ func ConfigFromViper(v *viper.Viper) *Config {
 		Body:                  body,
 		BodyHTML:              v.GetString("bodyhtml"),
 		BodyTemplate:          v.GetString("body-template"),
+		Priority:              priority,
 		InviteSubject:         v.GetString("invite-subject"),
 		StartTime:             v.GetString("start"),
 		EndTime:               v.GetString("end"),
@@ -315,6 +324,13 @@ func validateConfiguration(config *Config) error {
 		if err := validateFilePath(config.BodyTemplate, "Body template file"); err != nil {
 			return err
 		}
+	}
+
+	// Validate email priority
+	switch config.Priority {
+	case "high", "normal", "low":
+	default:
+		return fmt.Errorf("invalid -priority: %s (must be one of: high, normal, low)", config.Priority)
 	}
 
 	// Validate email lists if provided

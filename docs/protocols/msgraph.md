@@ -163,6 +163,7 @@ gomailtest msgraph searchandexport --messageid "<message-id@example.com>"
 | `--attachments` | Comma-separated file paths | `MSGRAPHATTACHMENTS` |
 | `--inline-attachments` | Comma-separated file paths to embed inline via `cid:<filename>` (referenced from `--bodyHTML`) | `MSGRAPHINLINEATTACHMENTS` |
 | `--header` | Custom header in `"Name: Value"` form (repeatable) | — (CLI only) |
+| `--priority` | Email priority/importance: `high`, `normal`, `low` (maps to the Graph `importance` field) | `MSGRAPHPRIORITY` |
 | `--start` | Start time (RFC3339) | `MSGRAPHSTART` |
 | `--end` | End time (RFC3339) | `MSGRAPHEND` |
 | `--messageid` | Internet Message ID | `MSGRAPHMESSAGEID` |

@@ -111,6 +111,13 @@ func SendEmail(ctx context.Context, client *msgraphsdk.GraphServiceClient, sende
 	// Set Subject
 	message.SetSubject(&subject)
 
+	// Set Importance (high/normal/low); defaults to normal
+	if importance, err := models.ParseImportance(config.Priority); err == nil && importance != nil {
+		imp := importance.(*models.Importance)
+		message.SetImportance(imp)
+		logVerbose(config.VerboseMode, "Email importance: %s", config.Priority)
+	}
+
 	// Set body - prefer HTML if provided, otherwise use text
 	body := models.NewItemBody()
 	if htmlContent != "" {

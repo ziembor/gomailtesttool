@@ -65,7 +65,7 @@ func TestBuildMIMEMessage_NoExtrasFallsBackToPlainText(t *testing.T) {
 		t.Fatalf("buildMIMEMessage() error = %v", err)
 	}
 
-	want := buildEmailMessage(cfg.From, cfg.To, cfg.Subject, cfg.Body)
+	want := buildEmailMessage(cfg.From, cfg.To, cfg.Cc, cfg.Subject, cfg.Body, cfg.Priority)
 
 	// Message-IDs are generated independently and will differ; strip them
 	// before comparing the remaining structure.
@@ -84,6 +84,134 @@ func TestBuildMIMEMessage_NoExtrasFallsBackToPlainText(t *testing.T) {
 
 	if stripMessageID(string(got)) != stripMessageID(string(want)) {
 		t.Errorf("buildMIMEMessage() with no extras = %q, want %q (buildEmailMessage output)", got, want)
+	}
+}
+
+func TestBuildMIMEMessage_CcHeaderPresent_BccHeaderAbsent(t *testing.T) {
+	cfg := newTestConfig()
+	cfg.Cc = []string{"cc@example.com"}
+	cfg.Bcc = []string{"bcc@example.com"}
+
+	got, err := buildMIMEMessage(cfg, discardLogger())
+	if err != nil {
+		t.Fatalf("buildMIMEMessage() error = %v", err)
+	}
+
+	messageStr := string(got)
+	if !strings.Contains(messageStr, "Cc: cc@example.com\r\n") {
+		t.Errorf("buildMIMEMessage() missing Cc header, got:\n%s", messageStr)
+	}
+	if strings.Contains(messageStr, "bcc@example.com") || strings.Contains(messageStr, "Bcc:") {
+		t.Errorf("buildMIMEMessage() must not include Bcc in headers, got:\n%s", messageStr)
+	}
+}
+
+// TestBuildMIMEMessage_CcHeaderPresent_ExtrasPath covers the Cc: header
+// written in buildMIMEMessage's main (non-fallback) path, exercised when
+// BodyHTML (or another "extra") is set alongside Cc.
+func TestBuildMIMEMessage_CcHeaderPresent_ExtrasPath(t *testing.T) {
+	cfg := newTestConfig()
+	cfg.Cc = []string{"cc@example.com"}
+	cfg.Bcc = []string{"bcc@example.com"}
+	cfg.BodyHTML = "<p>Hello</p>"
+
+	got, err := buildMIMEMessage(cfg, discardLogger())
+	if err != nil {
+		t.Fatalf("buildMIMEMessage() error = %v", err)
+	}
+
+	messageStr := string(got)
+	if !strings.Contains(messageStr, "Cc: cc@example.com\r\n") {
+		t.Errorf("buildMIMEMessage() (extras path) missing Cc header, got:\n%s", messageStr)
+	}
+	if strings.Contains(messageStr, "bcc@example.com") || strings.Contains(messageStr, "Bcc:") {
+		t.Errorf("buildMIMEMessage() (extras path) must not include Bcc in headers, got:\n%s", messageStr)
+	}
+}
+
+func TestPriorityHeaderLines(t *testing.T) {
+	tests := []struct {
+		priority string
+		want     []string
+	}{
+		{"normal", nil},
+		{"", nil},
+		{"unknown", nil},
+		{"high", []string{"X-Priority: 1 (Highest)", "Importance: High", "Priority: urgent"}},
+		{"low", []string{"X-Priority: 5 (Lowest)", "Importance: Low", "Priority: non-urgent"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.priority, func(t *testing.T) {
+			got := priorityHeaderLines(tt.priority)
+			if len(got) != len(tt.want) {
+				t.Fatalf("priorityHeaderLines(%q) = %v, want %v", tt.priority, got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("priorityHeaderLines(%q)[%d] = %q, want %q", tt.priority, i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestBuildMIMEMessage_PriorityHeaders(t *testing.T) {
+	for _, priority := range []string{"high", "low"} {
+		t.Run(priority, func(t *testing.T) {
+			cfg := newTestConfig()
+			cfg.Priority = priority
+			cfg.BodyHTML = "<p>Hello</p>" // exercise the "extras" path
+
+			got, err := buildMIMEMessage(cfg, discardLogger())
+			if err != nil {
+				t.Fatalf("buildMIMEMessage() error = %v", err)
+			}
+
+			messageStr := string(got)
+			for _, line := range priorityHeaderLines(priority) {
+				if !strings.Contains(messageStr, line+"\r\n") {
+					t.Errorf("buildMIMEMessage() (priority=%s) missing header %q, got:\n%s", priority, line, messageStr)
+				}
+			}
+		})
+	}
+}
+
+func TestBuildMIMEMessage_NormalPriorityAddsNoHeaders(t *testing.T) {
+	cfg := newTestConfig()
+	cfg.Priority = "normal"
+	cfg.BodyHTML = "<p>Hello</p>"
+
+	got, err := buildMIMEMessage(cfg, discardLogger())
+	if err != nil {
+		t.Fatalf("buildMIMEMessage() error = %v", err)
+	}
+
+	messageStr := string(got)
+	for _, name := range []string{"X-Priority", "Importance", "Priority:"} {
+		if strings.Contains(messageStr, name) {
+			t.Errorf("buildMIMEMessage() (priority=normal) unexpectedly contains %q, got:\n%s", name, messageStr)
+		}
+	}
+}
+
+func TestBuildEmailMessage_CcHeaderPresent_BccHeaderAbsent(t *testing.T) {
+	message := buildEmailMessage(
+		"sender@example.com",
+		[]string{"recipient@example.com"},
+		[]string{"cc@example.com"},
+		"Test Subject",
+		"Test Body",
+		"normal",
+	)
+
+	messageStr := string(message)
+	if !strings.Contains(messageStr, "Cc: cc@example.com\r\n") {
+		t.Errorf("buildEmailMessage() missing Cc header, got:\n%s", messageStr)
+	}
+	if strings.Contains(messageStr, "Bcc:") {
+		t.Errorf("buildEmailMessage() must never write a Bcc header, got:\n%s", messageStr)
 	}
 }
 

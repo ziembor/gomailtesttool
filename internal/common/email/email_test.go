@@ -112,10 +112,10 @@ func TestParseHeaders(t *testing.T) {
 	}{
 		{
 			name: "valid headers",
-			raw:  []string{"X-Custom: value", "X-Priority:1"},
+			raw:  []string{"X-Custom: value", "X-Other:1"},
 			want: []Header{
 				{Name: "X-Custom", Value: "value"},
-				{Name: "X-Priority", Value: "1"},
+				{Name: "X-Other", Value: "1"},
 			},
 		},
 		{

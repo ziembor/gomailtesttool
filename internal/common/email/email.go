@@ -90,6 +90,9 @@ var protectedHeaders = map[string]bool{
 	"content-type":              true,
 	"content-transfer-encoding": true,
 	"content-disposition":       true,
+	"x-priority":                true,
+	"importance":                true,
+	"priority":                  true,
 }
 
 // ParseHeaders parses entries of the form "Name: Value" into Headers.

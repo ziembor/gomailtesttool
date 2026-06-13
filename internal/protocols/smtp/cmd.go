@@ -221,12 +221,15 @@ upgrades to TLS automatically, and logs the result (including TLS details) to CS
 
 	cmd.Flags().String("from", "", "Sender email address (env: SMTPFROM)")
 	cmd.Flags().String("to", "", "Comma-separated recipient email addresses (env: SMTPTO)")
+	cmd.Flags().String("cc", "", "Comma-separated CC recipient email addresses; included in the Cc: header and the SMTP envelope (env: SMTPCC)")
+	cmd.Flags().String("bcc", "", "Comma-separated BCC recipient email addresses; included in the SMTP envelope only, never in message headers (env: SMTPBCC)")
 	cmd.Flags().String("subject", "SMTP Test", "Email subject (env: SMTPSUBJECT)")
 	cmd.Flags().String("body", "This is a test message from smtptool", "Email body text (env: SMTPBODY)")
 	cmd.Flags().String("bodyhtml", "", "HTML body content; combine with --body for multipart/alternative (env: SMTPBODYHTML)")
 	cmd.Flags().String("attachments", "", "Comma-separated file paths to attach (env: SMTPATTACHMENTS)")
 	cmd.Flags().String("inline-attachments", "", "Comma-separated file paths to embed inline via cid:<filename> (env: SMTPINLINEATTACHMENTS)")
 	cmd.Flags().StringArray("header", nil, "Custom header in 'Name: Value' form (repeatable)")
+	cmd.Flags().String("priority", "normal", "Email priority: high, normal, low; high/low add X-Priority, Importance, and Priority headers (env: SMTPPRIORITY)")
 
 	return cmd
 }

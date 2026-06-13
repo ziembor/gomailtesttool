@@ -104,7 +104,7 @@ All non-health endpoints require the X-API-Key header.`,
 	}
 
 	cmd.Flags().Int("port", 8080, "HTTP listen port (env: SERVE_PORT)")
-	cmd.Flags().String("listen", "", "Bind address; empty means all interfaces (env: SERVE_LISTEN)")
+	cmd.Flags().String("listen", "127.0.0.1", "Bind address; use 0.0.0.0 to listen on all interfaces (env: SERVE_LISTEN)")
 	cmd.Flags().String("api-key", "", "Required X-API-Key header value (env: SERVE_API_KEY)")
 
 	_ = v.BindEnv("port", "SERVE_PORT")

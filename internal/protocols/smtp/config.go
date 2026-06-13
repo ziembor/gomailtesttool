@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/ziembor/gomailtesttool/internal/common/email"
+	"github.com/ziembor/gomailtesttool/internal/common/network"
 	"github.com/ziembor/gomailtesttool/internal/common/validation"
 )
 
@@ -33,12 +34,15 @@ type Config struct {
 	// Email configuration (for sendmail)
 	From              string
 	To                []string
+	Cc                []string // CC recipients: added to the SMTP envelope (RCPT TO) and the Cc: header
+	Bcc               []string // BCC recipients: added to the SMTP envelope (RCPT TO) only, never to message headers
 	Subject           string
 	Body              string
 	BodyHTML          string   // HTML body content; if set alongside Body, a multipart/alternative message is sent
 	Attachments       []string // File paths to attach to email
 	InlineAttachments []string // File paths to embed inline via cid: (referenced from BodyHTML)
 	Headers           []string // Custom headers in "Name: Value" form
+	Priority          string   // Email priority: high, normal, low (normal adds no extra headers)
 
 	// TLS configuration
 	StartTLS   bool   // Force STARTTLS
@@ -50,6 +54,9 @@ type Config struct {
 
 	// Network configuration
 	ConnectAddress string // Override address for TCP connection (IP or hostname)
+	IPv4Only       bool   // Force resolving --host/--address to an IPv4 (A record) address
+	IPv6Only       bool   // Force resolving --host/--address to an IPv6 (AAAA record) address
+	UseMX          bool   // Treat --host as a domain and connect to its MX record instead
 	ProxyURL       string
 	MaxRetries     int
 	RetryDelay     time.Duration
@@ -78,6 +85,7 @@ func NewConfig() *Config {
 		AuthMethod:   "auto",
 		Subject:      "SMTP Test",
 		Body:         "This is a test message from smtptool",
+		Priority:     "normal",
 		StartTLS:     false, // Auto-detect
 		SkipVerify:   false,
 		TLSVersion:   "1.2",
@@ -97,7 +105,7 @@ func RegisterPersistentFlags(cmd *cobra.Command) {
 	f := cmd.PersistentFlags()
 
 	// SMTP server
-	f.String("host", "", "SMTP server hostname or IP address (env: SMTPHOST)")
+	f.String("host", "", "SMTP server hostname (required) — the service to connect to; also used for TLS SNI/certificate checks and authentication (env: SMTPHOST)")
 	f.Int("port", 25, "SMTP server port (env: SMTPPORT)")
 	f.Int("timeout", 30, "Connection timeout in seconds (env: SMTPTIMEOUT)")
 
@@ -118,7 +126,10 @@ func RegisterPersistentFlags(cmd *cobra.Command) {
 	f.String("tlsversion", "1.2", "TLS version to use (exact): 1.2, 1.3 (env: SMTPTLSVERSION)")
 
 	// Network
-	f.String("address", "", "Override IP address or hostname for TCP connection (env: SMTPADDRESS)")
+	f.String("address", "", "Optional: connect to this IP/hostname instead of --host (e.g. to test a specific server behind a load balancer); --host is still used for SNI, certificate checks, and authentication (env: SMTPADDRESS)")
+	f.Bool("ipv4", false, "Force IPv4: resolve --host/--address to an A record and connect over IPv4 (env: SMTPIPV4)")
+	f.Bool("ipv6", false, "Force IPv6: resolve --host/--address to an AAAA record and connect over IPv6 (env: SMTPIPV6)")
+	f.Bool("use-mx", false, "Treat --host as a domain name and connect to its MX record instead (env: SMTPUSEMX)")
 	f.String("proxy", "", "HTTP/HTTPS proxy URL (env: SMTPPROXY)")
 	f.Int("maxretries", 3, "Maximum retry attempts (env: SMTPMAXRETRIES)")
 	f.Int("retrydelay", 2000, "Retry delay in milliseconds (env: SMTPRETRYDELAY)")
@@ -146,6 +157,9 @@ func BindEnvs(v *viper.Viper) {
 		"kdc":               "SMTPKDC",
 		"from":              "SMTPFROM",
 		"to":                "SMTPTO",
+		"cc":                "SMTPCC",
+		"bcc":               "SMTPBCC",
+		"priority":          "SMTPPRIORITY",
 		"bodyhtml":          "SMTPBODYHTML",
 		"attachments":       "SMTPATTACHMENTS",
 		"inlineattachments": "SMTPINLINEATTACHMENTS",
@@ -156,6 +170,9 @@ func BindEnvs(v *viper.Viper) {
 		"skipverify":        "SMTPSKIPVERIFY",
 		"tlsversion":        "SMTPTLSVERSION",
 		"address":           "SMTPADDRESS",
+		"ipv4":              "SMTPIPV4",
+		"ipv6":              "SMTPIPV6",
+		"use-mx":            "SMTPUSEMX",
 		"proxy":             "SMTPPROXY",
 		"maxretries":        "SMTPMAXRETRIES",
 		"retrydelay":        "SMTPRETRYDELAY",
@@ -220,6 +237,8 @@ func ConfigFromViper(v *viper.Viper) *Config {
 
 	// Parse comma-separated lists
 	toList := splitCommaSeparated(v.GetString("to"))
+	ccList := splitCommaSeparated(v.GetString("cc"))
+	bccList := splitCommaSeparated(v.GetString("bcc"))
 	attachments := splitCommaSeparated(v.GetString("attachments"))
 	inlineAttachments := splitCommaSeparated(v.GetString("inline-attachments"))
 
@@ -231,6 +250,11 @@ func ConfigFromViper(v *viper.Viper) *Config {
 	body := v.GetString("body")
 	if body == "" {
 		body = defaults.Body
+	}
+
+	priority := strings.ToLower(v.GetString("priority"))
+	if priority == "" {
+		priority = defaults.Priority
 	}
 
 	return &Config{
@@ -245,12 +269,15 @@ func ConfigFromViper(v *viper.Viper) *Config {
 		KDCAddress:        v.GetString("kdc"),
 		From:              v.GetString("from"),
 		To:                toList,
+		Cc:                ccList,
+		Bcc:               bccList,
 		Subject:           subject,
 		Body:              body,
 		BodyHTML:          v.GetString("bodyhtml"),
 		Attachments:       attachments,
 		InlineAttachments: inlineAttachments,
 		Headers:           v.GetStringSlice("header"),
+		Priority:          priority,
 		StartTLS:          v.GetBool("starttls"),
 		SMTPS:             v.GetBool("smtps"),
 		NoStartTLS:        v.GetBool("no-starttls"),
@@ -258,6 +285,9 @@ func ConfigFromViper(v *viper.Viper) *Config {
 		SkipVerify:        v.GetBool("skipverify"),
 		TLSVersion:        tlsVersion,
 		ConnectAddress:    v.GetString("address"),
+		IPv4Only:          v.GetBool("ipv4"),
+		IPv6Only:          v.GetBool("ipv6"),
+		UseMX:             v.GetBool("use-mx"),
 		ProxyURL:          v.GetString("proxy"),
 		MaxRetries:        maxRetries,
 		RetryDelay:        time.Duration(retryDelayMs) * time.Millisecond,
@@ -339,12 +369,15 @@ func validateConfiguration(config *Config) error {
 		config.Port = 465
 	}
 
-	// Validate host (required for all actions)
-	if config.Host == "" {
-		return fmt.Errorf("host is required (-host flag)")
-	}
-	if err := validation.ValidateHostname(config.Host); err != nil {
-		return fmt.Errorf("invalid host: %w", err)
+	// Validate host (required for all actions, except sendmail with --use-mx,
+	// where the MX lookup domain is derived from --to instead).
+	if !(config.Action == ActionSendMail && config.UseMX) {
+		if config.Host == "" {
+			return fmt.Errorf("host is required (-host flag)")
+		}
+		if err := validation.ValidateHostname(config.Host); err != nil {
+			return fmt.Errorf("invalid host: %w", err)
+		}
 	}
 
 	// Validate port
@@ -357,11 +390,21 @@ func validateConfiguration(config *Config) error {
 		return fmt.Errorf("invalid proxy URL: %w", err)
 	}
 
+	// Validate mutual exclusion: -ipv4 and -ipv6 cannot be used together
+	if err := network.ValidateIPVersionFlags(config.IPv4Only, config.IPv6Only); err != nil {
+		return err
+	}
+
 	// Validate connect address (if provided)
 	if config.ConnectAddress != "" {
 		if err := validation.ValidateHostname(config.ConnectAddress); err != nil {
 			return fmt.Errorf("invalid connect address: %w", err)
 		}
+	}
+
+	// Validate mutual exclusion: -use-mx and -address cannot be used together
+	if config.UseMX && config.ConnectAddress != "" {
+		return fmt.Errorf("cannot use both -use-mx and -address simultaneously")
 	}
 
 	// Action-specific validation
@@ -409,8 +452,39 @@ func validateConfiguration(config *Config) error {
 				return fmt.Errorf("invalid recipient email: %w", err)
 			}
 		}
+
+		// Validate mutual exclusion: -use-mx and -host cannot be used together
+		// for sendmail; the MX lookup domain is derived from -to instead.
+		if config.UseMX {
+			if config.Host != "" {
+				return fmt.Errorf("cannot use both -use-mx and -host simultaneously for sendmail")
+			}
+			domain, err := validation.ExtractEmailDomain(strings.TrimSpace(config.To[0]))
+			if err != nil {
+				return fmt.Errorf("cannot derive MX lookup domain from -to: %w", err)
+			}
+			if err := validation.ValidateHostname(domain); err != nil {
+				return fmt.Errorf("invalid domain derived from -to recipient %q: %w", config.To[0], err)
+			}
+			config.Host = domain
+		}
+		for _, addr := range config.Cc {
+			if err := validation.ValidateEmail(strings.TrimSpace(addr)); err != nil {
+				return fmt.Errorf("invalid cc email: %w", err)
+			}
+		}
+		for _, addr := range config.Bcc {
+			if err := validation.ValidateEmail(strings.TrimSpace(addr)); err != nil {
+				return fmt.Errorf("invalid bcc email: %w", err)
+			}
+		}
 		if config.Subject == "" {
 			return fmt.Errorf("sendmail requires -subject")
+		}
+		switch config.Priority {
+		case "high", "normal", "low":
+		default:
+			return fmt.Errorf("invalid -priority: %s (must be one of: high, normal, low)", config.Priority)
 		}
 		for i, path := range config.Attachments {
 			if err := validation.ValidateFilePath(path, fmt.Sprintf("Attachment file #%d", i+1)); err != nil {
